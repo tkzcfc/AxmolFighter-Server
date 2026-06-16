@@ -1,0 +1,6 @@
+[server]
+instance_id = 1
+
+[gateway]
+addr = "127.0.0.1:7100"
+reconnect_interval = 3

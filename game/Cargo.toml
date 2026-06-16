@@ -1,0 +1,18 @@
+[workspace]
+
+members = [
+    "protocol",
+    "base",
+    "game",
+    "gateway",
+]
+resolver = "2"
+
+# https://www.aloxaf.com/2018/09/reduce_rust_size/
+[profile.release]
+debug = false # 去除调试信息
+panic = "abort"
+lto = "thin"        # thin LTO: 好的优化同时保持合理编译时间
+codegen-units = 1
+strip = true        # Strip symbols from binary
+opt-level = 3       # 最大性能优化 (原来的 "z" 是最小体积，严重损害吞吐量)

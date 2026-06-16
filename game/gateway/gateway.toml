@@ -1,0 +1,9 @@
+[gateway]
+client_listen = "0.0.0.0:7000"
+internal_listen = "0.0.0.0:7100"
+
+[route.game]
+range = [1, 9999]
+
+[route.battle]
+range = [20000, 29999]

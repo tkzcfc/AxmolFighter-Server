@@ -1,0 +1,26 @@
+[package]
+name = "protocol"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["serde-serialize"]
+serde-serialize = ["serde"]
+
+[dependencies]
+prost = "0.12"
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = "1.0.109"
+bytes = "1.10.1"
+
+[build-dependencies]
+prost-build = "0.12"
+#protoc-prebuilt = "0.2.0"
+regex = "1"
+heck = "0.4"
+dunce = "1.0.5"
+
+
+

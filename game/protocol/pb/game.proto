@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package PB.Game;
+
+// ============================================================
+// Game protocol  (msg_id range: 1000–9999)
+// ============================================================
+
+// ─── Auth (1000–1099) ────────────────────────────────────────────────────────
+
+// 登录请求
+message LoginReq {
+    enum MsgId { None = 0; Id = 1000; }
+    string account  = 1;
+    string password = 2;
+}
+
+// 登录响应
+message LoginResp {
+    enum MsgId { None = 0; Id = 1001; }
+    int32  code      = 1;  // 0=成功
+    string message   = 2;
+    int64  player_id = 3;
+    string nickname  = 4;
+}
+
+// 注册请求
+message RegisterReq {
+    enum MsgId { None = 0; Id = 1002; }
+    string account  = 1;
+    string password = 2;
+    string nickname = 3;
+}
+
+// 注册响应
+message RegisterResp {
+    enum MsgId { None = 0; Id = 1003; }
+    int32  code      = 1;  // 0=成功
+    string message   = 2;
+    int64  player_id = 3;
+}
+
+// ─── Player (1100–1199) ───────────────────────────────────────────────────────
+
+// 玩家基础信息
+message PlayerInfo {
+    enum MsgId { None = 0; Id = 1100; }
+    int64  player_id = 1;
+    string nickname  = 2;
+    int32  level     = 3;
+    int64  exp       = 4;
+}
+
+// ─── Battle/FrameSync (20000–29999, 走 BattleServer) ─────────────────────────
+
+// 玩家状态（帧同步用）
+message PlayerState {
+    enum MsgId { None = 0; Id = 20000; }
+    int64  player_id = 1;
+    float  pos_x     = 2;
+    float  pos_y     = 3;
+    int32  hp        = 4;
+    string state     = 5;
+}
