@@ -26,6 +26,10 @@ pub struct LoginResp {
     pub player_id: i64,
     #[prost(string, tag = "4")]
     pub nickname: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "5")]
+    pub server_config: ::core::option::Option<ServerConfig>,
+    #[prost(message, optional, tag = "6")]
+    pub account_info: ::core::option::Option<AccountInfo>,
 }
 /// 注册请求
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -55,6 +59,104 @@ pub struct RegisterResp {
     #[prost(int64, tag = "3")]
     pub player_id: i64,
 }
+/// 服务器配置（登录后下发）
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ServerConfig {
+    #[prost(int32, tag = "1")]
+    pub max_character_count: i32,
+}
+/// 账号基础信息（登录后下发）
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AccountInfo {
+    #[prost(int64, tag = "1")]
+    pub player_id: i64,
+    #[prost(string, tag = "2")]
+    pub account: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub nickname: ::prost::alloc::string::String,
+}
+/// 附魔属性
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EnchantProp {
+    #[prost(int32, tag = "1")]
+    pub attr_id: i32,
+    #[prost(int32, tag = "2")]
+    pub value: i32,
+}
+/// 装备信息
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EquipmentInfo {
+    /// 唯一ID（实例ID）
+    #[prost(int64, tag = "1")]
+    pub id: i64,
+    /// 配置ID
+    #[prost(int64, tag = "2")]
+    pub config_id: i64,
+    /// 强化等级
+    #[prost(int32, tag = "3")]
+    pub enhance_level: i32,
+    /// 精炼等级
+    #[prost(int32, tag = "4")]
+    pub refine_level: i32,
+    #[prost(message, repeated, tag = "5")]
+    pub enchant_props: ::prost::alloc::vec::Vec<EnchantProp>,
+    /// 装备槽位，-1表示在背包
+    #[prost(int32, tag = "6")]
+    pub slot: i32,
+}
+/// 物品信息
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ItemInfo {
+    /// 唯一ID（实例ID）
+    #[prost(int64, tag = "1")]
+    pub id: i64,
+    /// 配置ID
+    #[prost(int64, tag = "2")]
+    pub config_id: i64,
+    /// 数量
+    #[prost(int32, tag = "3")]
+    pub count: i32,
+}
+/// 背包信息（物品+装备列表）
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct InventoryInfo {
+    #[prost(message, repeated, tag = "1")]
+    pub items: ::prost::alloc::vec::Vec<ItemInfo>,
+    #[prost(message, repeated, tag = "2")]
+    pub equipments: ::prost::alloc::vec::Vec<EquipmentInfo>,
+}
+/// 角色基础信息
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CharacterInfo {
+    #[prost(int64, tag = "1")]
+    pub character_id: i64,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(int32, tag = "3")]
+    pub class_id: i32,
+    #[prost(int32, tag = "4")]
+    pub gender: i32,
+    #[prost(int32, tag = "5")]
+    pub level: i32,
+    #[prost(int64, tag = "6")]
+    pub exp: i64,
+    #[prost(int64, tag = "7")]
+    pub gold: i64,
+}
 /// 玩家基础信息
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -69,6 +171,80 @@ pub struct PlayerInfo {
     pub level: i32,
     #[prost(int64, tag = "4")]
     pub exp: i64,
+}
+/// 创建角色请求
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CreateCharacterReq {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 1200; }
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(int32, tag = "2")]
+    pub class_id: i32,
+    #[prost(int32, tag = "3")]
+    pub gender: i32,
+}
+/// 创建角色响应
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CreateCharacterResp {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 1201; }
+    ///
+    /// 0=成功,1=重名,2=达到上限,-1=服务器错误
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "3")]
+    pub character: ::core::option::Option<CharacterInfo>,
+}
+/// 拉取角色列表请求
+///
+/// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 1202; }
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FetchCharacterListReq {}
+/// 拉取角色列表响应
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FetchCharacterListResp {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 1203; }
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub characters: ::prost::alloc::vec::Vec<CharacterInfo>,
+}
+/// 选择角色进入游戏请求
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SelectCharacterReq {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 1204; }
+    #[prost(int64, tag = "1")]
+    pub character_id: i64,
+}
+/// 选择角色进入游戏响应
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SelectCharacterResp {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 1205; }
+    ///
+    /// 0=成功,1=角色不存在,2=非法归属,-1=服务器错误
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "3")]
+    pub character: ::core::option::Option<CharacterInfo>,
+    #[prost(message, optional, tag = "4")]
+    pub inventory: ::core::option::Option<InventoryInfo>,
 }
 /// 玩家状态（帧同步用）
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]

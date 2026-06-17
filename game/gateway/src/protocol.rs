@@ -14,6 +14,9 @@ pub const MSG_SERVER_OFFLINE: u16 = 10009;
 pub const MSG_FORWARD_TO_SERVER: u16 = 10010;
 pub const MSG_SERVER_STATUS: u16 = 10011;
 
+/// 网关错误帧 msg_id：请求无法路由到目标服务时，回复给客户端
+pub const MSG_GATEWAY_ERROR: u16 = 0xFFFF;
+
 /// 内部协议 msg_id 范围
 pub const INTERNAL_MSG_RANGE: std::ops::RangeInclusive<u16> = 10000..=19999;
 
@@ -128,7 +131,7 @@ impl ServerRegReq {
     pub fn encode(&self) -> Bytes {
         let mut buf = BytesMut::with_capacity(5);
         buf.put_u8(self.service_type);
-        buf.put_u32_le(self.instance_id);
+        buf.put_u32(self.instance_id);
         buf.freeze()
     }
 
@@ -137,7 +140,7 @@ impl ServerRegReq {
             anyhow::bail!("ServerRegReq: insufficient data");
         }
         let service_type = data.get_u8();
-        let instance_id = data.get_u32_le();
+        let instance_id = data.get_u32();
         Ok(Self { service_type, instance_id })
     }
 }
@@ -147,10 +150,10 @@ impl ServerRegResp {
         // code(1) + count(2) + entries(5 each)
         let mut buf = BytesMut::with_capacity(3 + self.servers.len() * 5);
         buf.put_u8(self.code);
-        buf.put_u16_le(self.servers.len() as u16);
+        buf.put_u16(self.servers.len() as u16);
         for &(stype, iid) in &self.servers {
             buf.put_u8(stype);
-            buf.put_u32_le(iid);
+            buf.put_u32(iid);
         }
         buf.freeze()
     }
@@ -160,14 +163,14 @@ impl ServerRegResp {
             anyhow::bail!("ServerRegResp: insufficient data");
         }
         let code = data.get_u8();
-        let count = data.get_u16_le() as usize;
+        let count = data.get_u16() as usize;
         let mut servers = Vec::with_capacity(count);
         for _ in 0..count {
             if data.len() < 5 {
                 anyhow::bail!("ServerRegResp: truncated server list");
             }
             let stype = data.get_u8();
-            let iid = data.get_u32_le();
+            let iid = data.get_u32();
             servers.push((stype, iid));
         }
         Ok(Self { code, servers })
@@ -177,8 +180,8 @@ impl ServerRegResp {
 impl BindBattle {
     pub fn encode(&self) -> Bytes {
         let mut buf = BytesMut::with_capacity(8);
-        buf.put_u32_le(self.session_id);
-        buf.put_u32_le(self.battle_instance_id);
+        buf.put_u32(self.session_id);
+        buf.put_u32(self.battle_instance_id);
         buf.freeze()
     }
 
@@ -186,8 +189,8 @@ impl BindBattle {
         if data.len() < 8 {
             anyhow::bail!("BindBattle: insufficient data");
         }
-        let session_id = data.get_u32_le();
-        let battle_instance_id = data.get_u32_le();
+        let session_id = data.get_u32();
+        let battle_instance_id = data.get_u32();
         Ok(Self { session_id, battle_instance_id })
     }
 }
@@ -195,7 +198,7 @@ impl BindBattle {
 impl UnbindBattle {
     pub fn encode(&self) -> Bytes {
         let mut buf = BytesMut::with_capacity(4);
-        buf.put_u32_le(self.session_id);
+        buf.put_u32(self.session_id);
         buf.freeze()
     }
 
@@ -203,7 +206,7 @@ impl UnbindBattle {
         if data.len() < 4 {
             anyhow::bail!("UnbindBattle: insufficient data");
         }
-        let session_id = data.get_u32_le();
+        let session_id = data.get_u32();
         Ok(Self { session_id })
     }
 }
@@ -211,7 +214,7 @@ impl UnbindBattle {
 impl KickSession {
     pub fn encode(&self) -> Bytes {
         let mut buf = BytesMut::with_capacity(4);
-        buf.put_u32_le(self.session_id);
+        buf.put_u32(self.session_id);
         buf.freeze()
     }
 
@@ -219,7 +222,7 @@ impl KickSession {
         if data.len() < 4 {
             anyhow::bail!("KickSession: insufficient data");
         }
-        let session_id = data.get_u32_le();
+        let session_id = data.get_u32();
         Ok(Self { session_id })
     }
 }
@@ -227,7 +230,7 @@ impl KickSession {
 impl SessionOnline {
     pub fn encode(&self) -> Bytes {
         let mut buf = BytesMut::with_capacity(4);
-        buf.put_u32_le(self.session_id);
+        buf.put_u32(self.session_id);
         buf.freeze()
     }
 }
@@ -235,7 +238,7 @@ impl SessionOnline {
 impl SessionOffline {
     pub fn encode(&self) -> Bytes {
         let mut buf = BytesMut::with_capacity(4);
-        buf.put_u32_le(self.session_id);
+        buf.put_u32(self.session_id);
         buf.freeze()
     }
 }
@@ -244,7 +247,7 @@ impl ServerOnline {
     pub fn encode(&self) -> Bytes {
         let mut buf = BytesMut::with_capacity(5);
         buf.put_u8(self.service_type);
-        buf.put_u32_le(self.instance_id);
+        buf.put_u32(self.instance_id);
         buf.freeze()
     }
 }
@@ -253,7 +256,7 @@ impl ServerOffline {
     pub fn encode(&self) -> Bytes {
         let mut buf = BytesMut::with_capacity(5);
         buf.put_u8(self.service_type);
-        buf.put_u32_le(self.instance_id);
+        buf.put_u32(self.instance_id);
         buf.freeze()
     }
 }
@@ -262,7 +265,7 @@ impl ForwardToServer {
     pub fn encode(&self) -> Bytes {
         let mut buf = BytesMut::with_capacity(5 + self.payload.len());
         buf.put_u8(self.target_service_type);
-        buf.put_u32_le(self.target_instance_id);
+        buf.put_u32(self.target_instance_id);
         buf.put_slice(&self.payload);
         buf.freeze()
     }
@@ -272,7 +275,7 @@ impl ForwardToServer {
             anyhow::bail!("ForwardToServer: insufficient data");
         }
         let target_service_type = data.get_u8();
-        let target_instance_id = data.get_u32_le();
+        let target_instance_id = data.get_u32();
         let payload = data; // 剩余部分
         Ok(Self {
             target_service_type,
@@ -286,7 +289,7 @@ impl ServerStatus {
     pub fn encode(&self) -> Bytes {
         // count(2) + entries(2 each: service_type + online)
         let mut buf = BytesMut::with_capacity(2 + self.services.len() * 2);
-        buf.put_u16_le(self.services.len() as u16);
+        buf.put_u16(self.services.len() as u16);
         for &(stype, online) in &self.services {
             buf.put_u8(stype);
             buf.put_u8(if online { 1 } else { 0 });

@@ -5,7 +5,7 @@ use bytes::{Bytes, BytesMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
-use tokio::sync::Notify;
+use tokio::sync::watch;
 use tracing::{debug, error, info, warn};
 
 use crate::codec::{encode_frame, try_extract_frame, BackendFrame};
@@ -30,11 +30,11 @@ pub struct GatewayClient {
     addr: String,
     instance_id: u32,
     reconnect_interval: Duration,
-    shutdown: Arc<Notify>,
+    shutdown: watch::Receiver<bool>,
 }
 
 impl GatewayClient {
-    pub fn new(addr: String, instance_id: u32, reconnect_interval: Duration, shutdown: Arc<Notify>) -> Self {
+    pub fn new(addr: String, instance_id: u32, reconnect_interval: Duration, shutdown: watch::Receiver<bool>) -> Self {
         Self {
             addr,
             instance_id,
@@ -45,8 +45,14 @@ impl GatewayClient {
 
     /// 启动连接循环（自动重连）
     /// 返回发送通道，调用方可通过该通道向网关发送帧
-    pub async fn run(self, handler: Arc<dyn MessageHandler>) {
+    pub async fn run(mut self, handler: Arc<dyn MessageHandler>) {
         loop {
+            // 先检查是否已经收到关闭信号
+            if *self.shutdown.borrow() {
+                info!("gateway client shutting down");
+                return;
+            }
+
             match TcpStream::connect(&self.addr).await {
                 Ok(stream) => {
                     info!("connected to gateway at {}", self.addr);
@@ -75,7 +81,7 @@ impl GatewayClient {
             // 等待重连间隔或关闭信号
             tokio::select! {
                 _ = tokio::time::sleep(self.reconnect_interval) => {}
-                _ = self.shutdown.notified() => {
+                _ = self.shutdown.changed() => {
                     info!("gateway client shutting down");
                     return;
                 }
@@ -92,10 +98,10 @@ impl GatewayClient {
         handler: Arc<dyn MessageHandler>,
     ) {
         let (mut reader, mut writer) = stream.into_split();
-        let shutdown = self.shutdown.clone();
+        let mut shutdown = self.shutdown.clone();
 
         // 写任务
-        let write_shutdown = shutdown.clone();
+        let mut write_shutdown = self.shutdown.clone();
         let write_task = tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -110,7 +116,7 @@ impl GatewayClient {
                             None => break, // 通道关闭
                         }
                     }
-                    _ = write_shutdown.notified() => break,
+                    _ = write_shutdown.changed() => break,
                 }
             }
         });
@@ -148,7 +154,7 @@ impl GatewayClient {
                         }
                     }
                 }
-                _ = shutdown.notified() => break,
+                _ = shutdown.changed() => break,
             }
         }
 
@@ -172,7 +178,7 @@ impl GatewayClient {
             MSG_SESSION_ONLINE => {
                 // 客户端上线
                 if frame.payload.len() >= 4 {
-                    let sid = u32::from_le_bytes([
+                    let sid = u32::from_be_bytes([
                         frame.payload[0], frame.payload[1],
                         frame.payload[2], frame.payload[3],
                     ]);
@@ -182,7 +188,7 @@ impl GatewayClient {
             MSG_SESSION_OFFLINE => {
                 // 客户端下线
                 if frame.payload.len() >= 4 {
-                    let sid = u32::from_le_bytes([
+                    let sid = u32::from_be_bytes([
                         frame.payload[0], frame.payload[1],
                         frame.payload[2], frame.payload[3],
                     ]);
@@ -193,7 +199,7 @@ impl GatewayClient {
                 // 其他服务上线
                 if frame.payload.len() >= 5 {
                     let stype = frame.payload[0];
-                    let iid = u32::from_le_bytes([
+                    let iid = u32::from_be_bytes([
                         frame.payload[1], frame.payload[2],
                         frame.payload[3], frame.payload[4],
                     ]);
@@ -204,7 +210,7 @@ impl GatewayClient {
                 // 其他服务下线
                 if frame.payload.len() >= 5 {
                     let stype = frame.payload[0];
-                    let iid = u32::from_le_bytes([
+                    let iid = u32::from_be_bytes([
                         frame.payload[1], frame.payload[2],
                         frame.payload[3], frame.payload[4],
                     ]);
@@ -212,8 +218,12 @@ impl GatewayClient {
                 }
             }
             _ => {
-                // 业务消息：来自客户端的请求（经网关转发），透传 serial
-                handler.on_message(frame.msg_id, frame.serial, frame.session_id, frame.payload).await;
+                // 业务消息：来自客户端的请求（经网关转发）
+                // 每个请求独立 spawn，避免慢请求阻塞读循环
+                let handler = handler.clone();
+                tokio::spawn(async move {
+                    handler.on_message(frame.msg_id, frame.serial, frame.session_id, frame.payload).await;
+                });
             }
         }
     }
@@ -222,7 +232,7 @@ impl GatewayClient {
     fn build_reg_req(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(5);
         buf.push(SERVICE_TYPE_GAME);
-        buf.extend_from_slice(&self.instance_id.to_le_bytes());
+        buf.extend_from_slice(&self.instance_id.to_be_bytes());
         buf
     }
 }

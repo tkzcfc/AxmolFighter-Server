@@ -1,46 +1,8 @@
 #include "GatewayClient.h"
+#include "yasio/ibstream.hpp"
 #include <cstring>
 
 using namespace std::string_view_literals;
-
-namespace
-{
-inline uint16_t readU16LE(const uint8_t* p)
-{
-    return static_cast<uint16_t>(p[0]) | (static_cast<uint16_t>(p[1]) << 8);
-}
-
-inline int32_t readI32LE(const uint8_t* p)
-{
-    return static_cast<int32_t>(p[0]) | (static_cast<int32_t>(p[1]) << 8) |
-           (static_cast<int32_t>(p[2]) << 16) | (static_cast<int32_t>(p[3]) << 24);
-}
-
-inline uint32_t readU32LE(const uint8_t* p)
-{
-    return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) |
-           (static_cast<uint32_t>(p[2]) << 16) | (static_cast<uint32_t>(p[3]) << 24);
-}
-
-inline void writeU32LE(uint8_t* p, uint32_t v)
-{
-    p[0] = static_cast<uint8_t>(v);
-    p[1] = static_cast<uint8_t>(v >> 8);
-    p[2] = static_cast<uint8_t>(v >> 16);
-    p[3] = static_cast<uint8_t>(v >> 24);
-}
-
-inline void writeU16LE(uint8_t* p, uint16_t v)
-{
-    p[0] = static_cast<uint8_t>(v);
-    p[1] = static_cast<uint8_t>(v >> 8);
-}
-
-inline void writeI32LE(uint8_t* p, int32_t v)
-{
-    writeU32LE(p, static_cast<uint32_t>(v));
-}
-}  // namespace
 
 GatewayClient::GatewayClient()
     : m_impl(nullptr)
@@ -154,10 +116,10 @@ void GatewayClient::onRecvFrame(const std::string_view& data)
         return;
     }
 
-    const uint8_t* p    = reinterpret_cast<const uint8_t*>(data.data());
-    uint16_t msgId      = readU16LE(p);
-    int32_t serial      = readI32LE(p + 2);
-    uint32_t sessionId  = readU32LE(p + 6);
+    yasio::ibstream_view ibs(data.data(), static_cast<int>(data.size()));
+    uint16_t msgId     = ibs.read<uint16_t>();
+    int32_t serial     = ibs.read<int32_t>();
+    uint32_t sessionId = ibs.read<uint32_t>();
     const char* payload = data.data() + BACKEND_FRAME_BODY_HEADER_SIZE;
     size_t payloadLen   = data.size() - BACKEND_FRAME_BODY_HEADER_SIZE;
 
@@ -191,11 +153,11 @@ void GatewayClient::onRecvFrame(const std::string_view& data)
 
 void GatewayClient::sendRegisterReq()
 {
-    // ServerRegReq: service_type(1) + instance_id(4)
-    uint8_t payload[5];
-    payload[0] = m_config.serviceType;
-    writeU32LE(payload + 1, m_config.instanceId);
-    sendFrame(MSG_SERVER_REG_REQ, 0, 0, reinterpret_cast<const char*>(payload), sizeof(payload));
+    // ServerRegReq: service_type(1) + instance_id(4) 大端序
+    yasio::obstream payload;
+    payload.write<uint8_t>(m_config.serviceType);
+    payload.write<uint32_t>(m_config.instanceId);
+    sendFrame(MSG_SERVER_REG_REQ, 0, 0, payload.data(), payload.length());
 }
 
 int GatewayClient::sendToClient(uint32_t sessionId, uint16_t msgId, int32_t serial,
@@ -206,10 +168,10 @@ int GatewayClient::sendToClient(uint32_t sessionId, uint16_t msgId, int32_t seri
 
 int GatewayClient::kickSession(uint32_t sessionId)
 {
-    // KickSession: session_id(4)
-    uint8_t payload[4];
-    writeU32LE(payload, sessionId);
-    return sendFrame(MSG_KICK_SESSION, 0, 0, reinterpret_cast<const char*>(payload), sizeof(payload));
+    // KickSession: session_id(4) 大端序
+    yasio::obstream payload;
+    payload.write<uint32_t>(sessionId);
+    return sendFrame(MSG_KICK_SESSION, 0, 0, payload.data(), payload.length());
 }
 
 int GatewayClient::sendFrame(uint16_t msgId, int32_t serial, uint32_t sessionId,
@@ -221,15 +183,10 @@ int GatewayClient::sendFrame(uint16_t msgId, int32_t serial, uint32_t sessionId,
     uint32_t frameLen = static_cast<uint32_t>(BACKEND_FRAME_HEADER_SIZE + length);
 
     yasio::obstream obs;
-    obs.buffer().reserve(frameLen);
-
-    uint8_t header[BACKEND_FRAME_HEADER_SIZE];
-    writeU32LE(header, frameLen);
-    writeU16LE(header + 4, msgId);
-    writeI32LE(header + 6, serial);
-    writeU32LE(header + 10, sessionId);
-
-    obs.write_bytes(header, BACKEND_FRAME_HEADER_SIZE);
+    obs.write<uint32_t>(frameLen);
+    obs.write<uint16_t>(msgId);
+    obs.write<int32_t>(serial);
+    obs.write<uint32_t>(sessionId);
     if (length > 0)
         obs.write_bytes(data, static_cast<int>(length));
 

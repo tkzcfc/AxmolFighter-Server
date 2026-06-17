@@ -6,16 +6,42 @@ mod gateway_client;
 mod handler;
 
 use std::env;
-use std::sync::Arc;
 use std::time::Duration;
 
+use sqlx::postgres::PgPoolOptions;
 use tokio::signal;
-use tokio::sync::Notify;
+use tokio::sync::watch;
 use tracing::info;
 
 use crate::config::GameConfig;
 use crate::gateway_client::GatewayClient;
 use crate::handler::GameHandler;
+
+async fn wait_for_shutdown_signal() -> anyhow::Result<()> {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+
+        let mut sigterm = signal(SignalKind::terminate())?;
+
+        tokio::select! {
+            _ = signal::ctrl_c() => {
+                info!("received Ctrl+C");
+            }
+            _ = sigterm.recv() => {
+                info!("received SIGTERM");
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        signal::ctrl_c().await?;
+        info!("received Ctrl+C");
+    }
+
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -39,17 +65,28 @@ async fn main() -> anyhow::Result<()> {
         config.server.instance_id, config.gateway.addr
     );
 
-    let shutdown = Arc::new(Notify::new());
+    // 连接数据库
+    let pool = PgPoolOptions::new()
+        .max_connections(config.database.max_connections)
+        .connect(&config.database.url)
+        .await?;
+    info!("database connected");
+
+    // 运行数据库迁移
+    sqlx::migrate!("./migrations").run(&pool).await?;
+    info!("database migrations applied");
+
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
     // 创建消息处理器
-    let handler = GameHandler::new();
+    let handler = GameHandler::new(pool);
 
     // 启动网关连接
     let gw_client = GatewayClient::new(
         config.gateway.addr.clone(),
         config.server.instance_id,
         Duration::from_secs(config.gateway.reconnect_interval),
-        shutdown.clone(),
+        shutdown_rx,
     );
 
     let gw_handler = handler.clone();
@@ -60,10 +97,10 @@ async fn main() -> anyhow::Result<()> {
     info!("game server started");
 
     // 等待关闭信号
-    signal::ctrl_c().await?;
+    wait_for_shutdown_signal().await?;
     info!("shutting down...");
 
-    shutdown.notify_waiters();
+    let _ = shutdown_tx.send(true);
 
     let _ = gw_task.await;
 

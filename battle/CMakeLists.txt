@@ -42,6 +42,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CLIENT_SOURCE_DIR}/net"
 )
+target_compile_definitions(${PROJECT_NAME} PRIVATE NET_SERVER_BUILD)
 target_link_libraries(${PROJECT_NAME} PRIVATE yasio)
 
 if(WIN32)

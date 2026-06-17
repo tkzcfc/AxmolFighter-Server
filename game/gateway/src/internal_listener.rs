@@ -98,9 +98,9 @@ impl SessionDelegate for InternalDelegate {
             Some(frame) => {
                 // 打包 msg_id(2) + serial(4) + session_id(4) + payload
                 let mut out = BytesMut::with_capacity(10 + frame.payload.len());
-                out.extend_from_slice(&frame.msg_id.to_le_bytes());
-                out.extend_from_slice(&frame.serial.to_le_bytes());
-                out.extend_from_slice(&frame.session_id.to_le_bytes());
+                out.extend_from_slice(&frame.msg_id.to_be_bytes());
+                out.extend_from_slice(&frame.serial.to_be_bytes());
+                out.extend_from_slice(&frame.session_id.to_be_bytes());
                 out.extend_from_slice(&frame.payload);
                 Ok(Some(out.freeze()))
             }
@@ -113,9 +113,9 @@ impl SessionDelegate for InternalDelegate {
             return Ok(());
         }
 
-        let msg_id = u16::from_le_bytes([frame[0], frame[1]]);
-        let serial = i32::from_le_bytes([frame[2], frame[3], frame[4], frame[5]]);
-        let session_id = u32::from_le_bytes([frame[6], frame[7], frame[8], frame[9]]);
+        let msg_id = u16::from_be_bytes([frame[0], frame[1]]);
+        let serial = i32::from_be_bytes([frame[2], frame[3], frame[4], frame[5]]);
+        let session_id = u32::from_be_bytes([frame[6], frame[7], frame[8], frame[9]]);
         let payload = frame.slice(10..);
 
         // 处理内部协议

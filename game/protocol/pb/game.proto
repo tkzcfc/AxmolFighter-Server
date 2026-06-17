@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package PB.Game;
 
+option optimize_for = LITE_RUNTIME;
+
 // ============================================================
 // Game protocol  (msg_id range: 1000–9999)
 // ============================================================
@@ -22,6 +24,8 @@ message LoginResp {
     string message   = 2;
     int64  player_id = 3;
     string nickname  = 4;
+    ServerConfig server_config = 5;
+    AccountInfo account_info = 6;
 }
 
 // 注册请求
@@ -40,6 +44,60 @@ message RegisterResp {
     int64  player_id = 3;
 }
 
+// ─── Runtime Models ───────────────────────────────────────────────────────
+
+// 服务器配置（登录后下发）
+message ServerConfig {
+    int32 max_character_count = 1;
+}
+
+// 账号基础信息（登录后下发）
+message AccountInfo {
+    int64 player_id = 1;
+    string account = 2;
+    string nickname = 3;
+}
+
+// 附魔属性
+message EnchantProp {
+    int32 attr_id = 1;
+    int32 value = 2;
+}
+
+// 装备信息
+message EquipmentInfo {
+    int64 id = 1;                // 唯一ID（实例ID）
+    int64 config_id = 2;         // 配置ID
+    int32 enhance_level = 3;     // 强化等级
+    int32 refine_level = 4;      // 精炼等级
+    repeated EnchantProp enchant_props = 5;
+    int32 slot = 6;              // 装备槽位，-1表示在背包
+}
+
+// 物品信息
+message ItemInfo {
+    int64 id = 1;                // 唯一ID（实例ID）
+    int64 config_id = 2;         // 配置ID
+    int32 count = 3;             // 数量
+}
+
+// 背包信息（物品+装备列表）
+message InventoryInfo {
+    repeated ItemInfo items = 1;
+    repeated EquipmentInfo equipments = 2;
+}
+
+// 角色基础信息
+message CharacterInfo {
+    int64 character_id = 1;
+    string name = 2;
+    int32 class_id = 3;
+    int32 gender = 4;
+    int32 level = 5;
+    int64 exp = 6;
+    int64 gold = 7;
+}
+
 // ─── Player (1100–1199) ───────────────────────────────────────────────────────
 
 // 玩家基础信息
@@ -49,6 +107,52 @@ message PlayerInfo {
     string nickname  = 2;
     int32  level     = 3;
     int64  exp       = 4;
+}
+
+// ─── Character / Lobby (1200–1299) ─────────────────────────────────────
+
+// 创建角色请求
+message CreateCharacterReq {
+    enum MsgId { None = 0; Id = 1200; }
+    string name = 1;
+    int32 class_id = 2;
+    int32 gender = 3;
+}
+
+// 创建角色响应
+message CreateCharacterResp {
+    enum MsgId { None = 0; Id = 1201; }
+    int32 code = 1;          // 0=成功,1=重名,2=达到上限,-1=服务器错误
+    string message = 2;
+    CharacterInfo character = 3;
+}
+
+// 拉取角色列表请求
+message FetchCharacterListReq {
+    enum MsgId { None = 0; Id = 1202; }
+}
+
+// 拉取角色列表响应
+message FetchCharacterListResp {
+    enum MsgId { None = 0; Id = 1203; }
+    int32 code = 1;
+    string message = 2;
+    repeated CharacterInfo characters = 3;
+}
+
+// 选择角色进入游戏请求
+message SelectCharacterReq {
+    enum MsgId { None = 0; Id = 1204; }
+    int64 character_id = 1;
+}
+
+// 选择角色进入游戏响应
+message SelectCharacterResp {
+    enum MsgId { None = 0; Id = 1205; }
+    int32 code = 1;          // 0=成功,1=角色不存在,2=非法归属,-1=服务器错误
+    string message = 2;
+    CharacterInfo character = 3;
+    InventoryInfo inventory = 4;
 }
 
 // ─── Battle/FrameSync (20000–29999, 走 BattleServer) ─────────────────────────

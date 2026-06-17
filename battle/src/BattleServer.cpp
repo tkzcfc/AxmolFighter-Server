@@ -1,4 +1,5 @@
 #include "BattleServer.h"
+#include "yasio/ibstream.hpp"
 #include <chrono>
 #include <thread>
 #include <cstdio>
@@ -88,10 +89,8 @@ void BattleServer::onGatewayMsg(uint16_t msgId, int32_t serial, uint32_t session
     case MSG_SESSION_ONLINE:
         if (payload.size() >= 4)
         {
-            uint32_t sid = static_cast<uint32_t>(static_cast<uint8_t>(payload[0])) |
-                           (static_cast<uint32_t>(static_cast<uint8_t>(payload[1])) << 8) |
-                           (static_cast<uint32_t>(static_cast<uint8_t>(payload[2])) << 16) |
-                           (static_cast<uint32_t>(static_cast<uint8_t>(payload[3])) << 24);
+            yasio::ibstream_view ibs(payload.data(), static_cast<int>(payload.size()));
+            uint32_t sid = ibs.read<uint32_t>();
             onSessionOnline(sid);
         }
         break;
@@ -99,10 +98,8 @@ void BattleServer::onGatewayMsg(uint16_t msgId, int32_t serial, uint32_t session
     case MSG_SESSION_OFFLINE:
         if (payload.size() >= 4)
         {
-            uint32_t sid = static_cast<uint32_t>(static_cast<uint8_t>(payload[0])) |
-                           (static_cast<uint32_t>(static_cast<uint8_t>(payload[1])) << 8) |
-                           (static_cast<uint32_t>(static_cast<uint8_t>(payload[2])) << 16) |
-                           (static_cast<uint32_t>(static_cast<uint8_t>(payload[3])) << 24);
+            yasio::ibstream_view ibs(payload.data(), static_cast<int>(payload.size()));
+            uint32_t sid = ibs.read<uint32_t>();
             onSessionOffline(sid);
         }
         break;

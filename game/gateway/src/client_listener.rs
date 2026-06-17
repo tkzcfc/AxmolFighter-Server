@@ -9,7 +9,7 @@ use base::net::{session_delegate::SessionDelegate, WriterMessage};
 
 use crate::codec::{encode_backend_frame, try_extract_client_frame, encode_client_frame};
 use crate::context::GatewayContext;
-use crate::protocol::{self, ServiceType, ServerStatus, SessionOffline, SessionOnline};
+use crate::protocol::{self, ServiceType, ServerStatus, SessionOffline, SessionOnline, MSG_GATEWAY_ERROR};
 use crate::router::RouteTarget;
 
 /// 客户端连接 delegate
@@ -25,6 +25,17 @@ impl ClientDelegate {
             ctx,
             session_id: 0,
             tx: None,
+        }
+    }
+
+    /// 当请求(serial<0)无法路由时，立即回复网关错误帧给客户端
+    fn reply_error_if_request(&self, serial: i32) {
+        if serial < 0 {
+            if let Some(tx) = &self.tx {
+                let reply_serial = -serial;
+                let data = encode_client_frame(MSG_GATEWAY_ERROR, reply_serial, &[]);
+                let _ = tx.send(WriterMessage::Send(data, true));
+            }
         }
     }
 }
@@ -101,8 +112,8 @@ impl SessionDelegate for ClientDelegate {
             Some(frame) => {
                 // 打包 msg_id(2) + serial(4) + payload
                 let mut out = BytesMut::with_capacity(6 + frame.payload.len());
-                out.extend_from_slice(&frame.msg_id.to_le_bytes());
-                out.extend_from_slice(&frame.serial.to_le_bytes());
+                out.extend_from_slice(&frame.msg_id.to_be_bytes());
+                out.extend_from_slice(&frame.serial.to_be_bytes());
                 out.extend_from_slice(&frame.payload);
                 Ok(Some(out.freeze()))
             }
@@ -115,8 +126,8 @@ impl SessionDelegate for ClientDelegate {
             return Ok(());
         }
 
-        let msg_id = u16::from_le_bytes([frame[0], frame[1]]);
-        let serial = i32::from_le_bytes([frame[2], frame[3], frame[4], frame[5]]);
+        let msg_id = u16::from_be_bytes([frame[0], frame[1]]);
+        let serial = i32::from_be_bytes([frame[2], frame[3], frame[4], frame[5]]);
         let payload = frame.slice(6..);
 
         // 路由
@@ -128,6 +139,7 @@ impl SessionDelegate for ClientDelegate {
                     let _ = tx.send(WriterMessage::Send(data, true));
                 } else {
                     warn!("no game server registered, dropping msg_id={}", msg_id);
+                    self.reply_error_if_request(serial);
                 }
             }
             RouteTarget::BattleServer(instance_id) => {
@@ -142,6 +154,7 @@ impl SessionDelegate for ClientDelegate {
                         "battle instance {} not found, dropping msg_id={}",
                         instance_id, msg_id
                     );
+                    self.reply_error_if_request(serial);
                 }
             }
             RouteTarget::BattleNotBound => {
@@ -149,6 +162,7 @@ impl SessionDelegate for ClientDelegate {
                     "session {} has no battle binding, dropping msg_id={}",
                     self.session_id, msg_id
                 );
+                self.reply_error_if_request(serial);
             }
             RouteTarget::Internal => {
                 // 客户端不应发送内部协议，忽略

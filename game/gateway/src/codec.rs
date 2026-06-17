@@ -35,8 +35,8 @@ pub fn try_extract_client_frame(buf: &mut BytesMut) -> anyhow::Result<Option<Cli
         return Ok(None);
     }
 
-    // 读取 len（不消费）
-    let len = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
+    // 读取 len（不消费），大端序
+    let len = u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
 
     // 合法性检查
     if len < CLIENT_HEADER_SIZE {
@@ -58,10 +58,10 @@ pub fn try_extract_client_frame(buf: &mut BytesMut) -> anyhow::Result<Option<Cli
     frame_data.advance(4);
 
     // 读取 msg_id
-    let msg_id = frame_data.get_u16_le();
+    let msg_id = frame_data.get_u16();
 
     // 读取 serial
-    let serial = frame_data.get_i32_le();
+    let serial = frame_data.get_i32();
 
     // 剩余为 payload
     let payload = frame_data.freeze();
@@ -75,7 +75,7 @@ pub fn try_extract_backend_frame(buf: &mut BytesMut) -> anyhow::Result<Option<Ba
         return Ok(None);
     }
 
-    let len = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
+    let len = u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
 
     if len < BACKEND_HEADER_SIZE {
         anyhow::bail!("invalid backend frame: len {} < header size {}", len, BACKEND_HEADER_SIZE);
@@ -90,9 +90,9 @@ pub fn try_extract_backend_frame(buf: &mut BytesMut) -> anyhow::Result<Option<Ba
 
     let mut frame_data = buf.split_to(len);
     frame_data.advance(4); // 跳过 len
-    let msg_id = frame_data.get_u16_le();
-    let serial = frame_data.get_i32_le();
-    let session_id = frame_data.get_u32_le();
+    let msg_id = frame_data.get_u16();
+    let serial = frame_data.get_i32();
+    let session_id = frame_data.get_u32();
     let payload = frame_data.freeze();
 
     Ok(Some(BackendFrame {
@@ -107,9 +107,9 @@ pub fn try_extract_backend_frame(buf: &mut BytesMut) -> anyhow::Result<Option<Ba
 pub fn encode_client_frame(msg_id: u16, serial: i32, payload: &[u8]) -> Bytes {
     let total_len = CLIENT_HEADER_SIZE + payload.len();
     let mut buf = BytesMut::with_capacity(total_len);
-    buf.put_u32_le(total_len as u32);
-    buf.put_u16_le(msg_id);
-    buf.put_i32_le(serial);
+    buf.put_u32(total_len as u32);
+    buf.put_u16(msg_id);
+    buf.put_i32(serial);
     buf.put_slice(payload);
     buf.freeze()
 }
@@ -118,10 +118,10 @@ pub fn encode_client_frame(msg_id: u16, serial: i32, payload: &[u8]) -> Bytes {
 pub fn encode_backend_frame(msg_id: u16, serial: i32, session_id: u32, payload: &[u8]) -> Bytes {
     let total_len = BACKEND_HEADER_SIZE + payload.len();
     let mut buf = BytesMut::with_capacity(total_len);
-    buf.put_u32_le(total_len as u32);
-    buf.put_u16_le(msg_id);
-    buf.put_i32_le(serial);
-    buf.put_u32_le(session_id);
+    buf.put_u32(total_len as u32);
+    buf.put_u16(msg_id);
+    buf.put_i32(serial);
+    buf.put_u32(session_id);
     buf.put_slice(payload);
     buf.freeze()
 }

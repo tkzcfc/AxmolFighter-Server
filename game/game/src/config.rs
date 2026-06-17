@@ -6,6 +6,7 @@ use std::path::Path;
 pub struct GameConfig {
     pub server: ServerSection,
     pub gateway: GatewaySection,
+    pub database: DatabaseSection,
 }
 
 /// 服务器自身配置
@@ -27,6 +28,20 @@ pub struct GatewaySection {
 
 fn default_reconnect_interval() -> u64 {
     3
+}
+
+/// 数据库配置
+#[derive(Debug, Deserialize)]
+pub struct DatabaseSection {
+    /// PostgreSQL 连接地址
+    pub url: String,
+    /// 最大连接数
+    #[serde(default = "default_max_connections")]
+    pub max_connections: u32,
+}
+
+fn default_max_connections() -> u32 {
+    10
 }
 
 impl GameConfig {

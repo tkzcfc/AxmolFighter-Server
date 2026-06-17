@@ -21,7 +21,7 @@ pub fn try_extract_frame(buf: &mut BytesMut) -> anyhow::Result<Option<BackendFra
         return Ok(None);
     }
 
-    let len = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
+    let len = u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
 
     if len < BACKEND_HEADER_SIZE {
         anyhow::bail!("invalid frame: len {} < header size", len);
@@ -35,9 +35,9 @@ pub fn try_extract_frame(buf: &mut BytesMut) -> anyhow::Result<Option<BackendFra
 
     let mut frame_data = buf.split_to(len);
     frame_data.advance(4); // 跳过 len
-    let msg_id = frame_data.get_u16_le();
-    let serial = frame_data.get_i32_le();
-    let session_id = frame_data.get_u32_le();
+    let msg_id = frame_data.get_u16();
+    let serial = frame_data.get_i32();
+    let session_id = frame_data.get_u32();
     let payload = frame_data.freeze();
 
     Ok(Some(BackendFrame {
@@ -52,10 +52,10 @@ pub fn try_extract_frame(buf: &mut BytesMut) -> anyhow::Result<Option<BackendFra
 pub fn encode_frame(msg_id: u16, serial: i32, session_id: u32, payload: &[u8]) -> Bytes {
     let total_len = BACKEND_HEADER_SIZE + payload.len();
     let mut buf = BytesMut::with_capacity(total_len);
-    buf.put_u32_le(total_len as u32);
-    buf.put_u16_le(msg_id);
-    buf.put_i32_le(serial);
-    buf.put_u32_le(session_id);
+    buf.put_u32(total_len as u32);
+    buf.put_u16(msg_id);
+    buf.put_i32(serial);
+    buf.put_u32(session_id);
     buf.put_slice(payload);
     buf.freeze()
 }
