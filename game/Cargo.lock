@@ -568,6 +568,8 @@ dependencies = [
  "base",
  "bytes",
  "dashmap",
+ "prost",
+ "protocol",
  "serde",
  "tokio",
  "toml",

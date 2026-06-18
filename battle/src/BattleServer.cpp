@@ -24,14 +24,14 @@ bool BattleServer::init(const BattleServerConfig& config)
     GatewayClient::Config gwConfig;
     gwConfig.host              = config.gatewayHost;
     gwConfig.port              = config.gatewayPort;
-    gwConfig.serviceType       = SERVICE_TYPE_BATTLE;
+    gwConfig.serviceId         = SERVICE_ID_BATTLE;
     gwConfig.instanceId        = config.instanceId;
     gwConfig.reconnectInterval = config.reconnectInterval;
 
     m_gateway.init(gwConfig);
-    m_gateway.setMsgCallback([this](uint16_t msgId, int32_t serial, uint32_t sessionId,
+    m_gateway.setMsgCallback([this](uint8_t cmd, uint16_t msgId, int32_t serial, uint32_t sessionId,
                                     const std::string_view& payload) {
-        this->onGatewayMsg(msgId, serial, sessionId, payload);
+        this->onGatewayMsg(cmd, msgId, serial, sessionId, payload);
     });
     m_gateway.setDisconnectCallback([this]() {
         printf("[BattleServer] gateway disconnected, clearing all battles\n");
@@ -81,12 +81,12 @@ void BattleServer::shutdown()
     m_running = false;
 }
 
-void BattleServer::onGatewayMsg(uint16_t msgId, int32_t serial, uint32_t sessionId,
+void BattleServer::onGatewayMsg(uint8_t cmd, uint16_t msgId, int32_t serial, uint32_t sessionId,
                                 const std::string_view& payload)
 {
-    switch (msgId)
+    switch (cmd)
     {
-    case MSG_SESSION_ONLINE:
+    case CMD_SESSION_ONLINE:
         if (payload.size() >= 4)
         {
             yasio::ibstream_view ibs(payload.data(), static_cast<int>(payload.size()));
@@ -95,7 +95,7 @@ void BattleServer::onGatewayMsg(uint16_t msgId, int32_t serial, uint32_t session
         }
         break;
 
-    case MSG_SESSION_OFFLINE:
+    case CMD_SESSION_OFFLINE:
         if (payload.size() >= 4)
         {
             yasio::ibstream_view ibs(payload.data(), static_cast<int>(payload.size()));
@@ -104,12 +104,15 @@ void BattleServer::onGatewayMsg(uint16_t msgId, int32_t serial, uint32_t session
         }
         break;
 
-    default:
+    case CMD_BUSINESS:
         // 玩家消息（msg_id 20000-29999）
         if (msgId >= 20000 && msgId <= 29999)
         {
             onPlayerState(sessionId, serial, payload);
         }
+        break;
+
+    default:
         break;
     }
 }

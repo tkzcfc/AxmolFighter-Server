@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package PB.Gateway;
+
+option optimize_for = LITE_RUNTIME;
+
+// Gateway control payloads. The frame cmd identifies these messages.
+
+message ServiceStatus {
+    uint32 service_id = 1;
+    uint32 instance_id = 2;
+    bool online = 3;
+}
+
+message ServerStatusPush {
+    repeated ServiceStatus services = 1;
+}
+
+message GatewayErrorResp {
+    uint32 code = 1;
+    string message = 2;
+}

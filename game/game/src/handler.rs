@@ -8,7 +8,7 @@ use sqlx::PgPool;
 use tracing::{debug, info, warn};
 
 use protocol::game::*;
-use protocol::message_map::{decode_message, MessageType};
+use protocol::message_map::{MessageType, decode_message};
 
 use crate::gateway_client::GatewaySender;
 
@@ -55,13 +55,17 @@ impl GameHandler {
         let tx = self.gateway_tx.lock().unwrap();
         if let Some(sender) = tx.as_ref() {
             if let Some((msg_id, payload)) = protocol::message_map::encode_message(msg) {
-                let data = crate::codec::encode_frame(msg_id as u16, serial, session_id, &payload);
+                let data =
+                    crate::codec::encode_frame(0, msg_id as u16, serial, session_id, &payload);
                 if sender.send(data).is_err() {
                     warn!("failed to send to gateway (channel closed)");
                 }
             }
         } else {
-            debug!("gateway not connected, dropping response to session={}", session_id);
+            debug!(
+                "gateway not connected, dropping response to session={}",
+                session_id
+            );
         }
     }
 
@@ -103,7 +107,10 @@ impl GameHandler {
     }
 
     async fn handle_login(&self, serial: i32, session_id: u32, req: LoginReq) {
-        info!("login request from session={}: account={}", session_id, req.account);
+        info!(
+            "login request from session={}: account={}",
+            session_id, req.account
+        );
 
         let login_result = sqlx::query_as::<_, (i64, String, String)>(
             "SELECT id, password, nickname FROM accounts WHERE account = $1",
@@ -123,7 +130,9 @@ impl GameHandler {
                         message: String::new(),
                         player_id,
                         nickname: nickname.clone(),
-                        server_config: Some(ServerConfig { max_character_count }),
+                        server_config: Some(ServerConfig {
+                            max_character_count,
+                        }),
                         account_info: Some(AccountInfo {
                             player_id,
                             account: req.account,
@@ -166,7 +175,10 @@ impl GameHandler {
     }
 
     async fn handle_register(&self, serial: i32, session_id: u32, req: RegisterReq) {
-        info!("register request from session={}: account={}", session_id, req.account);
+        info!(
+            "register request from session={}: account={}",
+            session_id, req.account
+        );
 
         let resp = match sqlx::query_scalar::<_, i64>(
             "INSERT INTO accounts (account, password, nickname) VALUES ($1, $2, $3) RETURNING id",
@@ -212,7 +224,12 @@ impl GameHandler {
         self.send_msg(&MessageType::GameRegisterResp(resp), -serial, session_id);
     }
 
-    async fn handle_fetch_character_list(&self, serial: i32, session_id: u32, _req: FetchCharacterListReq) {
+    async fn handle_fetch_character_list(
+        &self,
+        serial: i32,
+        session_id: u32,
+        _req: FetchCharacterListReq,
+    ) {
         let Some(account_id) = self.get_account_id(session_id) else {
             self.send_msg(
                 &MessageType::GameFetchCharacterListResp(FetchCharacterListResp {
@@ -237,7 +254,9 @@ impl GameHandler {
             Ok(rows) => {
                 let mut characters = Vec::with_capacity(rows.len());
                 for (id, name, class_id, gender, level, exp, gold) in rows {
-                    characters.push(self.db_character_to_proto(id, name, class_id, gender, level, exp, gold));
+                    characters.push(
+                        self.db_character_to_proto(id, name, class_id, gender, level, exp, gold),
+                    );
                 }
 
                 self.send_msg(
@@ -280,13 +299,12 @@ impl GameHandler {
         };
 
         let max_count = self.query_max_character_count().await as i64;
-        let current_count = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(1) FROM characters WHERE player_id = $1",
-        )
-        .bind(account_id)
-        .fetch_one(&self.pool)
-        .await
-        .unwrap_or(0);
+        let current_count =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM characters WHERE player_id = $1")
+                .bind(account_id)
+                .fetch_one(&self.pool)
+                .await
+                .unwrap_or(0);
 
         if current_count >= max_count {
             self.send_msg(
@@ -356,7 +374,9 @@ impl GameHandler {
             &MessageType::GameCreateCharacterResp(CreateCharacterResp {
                 code: 0,
                 message: String::new(),
-                character: Some(self.db_character_to_proto(id, name, class_id, gender, level, exp, gold)),
+                character: Some(
+                    self.db_character_to_proto(id, name, class_id, gender, level, exp, gold),
+                ),
             }),
             -serial,
             session_id,
@@ -459,7 +479,9 @@ impl GameHandler {
             &MessageType::GameSelectCharacterResp(SelectCharacterResp {
                 code: 0,
                 message: String::new(),
-                character: Some(self.db_character_to_proto(id, name, class_id, gender, level, exp, gold)),
+                character: Some(
+                    self.db_character_to_proto(id, name, class_id, gender, level, exp, gold),
+                ),
                 inventory: Some(InventoryInfo { items, equipments }),
             }),
             -serial,
@@ -493,9 +515,12 @@ impl MessageHandler for GameHandler {
         match decode_message(msg_id as u32, &payload) {
             Ok(msg) => match msg {
                 MessageType::GameLoginReq(req) => self.handle_login(serial, session_id, req).await,
-                MessageType::GameRegisterReq(req) => self.handle_register(serial, session_id, req).await,
+                MessageType::GameRegisterReq(req) => {
+                    self.handle_register(serial, session_id, req).await
+                }
                 MessageType::GameFetchCharacterListReq(req) => {
-                    self.handle_fetch_character_list(serial, session_id, req).await
+                    self.handle_fetch_character_list(serial, session_id, req)
+                        .await
                 }
                 MessageType::GameCreateCharacterReq(req) => {
                     self.handle_create_character(serial, session_id, req).await
@@ -512,7 +537,10 @@ impl MessageHandler for GameHandler {
                 }
             },
             Err(e) => {
-                warn!("failed to decode msg_id={} from session={}: {}", msg_id, session_id, e);
+                warn!(
+                    "failed to decode msg_id={} from session={}: {}",
+                    msg_id, session_id, e
+                );
             }
         }
     }

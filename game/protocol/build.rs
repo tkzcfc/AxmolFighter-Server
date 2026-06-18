@@ -36,7 +36,7 @@ fn main() -> io::Result<()> {
     }
 
     // 需要导出的协议文件列表
-    let proto_file_list = ["pb/game.proto"];
+    let proto_file_list = ["pb/game.proto", "pb/gateway.proto"];
     let include_list = [dunce::canonicalize("pb").unwrap()];
     let out_dir = Path::new("src");
 

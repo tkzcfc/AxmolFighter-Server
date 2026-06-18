@@ -4,8 +4,6 @@ project(battle_server CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ========== 客户端源码路径 ==========
-set(CLIENT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../client/Source")
 set(YASIO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../client/axmol/3rdparty/yasio")
 
 if(NOT EXISTS "${YASIO_DIR}/yasio/yasio.hpp")
@@ -23,26 +21,17 @@ if(WIN32)
     target_link_libraries(yasio PUBLIC ws2_32)
 endif()
 
-# ========== 共享网络层（来自客户端） ==========
-set(SHARED_NET_SOURCES
-    "${CLIENT_SOURCE_DIR}/net/YasioClient.h"
-    "${CLIENT_SOURCE_DIR}/net/YasioClient.cpp"
-    "${CLIENT_SOURCE_DIR}/net/NetClient.h"
-    "${CLIENT_SOURCE_DIR}/net/NetClient.cpp"
-)
-
 # ========== battle_server ==========
 file(GLOB_RECURSE BATTLE_SOURCES
     "src/*.cpp"
     "src/*.h"
 )
 
-add_executable(${PROJECT_NAME} ${BATTLE_SOURCES} ${SHARED_NET_SOURCES})
+add_executable(${PROJECT_NAME} ${BATTLE_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CLIENT_SOURCE_DIR}/net"
+    "${YASIO_DIR}"
 )
-target_compile_definitions(${PROJECT_NAME} PRIVATE NET_SERVER_BUILD)
 target_link_libraries(${PROJECT_NAME} PRIVATE yasio)
 
 if(WIN32)

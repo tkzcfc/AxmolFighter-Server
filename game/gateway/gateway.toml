@@ -2,8 +2,12 @@
 client_listen = "0.0.0.0:7000"
 internal_listen = "0.0.0.0:7100"
 
-[route.game]
+[[route]]
+service_id = 0
 range = [1, 9999]
+require_binding = false
 
-[route.battle]
+[[route]]
+service_id = 1
 range = [20000, 29999]
+require_binding = true

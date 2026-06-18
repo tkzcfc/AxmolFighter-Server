@@ -40,7 +40,7 @@ public:
     void shutdown();
 
 private:
-    void onGatewayMsg(uint16_t msgId, int32_t serial, uint32_t sessionId, const std::string_view& payload);
+    void onGatewayMsg(uint8_t cmd, uint16_t msgId, int32_t serial, uint32_t sessionId, const std::string_view& payload);
     void onSessionOnline(uint32_t sessionId);
     void onSessionOffline(uint32_t sessionId);
     void onPlayerState(uint32_t sessionId, int32_t serial, const std::string_view& payload);
