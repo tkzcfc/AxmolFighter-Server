@@ -1,41 +1,44 @@
 #pragma once
 
+#include "async/Task.h"
 #include "yasio/yasio.hpp"
-#include <chrono>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
+#include <vector>
 
-// Backend frame: [u32 len][u8 cmd][u16 msg_id][i32 serial][u32 session_id][payload...]
 constexpr size_t BACKEND_FRAME_HEADER_SIZE = 15;
-// yasio strips len(4), leaving cmd(1) + msg_id(2) + serial(4) + session_id(4).
 constexpr size_t BACKEND_FRAME_BODY_HEADER_SIZE = 11;
 
-// cmd 只说明这一帧走哪条处理分支，业务协议号还是看 msg_id。
-// 这里的数值要和 Rust 网关保持一致，改的时候两边一起改。
-constexpr uint8_t CMD_BUSINESS = 0;  // 普通业务消息，payload 是业务 protobuf。
-constexpr uint8_t CMD_GATEWAY_ERROR = 1;  // 网关返回给客户端的错误，后端一般不会处理。
-constexpr uint8_t CMD_SERVER_STATUS = 2;  // 网关推给客户端的服务状态，后端一般不会处理。
-constexpr uint8_t CMD_SERVER_REG_REQ = 10;  // 后端连上网关后发注册请求。
-constexpr uint8_t CMD_SERVER_REG_RESP = 11;  // 网关返回注册结果。
-constexpr uint8_t CMD_BIND_SERVICE = 12;  // 绑定会话到某类服务实例。
-constexpr uint8_t CMD_UNBIND_SERVICE = 13;  // 取消会话的服务绑定。
-constexpr uint8_t CMD_KICK_SESSION = 14;  // 后端要求网关踢掉客户端。
-constexpr uint8_t CMD_SESSION_ONLINE = 15;  // 网关通知后端：客户端上线。
-constexpr uint8_t CMD_SESSION_OFFLINE = 16;  // 网关通知后端：客户端下线。
-constexpr uint8_t CMD_SERVER_ONLINE = 17;  // 网关通知后端：服务实例上线。
-constexpr uint8_t CMD_SERVER_OFFLINE = 18;  // 网关通知后端：服务实例下线。
-constexpr uint8_t CMD_FORWARD_TO_SERVER = 19;  // 后端让网关转发一帧到指定服务实例。
+constexpr uint8_t CMD_BUSINESS = 0;
+constexpr uint8_t CMD_GATEWAY_ERROR = 1;
+constexpr uint8_t CMD_GATEWAY_CONTROL = 2;
 
-constexpr uint8_t SERVICE_ID_GAME   = 0;
+constexpr uint8_t SERVICE_ID_GAME = 0;
 constexpr uint8_t SERVICE_ID_BATTLE = 1;
 
 typedef std::function<void(bool, const std::string_view&)> GatewayConnectCallback;
 typedef std::function<void()> GatewayDisconnectCallback;
+typedef std::function<void(bool, const std::string_view&)> GatewayRequestCallback;
 typedef std::function<void(uint8_t, uint16_t, int32_t, uint32_t, const std::string_view&)>
     GatewayMsgCallback;
+
+struct GatewayResponse
+{
+    bool ok = false;
+    uint8_t cmd = CMD_BUSINESS;
+    uint16_t msgId = 0;
+    int32_t serial = 0;
+    uint32_t sessionId = 0;
+    std::string payload;
+    std::string error;
+};
+
+using GatewayTask = Task<GatewayResponse>;
 
 class GatewayClient
 {
@@ -43,10 +46,10 @@ public:
     struct Config
     {
         std::string host;
-        int port;
-        uint8_t serviceId;
-        uint32_t instanceId;
-        float reconnectInterval;
+        int port = 0;
+        uint8_t serviceId = SERVICE_ID_BATTLE;
+        uint32_t instanceId = 0;
+        float reconnectInterval = 3.0f;
     };
 
     GatewayClient();
@@ -59,9 +62,91 @@ public:
 
     bool isConnected() const { return m_state == State::Registered; }
 
+    int32_t sendRequest(uint32_t sessionId, uint16_t msgId, const char* data, size_t length,
+                        const GatewayRequestCallback& callback, float timeout = 10.0f);
+    template <typename PbMessage>
+    int32_t sendRequest(uint32_t sessionId, const PbMessage& message,
+                        const GatewayRequestCallback& callback, float timeout = 10.0f)
+    {
+        std::string payload;
+        if (!serializePbMessage(message, payload))
+            return -1;
+        return sendRequest(sessionId, pbMsgId<PbMessage>(), payload.data(), payload.size(),
+                           callback, timeout);
+    }
+    void cancelRequest(int32_t requestId);
+
+    void sendPush(uint32_t sessionId, uint16_t msgId, const char* data, size_t length);
+    template <typename PbMessage>
+    void sendPush(uint32_t sessionId, const PbMessage& message)
+    {
+        std::string payload;
+        if (!serializePbMessage(message, payload))
+            return;
+        sendPush(sessionId, pbMsgId<PbMessage>(), payload.data(), payload.size());
+    }
+
+    void sendResponse(uint32_t sessionId, uint16_t msgId, int32_t serial, const char* data,
+                      size_t length);
+    template <typename PbMessage>
+    void sendResponse(uint32_t sessionId, int32_t serial, const PbMessage& message)
+    {
+        std::string payload;
+        if (!serializePbMessage(message, payload))
+            return;
+        sendResponse(sessionId, pbMsgId<PbMessage>(), serial, payload.data(), payload.size());
+    }
+
     int sendToClient(uint32_t sessionId, uint16_t msgId, int32_t serial,
                      const char* data, size_t length);
+    template <typename PbMessage>
+    int sendToClient(uint32_t sessionId, int32_t serial, const PbMessage& message)
+    {
+        std::string payload;
+        if (!serializePbMessage(message, payload))
+            return -1;
+        return sendToClient(sessionId, pbMsgId<PbMessage>(), serial, payload.data(), payload.size());
+    }
+
+    int bindService(uint32_t sessionId, uint8_t serviceId, int32_t targetInstanceId);
+    int unbindService(uint32_t sessionId, uint8_t serviceId);
     int kickSession(uint32_t sessionId);
+    int forwardToServer(uint8_t targetServiceId, uint32_t targetInstanceId,
+                        const char* data, size_t length);
+    template <typename PbMessage>
+    int forwardToServer(uint8_t targetServiceId, uint32_t targetInstanceId,
+                        const PbMessage& message)
+    {
+        std::string payload;
+        if (!serializePbMessage(message, payload))
+            return -1;
+        return forwardToServer(targetServiceId, targetInstanceId, payload.data(), payload.size());
+    }
+
+    GatewayTask requestAsync(uint32_t sessionId, uint16_t msgId, const char* data, size_t length,
+                             float timeout = 10.0f);
+    template <typename PbMessage>
+    GatewayTask requestAsync(uint32_t sessionId, const PbMessage& message,
+                             float timeout = 10.0f)
+    {
+        std::string payload;
+        if (!serializePbMessage(message, payload))
+        {
+            TaskPromise<GatewayResponse> promise;
+            auto result = promise.get_result();
+            GatewayResponse response;
+            response.ok = false;
+            response.cmd = CMD_GATEWAY_ERROR;
+            response.msgId = pbMsgId<PbMessage>();
+            response.sessionId = sessionId;
+            response.error = "serialize failed";
+            promise.set_result(std::move(response));
+            return result;
+        }
+
+        return requestAsync(sessionId, pbMsgId<PbMessage>(), payload.data(), payload.size(),
+                            timeout);
+    }
 
     void setMsgCallback(const GatewayMsgCallback& callback) { m_onMsgCallback = callback; }
     void setDisconnectCallback(const GatewayDisconnectCallback& callback) { m_onDisconnect = callback; }
@@ -80,8 +165,23 @@ private:
     void tryReconnect(float dt);
     void onRecvFrame(const std::string_view& data);
     void sendRegisterReq();
+    void failAllPendingRequests(const std::string& error);
+    void timeoutCheck(float dt);
     int sendFrame(uint8_t cmd, uint16_t msgId, int32_t serial, uint32_t sessionId,
                   const char* data, size_t length);
+
+    template <typename PbMessage>
+    static uint16_t pbMsgId()
+    {
+        return static_cast<uint16_t>(std::decay_t<PbMessage>::Id);
+    }
+
+    template <typename PbMessage>
+    static bool serializePbMessage(const PbMessage& message, std::string& payload)
+    {
+        payload.clear();
+        return message.SerializeToString(&payload);
+    }
 
 private:
     Config m_config;
@@ -90,6 +190,15 @@ private:
     State m_state;
     bool m_running;
     float m_reconnectTimer;
+    int32_t m_serialCounter;
+
+    struct PendingRequest
+    {
+        GatewayRequestCallback callback;
+        float timeout = 0.0f;
+    };
+    std::unordered_map<int32_t, PendingRequest> m_pendingRequests;
+
     GatewayMsgCallback m_onMsgCallback;
     GatewayDisconnectCallback m_onDisconnect;
 };

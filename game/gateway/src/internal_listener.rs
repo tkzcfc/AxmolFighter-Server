@@ -1,9 +1,12 @@
 use std::net::SocketAddr;
 
-use ::protocol::gateway::{ServerStatusPush, ServiceStatus as GatewayServiceStatus};
+use ::protocol::gateway::{
+    ServerOfflinePush, ServerOnlinePush, ServerRegResp, ServerStatusPush, ServiceEndpoint,
+    ServiceStatus as GatewayServiceStatus, SessionOnlinePush,
+};
+use ::protocol::message_map::{MessageType, decode_message, encode_message};
 use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
-use prost::Message;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
@@ -47,13 +50,21 @@ impl InternalDelegate {
     }
 
     fn broadcast_status_to_clients(&self) {
-        let client_data = encode_client_frame(
-            CMD_SERVER_STATUS,
-            0,
-            0,
-            &self.build_status().encode_to_vec(),
-        );
+        let (msg_id, payload) =
+            encode_message(&MessageType::GatewayServerStatusPush(self.build_status())).unwrap();
+        let client_data = encode_client_frame(CMD_GATEWAY_CONTROL, msg_id as u16, 0, &payload);
         self.ctx.sessions.broadcast_to_clients(client_data);
+    }
+
+    fn encode_control_frame(&self, message: MessageType, serial: i32, session_id: u32) -> Bytes {
+        let (msg_id, payload) = encode_message(&message).unwrap();
+        encode_backend_frame(
+            CMD_GATEWAY_CONTROL,
+            msg_id as u16,
+            serial,
+            session_id,
+            &payload,
+        )
     }
 }
 
@@ -84,11 +95,11 @@ impl SessionDelegate for InternalDelegate {
                 .router
                 .unbind_all_by_instance(service_id, instance_id);
 
-            let notify = ServerOffline {
-                service_id,
+            let notify = MessageType::GatewayServerOfflinePush(ServerOfflinePush {
+                service_id: service_id as u32,
                 instance_id,
-            };
-            let data = encode_backend_frame(CMD_SERVER_OFFLINE, 0, 0, 0, &notify.encode());
+            });
+            let data = self.encode_control_frame(notify, 0, 0);
             self.ctx.registry.broadcast_except(self.session_id, data);
             self.broadcast_status_to_clients();
         }
@@ -136,7 +147,7 @@ impl SessionDelegate for InternalDelegate {
             return Ok(());
         }
 
-        self.handle_internal(cmd, session_id, payload).await
+        self.handle_internal(cmd, msg_id, session_id, payload).await
     }
 }
 
@@ -144,21 +155,27 @@ impl InternalDelegate {
     async fn handle_internal(
         &mut self,
         cmd: u8,
+        msg_id: u16,
         _session_id: u32,
         payload: Bytes,
     ) -> anyhow::Result<()> {
-        match cmd {
-            CMD_SERVER_REG_REQ => {
-                let req = ServerRegReq::decode(payload)?;
+        if cmd != CMD_GATEWAY_CONTROL {
+            debug!("unhandled internal cmd={}", cmd);
+            return Ok(());
+        }
+
+        match decode_message(msg_id as u32, &payload)? {
+            MessageType::GatewayServerRegReq(req) => {
                 let existing = self.ctx.registry.list_all();
+                let service_id = req.service_id as u8;
 
                 self.ctx.registry.register(
                     self.session_id,
-                    req.service_id,
+                    service_id,
                     req.instance_id,
                     self.tx.clone().unwrap(),
                 );
-                self.registered = Some((req.service_id, req.instance_id));
+                self.registered = Some((service_id, req.instance_id));
 
                 info!(
                     "backend service_id={} instance {} registered",
@@ -167,19 +184,24 @@ impl InternalDelegate {
 
                 let resp = ServerRegResp {
                     code: 0,
-                    servers: existing,
+                    servers: existing
+                        .into_iter()
+                        .map(|(service_id, instance_id)| ServiceEndpoint {
+                            service_id: service_id as u32,
+                            instance_id,
+                        })
+                        .collect(),
                 };
-                let data = encode_backend_frame(CMD_SERVER_REG_RESP, 0, 0, 0, &resp.encode());
+                let data = self.encode_control_frame(MessageType::GatewayServerRegResp(resp), 0, 0);
                 if let Some(tx) = &self.tx {
                     let _ = tx.send(WriterMessage::Send(data, true));
                 }
 
-                let notify = ServerOnline {
+                let notify = MessageType::GatewayServerOnlinePush(ServerOnlinePush {
                     service_id: req.service_id,
                     instance_id: req.instance_id,
-                };
-                let broadcast_data =
-                    encode_backend_frame(CMD_SERVER_ONLINE, 0, 0, 0, &notify.encode());
+                });
+                let broadcast_data = self.encode_control_frame(notify, 0, 0);
                 self.ctx
                     .registry
                     .broadcast_except(self.session_id, broadcast_data);
@@ -187,20 +209,21 @@ impl InternalDelegate {
                 self.broadcast_status_to_clients();
 
                 for sid in self.ctx.sessions.online_sessions() {
-                    let online = SessionOnline { session_id: sid };
-                    let notify_data =
-                        encode_backend_frame(CMD_SESSION_ONLINE, 0, 0, sid, &online.encode());
+                    let online = MessageType::GatewaySessionOnlinePush(SessionOnlinePush {
+                        session_id: sid,
+                    });
+                    let notify_data = self.encode_control_frame(online, 0, sid);
                     if let Some(tx) = &self.tx {
                         let _ = tx.send(WriterMessage::Send(notify_data, true));
                     }
                 }
             }
 
-            CMD_BIND_SERVICE => {
-                let req = BindService::decode(payload)?;
+            MessageType::GatewayBindServiceReq(req) => {
+                let service_id = req.service_id as u8;
                 let selected = if req.target_instance_id < 0 {
                     self.ctx.registry.least_loaded_instance(
-                        req.service_id,
+                        service_id,
                         |service_id, instance_id| {
                             self.ctx.router.binding_count(service_id, instance_id)
                         },
@@ -209,14 +232,14 @@ impl InternalDelegate {
                     let instance_id = req.target_instance_id as u32;
                     self.ctx
                         .registry
-                        .find_by_instance(req.service_id, instance_id)
+                        .find_by_instance(service_id, instance_id)
                         .map(|tx| (instance_id, tx))
                 };
 
                 if let Some((instance_id, _)) = selected {
                     self.ctx
                         .router
-                        .bind_service(req.session_id, req.service_id, instance_id);
+                        .bind_service(req.session_id, service_id, instance_id);
                     debug!(
                         "bound session {} to service_id={} instance {}",
                         req.session_id, req.service_id, instance_id
@@ -229,32 +252,29 @@ impl InternalDelegate {
                 }
             }
 
-            CMD_UNBIND_SERVICE => {
-                let req = UnbindService::decode(payload)?;
+            MessageType::GatewayUnbindServiceReq(req) => {
                 self.ctx
                     .router
-                    .unbind_service(req.session_id, req.service_id);
+                    .unbind_service(req.session_id, req.service_id as u8);
                 debug!(
                     "unbound session {} from service_id={}",
                     req.session_id, req.service_id
                 );
             }
 
-            CMD_KICK_SESSION => {
-                let req = KickSession::decode(payload)?;
+            MessageType::GatewayKickSessionReq(req) => {
                 self.ctx.sessions.kick(req.session_id);
                 self.ctx.router.cleanup_session(req.session_id);
                 debug!("kicked session {}", req.session_id);
             }
 
-            CMD_FORWARD_TO_SERVER => {
-                let req = ForwardToServer::decode(payload)?;
+            MessageType::GatewayForwardToServerReq(req) => {
                 if let Some(tx) = self
                     .ctx
                     .registry
-                    .find_by_instance(req.target_service_id, req.target_instance_id)
+                    .find_by_instance(req.target_service_id as u8, req.target_instance_id)
                 {
-                    let _ = tx.send(WriterMessage::Send(req.payload, true));
+                    let _ = tx.send(WriterMessage::Send(Bytes::from(req.payload), true));
                 } else {
                     warn!(
                         "forward target service_id={} instance {} not found",
@@ -264,7 +284,7 @@ impl InternalDelegate {
             }
 
             _ => {
-                debug!("unhandled internal cmd={}", cmd);
+                debug!("unhandled gateway control msg_id={}", msg_id);
             }
         }
 

@@ -263,3 +263,57 @@ pub struct PlayerState {
     #[prost(string, tag = "5")]
     pub state: ::prost::alloc::string::String,
 }
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BattleJoinReq {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 20010; }
+    #[prost(int64, tag = "1")]
+    pub player_id: i64,
+    #[prost(int32, tag = "2")]
+    pub map_id: i32,
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BattleJoinResp {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 20011; }
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "3")]
+    pub battle_id: u32,
+    #[prost(uint32, tag = "4")]
+    pub server_frame: u32,
+    #[prost(bytes = "vec", tag = "5")]
+    pub world_dump: ::prost::alloc::vec::Vec<u8>,
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BattleInputPush {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 20012; }
+    #[prost(uint32, tag = "1")]
+    pub battle_id: u32,
+    #[prost(uint32, tag = "2")]
+    pub client_frame: u32,
+    #[prost(uint32, tag = "3")]
+    pub input_mask: u32,
+    #[prost(uint64, tag = "4")]
+    pub client_time_ms: u64,
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BattleSnapshotPush {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 20013; }
+    #[prost(uint32, tag = "1")]
+    pub battle_id: u32,
+    #[prost(uint32, tag = "2")]
+    pub server_frame: u32,
+    #[prost(uint64, tag = "3")]
+    pub server_time_ms: u64,
+    #[prost(bytes = "vec", tag = "4")]
+    pub world_dump: ::prost::alloc::vec::Vec<u8>,
+}

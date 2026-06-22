@@ -1,11 +1,12 @@
 use std::net::SocketAddr;
 
 use ::protocol::gateway::{
-    GatewayErrorResp, ServerStatusPush, ServiceStatus as GatewayServiceStatus,
+    GatewayErrorResp, ServerStatusPush, ServiceStatus as GatewayServiceStatus, SessionOfflinePush,
+    SessionOnlinePush,
 };
+use ::protocol::message_map::{MessageType, encode_message};
 use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
-use prost::Message;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
@@ -13,19 +14,16 @@ use base::net::{WriterMessage, session_delegate::SessionDelegate};
 
 use crate::codec::{encode_backend_frame, encode_client_frame, try_extract_client_frame};
 use crate::context::GatewayContext;
-use crate::protocol::{
-    CMD_BUSINESS, CMD_GATEWAY_ERROR, CMD_SERVER_STATUS, CMD_SESSION_OFFLINE, CMD_SESSION_ONLINE,
-    SessionOffline, SessionOnline,
-};
+use crate::protocol::{CMD_BUSINESS, CMD_GATEWAY_CONTROL, CMD_GATEWAY_ERROR};
 use crate::router::RouteTarget;
 
-/// 客户端发了网关不接受的 cmd，比如直接发内部控制命令。
+// 客户端只能发送业务帧，不能直接发送网关控制帧。
 const GATEWAY_ERR_INVALID_CMD: u32 = 1;
-/// msg_id 能找到目标服务类型，但当前没有可用的服务实例。
+// 路由命中服务类型，但当前没有可用服务实例。
 const GATEWAY_ERR_SERVICE_UNAVAILABLE: u32 = 2;
-/// 这个消息需要先绑定服务实例，但当前 session 还没绑定。
+// 该消息需要绑定服务实例，但当前 session 尚未绑定。
 const GATEWAY_ERR_SERVICE_NOT_BOUND: u32 = 3;
-/// msg_id 没命中 gateway.toml 里的任何路由范围。
+// msg_id 未命中 gateway.toml 中的任何路由范围。
 const GATEWAY_ERR_UNKNOWN_ROUTE: u32 = 4;
 
 pub struct ClientDelegate {
@@ -59,17 +57,26 @@ impl ClientDelegate {
         }
     }
 
-    fn reply_error_if_request(&self, msg_id: u16, serial: i32, code: u32, message: &str) {
-        if serial < 0 {
-            if let Some(tx) = &self.tx {
-                let resp = GatewayErrorResp {
-                    code,
-                    message: message.to_string(),
-                };
-                let data =
-                    encode_client_frame(CMD_GATEWAY_ERROR, msg_id, -serial, &resp.encode_to_vec());
-                let _ = tx.send(WriterMessage::Send(data, true));
-            }
+    fn reply_error_if_request(&self, _msg_id: u16, serial: i32, code: u32, message: &str) {
+        if serial >= 0 {
+            // serial 不是负数,说明这不是一个request请求
+            warn!(
+                "client session {} sent request with non-negative serial {}, ignoring",
+                self.session_id, serial
+            );
+            return;
+        }
+
+        if let Some(tx) = &self.tx {
+            let resp = GatewayErrorResp {
+                code,
+                message: message.to_string(),
+            };
+            let (gateway_msg_id, payload) =
+                encode_message(&MessageType::GatewayGatewayErrorResp(resp)).unwrap();
+            let data =
+                encode_client_frame(CMD_GATEWAY_ERROR, gateway_msg_id as u16, -serial, &payload);
+            let _ = tx.send(WriterMessage::Send(data, true));
         }
     }
 }
@@ -88,15 +95,19 @@ impl SessionDelegate for ClientDelegate {
 
         debug!("client session {} connected", session_id);
 
-        let notify = SessionOnline { session_id };
-        let data = encode_backend_frame(CMD_SESSION_ONLINE, 0, 0, session_id, &notify.encode());
+        let notify = MessageType::GatewaySessionOnlinePush(SessionOnlinePush { session_id });
+        let (msg_id, payload) = encode_message(&notify).unwrap();
+        let data =
+            encode_backend_frame(CMD_GATEWAY_CONTROL, msg_id as u16, 0, session_id, &payload);
         self.ctx.registry.broadcast(data);
 
+        let status = MessageType::GatewayServerStatusPush(self.build_status());
+        let (status_msg_id, status_payload) = encode_message(&status).unwrap();
         let status_frame = encode_client_frame(
-            CMD_SERVER_STATUS,
+            CMD_GATEWAY_CONTROL,
+            status_msg_id as u16,
             0,
-            0,
-            &self.build_status().encode_to_vec(),
+            &status_payload,
         );
         let _ = tx.send(WriterMessage::Send(status_frame, true));
 
@@ -109,11 +120,17 @@ impl SessionDelegate for ClientDelegate {
         self.ctx.sessions.remove(self.session_id);
         self.ctx.router.cleanup_session(self.session_id);
 
-        let notify = SessionOffline {
+        let notify = MessageType::GatewaySessionOfflinePush(SessionOfflinePush {
             session_id: self.session_id,
-        };
-        let data =
-            encode_backend_frame(CMD_SESSION_OFFLINE, 0, 0, self.session_id, &notify.encode());
+        });
+        let (msg_id, payload) = encode_message(&notify).unwrap();
+        let data = encode_backend_frame(
+            CMD_GATEWAY_CONTROL,
+            msg_id as u16,
+            0,
+            self.session_id,
+            &payload,
+        );
         self.ctx.registry.broadcast(data);
 
         Ok(())
