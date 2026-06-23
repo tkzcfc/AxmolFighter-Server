@@ -4,90 +4,74 @@ package PB.Game;
 
 option optimize_for = LITE_RUNTIME;
 
-// ============================================================
-// Game protocol  (msg_id range: 1000–9999)
-// ============================================================
-
-// ─── Auth (1000–1099) ────────────────────────────────────────────────────────
-
-// 登录请求
+// 登录。
 message LoginReq {
     enum MsgId { None = 0; Id = 1000; }
-    string account  = 1;
+    string account = 1;
     string password = 2;
 }
 
-// 登录响应
 message LoginResp {
     enum MsgId { None = 0; Id = 1001; }
-    int32  code      = 1;  // 0=成功
-    string message   = 2;
-    int64  player_id = 3;
-    string nickname  = 4;
+    int32 code = 1;
+    string message = 2;
+    int64 player_id = 3;
+    string nickname = 4;
     ServerConfig server_config = 5;
     AccountInfo account_info = 6;
 }
 
-// 注册请求
+// 注册。
 message RegisterReq {
     enum MsgId { None = 0; Id = 1002; }
-    string account  = 1;
+    string account = 1;
     string password = 2;
     string nickname = 3;
 }
 
-// 注册响应
 message RegisterResp {
     enum MsgId { None = 0; Id = 1003; }
-    int32  code      = 1;  // 0=成功
-    string message   = 2;
-    int64  player_id = 3;
+    int32 code = 1;
+    string message = 2;
+    int64 player_id = 3;
 }
 
-// ─── Runtime Models ───────────────────────────────────────────────────────
-
-// 服务器配置（登录后下发）
+// 登录后下发的服务器配置。
 message ServerConfig {
     int32 max_character_count = 1;
 }
 
-// 账号基础信息（登录后下发）
 message AccountInfo {
     int64 player_id = 1;
     string account = 2;
     string nickname = 3;
 }
 
-// 附魔属性
 message EnchantProp {
     int32 attr_id = 1;
     int32 value = 2;
 }
 
-// 装备信息
 message EquipmentInfo {
-    int64 id = 1;                // 唯一ID（实例ID）
-    int64 config_id = 2;         // 配置ID
-    int32 enhance_level = 3;     // 强化等级
-    int32 refine_level = 4;      // 精炼等级
+    int64 id = 1;
+    int64 config_id = 2;
+    int32 enhance_level = 3;
+    int32 refine_level = 4;
     repeated EnchantProp enchant_props = 5;
-    int32 slot = 6;              // 装备槽位，-1表示在背包
+    int32 slot = 6;
 }
 
-// 物品信息
 message ItemInfo {
-    int64 id = 1;                // 唯一ID（实例ID）
-    int64 config_id = 2;         // 配置ID
-    int32 count = 3;             // 数量
+    int64 id = 1;
+    int64 config_id = 2;
+    int32 count = 3;
 }
 
-// 背包信息（物品+装备列表）
 message InventoryInfo {
     repeated ItemInfo items = 1;
     repeated EquipmentInfo equipments = 2;
 }
 
-// 角色基础信息
 message CharacterInfo {
     int64 character_id = 1;
     string name = 2;
@@ -98,20 +82,15 @@ message CharacterInfo {
     int64 gold = 7;
 }
 
-// ─── Player (1100–1199) ───────────────────────────────────────────────────────
-
-// 玩家基础信息
 message PlayerInfo {
     enum MsgId { None = 0; Id = 1100; }
-    int64  player_id = 1;
-    string nickname  = 2;
-    int32  level     = 3;
-    int64  exp       = 4;
+    int64 player_id = 1;
+    string nickname = 2;
+    int32 level = 3;
+    int64 exp = 4;
 }
 
-// ─── Character / Lobby (1200–1299) ─────────────────────────────────────
-
-// 创建角色请求
+// 创建角色。
 message CreateCharacterReq {
     enum MsgId { None = 0; Id = 1200; }
     string name = 1;
@@ -119,20 +98,18 @@ message CreateCharacterReq {
     int32 gender = 3;
 }
 
-// 创建角色响应
 message CreateCharacterResp {
     enum MsgId { None = 0; Id = 1201; }
-    int32 code = 1;          // 0=成功,1=重名,2=达到上限,-1=服务器错误
+    int32 code = 1;
     string message = 2;
     CharacterInfo character = 3;
 }
 
-// 拉取角色列表请求
+// 拉取角色列表。
 message FetchCharacterListReq {
     enum MsgId { None = 0; Id = 1202; }
 }
 
-// 拉取角色列表响应
 message FetchCharacterListResp {
     enum MsgId { None = 0; Id = 1203; }
     int32 code = 1;
@@ -140,33 +117,31 @@ message FetchCharacterListResp {
     repeated CharacterInfo characters = 3;
 }
 
-// 选择角色进入游戏请求
+// 选择角色进入游戏。
 message SelectCharacterReq {
     enum MsgId { None = 0; Id = 1204; }
     int64 character_id = 1;
 }
 
-// 选择角色进入游戏响应
 message SelectCharacterResp {
     enum MsgId { None = 0; Id = 1205; }
-    int32 code = 1;          // 0=成功,1=角色不存在,2=非法归属,-1=服务器错误
+    int32 code = 1;
     string message = 2;
     CharacterInfo character = 3;
     InventoryInfo inventory = 4;
 }
 
-// ─── Battle/FrameSync (20000–29999, 走 BattleServer) ─────────────────────────
-
-// 玩家状态（帧同步用）
+// 帧同步里用到的玩家状态。
 message PlayerState {
     enum MsgId { None = 0; Id = 20000; }
-    int64  player_id = 1;
-    float  pos_x     = 2;
-    float  pos_y     = 3;
-    int32  hp        = 4;
-    string state     = 5;
+    int64 player_id = 1;
+    float pos_x = 2;
+    float pos_y = 3;
+    int32 hp = 4;
+    string state = 5;
 }
 
+// 客户端请求进入副本战斗。
 message BattleJoinReq {
     enum MsgId { None = 0; Id = 20010; }
     int64 player_id = 1;
@@ -180,6 +155,32 @@ message BattleJoinResp {
     uint32 battle_id = 3;
     uint32 server_frame = 4;
     bytes world_dump = 5;
+}
+
+message BattlePlayerSpec {
+    uint32 session_id = 1;
+    int64 player_id = 2;
+}
+
+// Game 发给 Battle，要求创建一场战斗。
+message BattleCreateReq {
+    enum MsgId { None = 0; Id = 20014; }
+    uint32 battle_id = 1;
+    int32 map_id = 2;
+    repeated BattlePlayerSpec players = 3;
+    // 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
+    uint32 requester_service_id = 4;
+    uint32 requester_instance_id = 5;
+}
+
+message BattleCreateResp {
+    enum MsgId { None = 0; Id = 20015; }
+    int32 code = 1;
+    string message = 2;
+    uint32 battle_id = 3;
+    uint32 battle_instance_id = 4;
+    uint32 server_frame = 5;
+    bytes world_dump = 6;
 }
 
 message BattleInputPush {

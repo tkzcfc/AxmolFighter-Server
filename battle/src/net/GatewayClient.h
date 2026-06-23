@@ -50,6 +50,9 @@ public:
         uint8_t serviceId = SERVICE_ID_BATTLE;
         uint32_t instanceId = 0;
         float reconnectInterval = 3.0f;
+        uint32_t initialLoadScore = 0;
+        bool initialAcceptingBindings = true;
+        std::string initialLoadMessage;
     };
 
     GatewayClient();
@@ -111,16 +114,42 @@ public:
     int bindService(uint32_t sessionId, uint8_t serviceId, int32_t targetInstanceId);
     int unbindService(uint32_t sessionId, uint8_t serviceId);
     int kickSession(uint32_t sessionId);
-    int forwardToServer(uint8_t targetServiceId, uint32_t targetInstanceId,
+    int forwardToServer(uint8_t targetServiceId, int32_t targetInstanceId,
                         const char* data, size_t length);
     template <typename PbMessage>
-    int forwardToServer(uint8_t targetServiceId, uint32_t targetInstanceId,
+    int forwardToServer(uint8_t targetServiceId, int32_t targetInstanceId,
                         const PbMessage& message)
     {
         std::string payload;
         if (!serializePbMessage(message, payload))
             return -1;
         return forwardToServer(targetServiceId, targetInstanceId, payload.data(), payload.size());
+    }
+
+    int forwardMessageToServer(uint8_t targetServiceId, int32_t targetInstanceId, uint8_t cmd,
+                               uint16_t msgId, int32_t serial, uint32_t sessionId,
+                               const char* data, size_t length);
+    template <typename PbMessage>
+    int forwardMessageToServer(uint8_t targetServiceId, int32_t targetInstanceId, int32_t serial,
+                               uint32_t sessionId, const PbMessage& message)
+    {
+        std::string payload;
+        if (!serializePbMessage(message, payload))
+            return -1;
+        return forwardMessageToServer(targetServiceId, targetInstanceId, CMD_BUSINESS,
+                                      pbMsgId<PbMessage>(), serial, sessionId,
+                                      payload.data(), payload.size());
+    }
+
+    int sendControl(uint16_t msgId, int32_t serial, uint32_t sessionId,
+                    const char* data, size_t length);
+    template <typename PbMessage>
+    int sendControl(int32_t serial, uint32_t sessionId, const PbMessage& message)
+    {
+        std::string payload;
+        if (!serializePbMessage(message, payload))
+            return -1;
+        return sendControl(pbMsgId<PbMessage>(), serial, sessionId, payload.data(), payload.size());
     }
 
     GatewayTask requestAsync(uint32_t sessionId, uint16_t msgId, const char* data, size_t length,
@@ -149,6 +178,7 @@ public:
     }
 
     void setMsgCallback(const GatewayMsgCallback& callback) { m_onMsgCallback = callback; }
+    void setConnectCallback(const GatewayConnectCallback& callback) { m_onConnect = callback; }
     void setDisconnectCallback(const GatewayDisconnectCallback& callback) { m_onDisconnect = callback; }
 
 private:
@@ -200,5 +230,6 @@ private:
     std::unordered_map<int32_t, PendingRequest> m_pendingRequests;
 
     GatewayMsgCallback m_onMsgCallback;
+    GatewayConnectCallback m_onConnect;
     GatewayDisconnectCallback m_onDisconnect;
 };

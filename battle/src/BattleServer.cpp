@@ -10,10 +10,54 @@
 
 using namespace mugen;
 
+namespace
+{
+struct ForwardedBackendFrame
+{
+    uint8_t cmd = 0;
+    uint16_t msgId = 0;
+    int32_t serial = 0;
+    uint32_t sessionId = 0;
+    std::string_view payload;
+};
+
+uint16_t readUint16(const char* data)
+{
+    return (static_cast<uint16_t>(static_cast<unsigned char>(data[0])) << 8) |
+        static_cast<uint16_t>(static_cast<unsigned char>(data[1]));
+}
+
+uint32_t readUint32(const char* data)
+{
+    return (static_cast<uint32_t>(static_cast<unsigned char>(data[0])) << 24) |
+        (static_cast<uint32_t>(static_cast<unsigned char>(data[1])) << 16) |
+        (static_cast<uint32_t>(static_cast<unsigned char>(data[2])) << 8) |
+        static_cast<uint32_t>(static_cast<unsigned char>(data[3]));
+}
+
+bool parseForwardedBackendFrame(const std::string& data, ForwardedBackendFrame& frame)
+{
+    if (data.size() < BACKEND_FRAME_HEADER_SIZE)
+        return false;
+
+    const uint32_t frameLen = readUint32(data.data());
+    if (frameLen < BACKEND_FRAME_HEADER_SIZE || frameLen > data.size())
+        return false;
+
+    frame.cmd = static_cast<uint8_t>(data[4]);
+    frame.msgId = readUint16(data.data() + 5);
+    frame.serial = static_cast<int32_t>(readUint32(data.data() + 7));
+    frame.sessionId = readUint32(data.data() + 11);
+    frame.payload = std::string_view(data.data() + BACKEND_FRAME_HEADER_SIZE,
+                                     frameLen - BACKEND_FRAME_HEADER_SIZE);
+    return true;
+}
+}
+
 BattleServer::BattleServer()
     : m_running(false)
-    , m_battleIdSeed(0)
     , m_randomSeed(0xBA771E)
+    , m_loadReportTimer(0.0f)
 {
 }
 
@@ -26,12 +70,16 @@ bool BattleServer::init(const BattleServerConfig& config)
 {
     m_config = config;
 
+    // battle 作为后端服务连接网关，注册成 battle 实例。
     GatewayClient::Config gwConfig;
     gwConfig.host = config.gatewayHost;
     gwConfig.port = config.gatewayPort;
     gwConfig.serviceId = SERVICE_ID_BATTLE;
     gwConfig.instanceId = config.instanceId;
     gwConfig.reconnectInterval = config.reconnectInterval;
+    gwConfig.initialLoadScore = 0;
+    gwConfig.initialAcceptingBindings = config.maxBattles > 0 && config.maxSessions > 0;
+    gwConfig.initialLoadMessage = gwConfig.initialAcceptingBindings ? "" : "battle server capacity is full";
 
     m_gateway.init(gwConfig);
     m_gateway.setMsgCallback([this](uint8_t cmd, uint16_t msgId, int32_t serial, uint32_t sessionId,
@@ -39,6 +87,7 @@ bool BattleServer::init(const BattleServerConfig& config)
         this->onGatewayMsg(cmd, msgId, serial, sessionId, payload);
     });
     m_gateway.setDisconnectCallback([this]() {
+        // 网关断开后本地绑定都不可靠，直接清掉等待重连。
         printf("[BattleServer] gateway disconnected, clearing all battles\n");
         m_battles.clear();
         m_sessionToBattle.clear();
@@ -99,11 +148,27 @@ void BattleServer::onGatewayMsg(uint8_t cmd, uint16_t msgId, int32_t serial, uin
             if (push.ParseFromArray(payload.data(), static_cast<int>(payload.size())))
                 onSessionOffline(push.session_id());
         }
+        else if (msgId == PB::Gateway::ForwardToServerReq::Id)
+        {
+            PB::Gateway::ForwardToServerReq req;
+            ForwardedBackendFrame inner;
+            if (!req.ParseFromArray(payload.data(), static_cast<int>(payload.size())) ||
+                !parseForwardedBackendFrame(req.payload(), inner))
+            {
+                break;
+            }
+
+            if (inner.cmd == CMD_BUSINESS && inner.msgId == PB::Game::BattleCreateReq::Id)
+            {
+                onBattleCreate(inner.sessionId, inner.serial, inner.payload,
+                               req.source_service_id(), req.source_instance_id());
+            }
+        }
         break;
 
     case CMD_BUSINESS:
-        if (msgId == PB::Game::BattleJoinReq::Id)
-            onBattleJoin(sessionId, serial, payload);
+        if (msgId == PB::Game::BattleCreateReq::Id)
+            onBattleCreate(sessionId, serial, payload, 0, 0);
         else if (msgId == PB::Game::BattleInputPush::Id)
             onBattleInput(sessionId, payload);
         break;
@@ -124,42 +189,52 @@ void BattleServer::onSessionOffline(uint32_t sessionId)
     removePlayer(sessionId);
 }
 
-void BattleServer::onBattleJoin(uint32_t sessionId, int32_t serial, const std::string_view& payload)
+void BattleServer::onBattleCreate(uint32_t sessionId, int32_t serial, const std::string_view& payload,
+                                  uint32_t sourceServiceId, uint32_t sourceInstanceId)
 {
-    PB::Game::BattleJoinReq req;
+    PB::Game::BattleCreateReq req;
     if (!req.ParseFromArray(payload.data(), static_cast<int>(payload.size())))
     {
-        sendJoinResp(sessionId, serial, 1, "invalid BattleJoinReq", nullptr);
+        sendBattleCreateResp(sourceServiceId, sourceInstanceId, serial, 1,
+                             "invalid BattleCreateReq", nullptr);
         return;
     }
 
     if (auto it = m_sessionToBattle.find(sessionId); it != m_sessionToBattle.end())
     {
+        // 重复进入时返回现有战斗，避免重复创建角色。
         auto battleIt = m_battles.find(it->second);
-        sendJoinResp(sessionId, serial, battleIt != m_battles.end() ? 0 : 2,
-                     battleIt != m_battles.end() ? "" : "battle not found",
-                     battleIt != m_battles.end() ? battleIt->second.get() : nullptr);
+        sendBattleCreateResp(sourceServiceId, sourceInstanceId, serial,
+                             battleIt != m_battles.end() ? 0 : 2,
+                             battleIt != m_battles.end() ? "" : "battle not found",
+                             battleIt != m_battles.end() ? battleIt->second.get() : nullptr);
         return;
     }
 
-    BattleInstance* battle = findJoinableBattle(req.map_id());
-    if (!battle)
-        battle = createBattle(req.map_id());
-
+    BattleInstance* battle = createBattle(req.battle_id(), req.map_id());
     if (!battle)
     {
-        sendJoinResp(sessionId, serial, 3, "create battle failed", nullptr);
+        sendBattleCreateResp(sourceServiceId, sourceInstanceId, serial, 3,
+                             "create battle failed", nullptr);
         return;
     }
 
-    if (!addPlayerToBattle(*battle, sessionId))
+    bool joined = false;
+    for (const auto& player : req.players())
     {
-        sendJoinResp(sessionId, serial, 4, "battle is full", nullptr);
+        if (player.session_id() == sessionId)
+            joined = addPlayerToBattle(*battle, player.session_id());
+        else
+            addPlayerToBattle(*battle, player.session_id());
+    }
+
+    if (!joined)
+    {
+        sendBattleCreateResp(sourceServiceId, sourceInstanceId, serial, 4, "battle is full", nullptr);
         return;
     }
 
-    m_gateway.bindService(sessionId, SERVICE_ID_BATTLE, static_cast<int32_t>(m_config.instanceId));
-    sendJoinResp(sessionId, serial, 0, "", battle);
+    sendBattleCreateResp(sourceServiceId, sourceInstanceId, serial, 0, "", battle);
     sendSnapshot(*battle);
 }
 
@@ -189,20 +264,22 @@ void BattleServer::onBattleInput(uint32_t sessionId, const std::string_view& pay
     inputComp->keyDown = input.input_mask();
 }
 
-BattleInstance* BattleServer::findJoinableBattle(int32_t mapId)
+BattleInstance* BattleServer::createBattle(uint32_t battleId, int32_t mapId)
 {
-    for (auto& [_, battle] : m_battles)
-    {
-        if (battle->mapId == mapId && battle->players.size() < 2)
-            return battle.get();
-    }
-    return nullptr;
-}
+    if (battleId == 0)
+        return nullptr;
 
-BattleInstance* BattleServer::createBattle(int32_t mapId)
-{
+    if (auto it = m_battles.find(battleId); it != m_battles.end())
+        return it->second.get();
+
+    if (m_battles.size() >= m_config.maxBattles)
+    {
+        printf("[BattleServer] max battle count reached: %zu/%u\n", m_battles.size(), m_config.maxBattles);
+        return nullptr;
+    }
+
     auto battle = std::make_unique<BattleInstance>();
-    battle->battleId = ++m_battleIdSeed;
+    battle->battleId = battleId;
     battle->mapId = mapId <= 0 ? 1 : mapId;
     battle->world = std::make_unique<mugen::GameWord>();
 
@@ -212,14 +289,18 @@ BattleInstance* BattleServer::createBattle(int32_t mapId)
         return nullptr;
     }
 
-    const uint32_t battleId = battle->battleId;
-    m_battles.emplace(battleId, std::move(battle));
-    printf("[BattleServer] battle %u created map=%d\n", battleId, mapId);
-    return m_battles[battleId].get();
+    const uint32_t createdBattleId = battle->battleId;
+    m_battles.emplace(createdBattleId, std::move(battle));
+    printf("[BattleServer] battle %u created map=%d\n", createdBattleId, mapId);
+    return m_battles[createdBattleId].get();
 }
 
 bool BattleServer::addPlayerToBattle(BattleInstance& battle, uint32_t sessionId)
 {
+    // session 总量也要限住，避免只限制 battle 数不够用。
+    if (activeSessionCount() >= m_config.maxSessions && m_sessionToBattle.find(sessionId) == m_sessionToBattle.end())
+        return false;
+
     if (battle.players.size() >= 2)
         return false;
 
@@ -266,21 +347,28 @@ std::string BattleServer::serializeWorld(const BattleInstance& battle) const
     return std::string(reinterpret_cast<const char*>(buffer.data()), buffer.len());
 }
 
-void BattleServer::sendJoinResp(uint32_t sessionId, int32_t serial, int32_t code, const std::string& message,
-                                const BattleInstance* battle)
+void BattleServer::sendBattleCreateResp(uint32_t targetServiceId, uint32_t targetInstanceId,
+                                        int32_t serial, int32_t code, const std::string& message,
+                                        const BattleInstance* battle)
 {
-    PB::Game::BattleJoinResp resp;
+    PB::Game::BattleCreateResp resp;
     resp.set_code(code);
     resp.set_message(message);
     if (battle)
     {
         resp.set_battle_id(battle->battleId);
+        resp.set_battle_instance_id(m_config.instanceId);
         resp.set_server_frame(battle->serverFrame);
         auto dump = serializeWorld(*battle);
         resp.set_world_dump(dump);
     }
 
-    m_gateway.sendResponse(sessionId, serial < 0 ? -serial : serial, resp);
+    if (targetServiceId == 0 && targetInstanceId == 0)
+        return;
+
+    m_gateway.forwardMessageToServer(static_cast<uint8_t>(targetServiceId),
+                                     static_cast<int32_t>(targetInstanceId),
+                                     serial < 0 ? -serial : serial, 0, resp);
 }
 
 void BattleServer::sendSnapshot(const BattleInstance& battle)
@@ -296,8 +384,46 @@ void BattleServer::sendSnapshot(const BattleInstance& battle)
         m_gateway.sendPush(sessionId, push);
 }
 
+uint32_t BattleServer::activeSessionCount() const
+{
+    return static_cast<uint32_t>(m_sessionToBattle.size());
+}
+
+bool BattleServer::canAcceptBinding(uint32_t sessionId) const
+{
+    // 已经在本服的 session 可以继续通过，便于重试或恢复。
+    if (m_sessionToBattle.find(sessionId) != m_sessionToBattle.end())
+        return true;
+    if (m_battles.size() >= m_config.maxBattles)
+        return false;
+    if (activeSessionCount() >= m_config.maxSessions)
+        return false;
+    return true;
+}
+
+void BattleServer::sendLoadReport()
+{
+    // 第一版用 active_battles 作为通用负载值。
+    PB::Gateway::ServiceLoadReportPush push;
+    const uint32_t loadScore = m_config.maxBattles == 0
+        ? 100
+        : static_cast<uint32_t>((m_battles.size() * 100) / m_config.maxBattles);
+    push.set_load_score(loadScore > 100 ? 100 : loadScore);
+    push.set_accepting_bindings(canAcceptBinding(0));
+    push.set_message(push.accepting_bindings() ? "" : "battle server capacity is full");
+    m_gateway.sendControl(0, 0, push);
+}
+
 void BattleServer::tick(float dt)
 {
+    m_loadReportTimer += dt;
+    if (m_loadReportTimer >= m_config.loadReportInterval)
+    {
+        m_loadReportTimer = 0.0f;
+        if (m_gateway.isConnected())
+            sendLoadReport();
+    }
+
     const float fixedDt = 1.0f / static_cast<float>(m_config.tickRate);
     for (auto& [_, battle] : m_battles)
     {

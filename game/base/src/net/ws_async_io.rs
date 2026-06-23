@@ -4,7 +4,7 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
+use tokio_tungstenite::{WebSocketStream, tungstenite::Message};
 
 /// 包装 WebSocketStream，使其实现 `AsyncRead` + `AsyncWrite`
 pub struct WebSocketAsyncIo<S> {

@@ -18,6 +18,8 @@ pub enum MessageType {
     GamePlayerState(super::game::PlayerState),
     GameBattleJoinReq(super::game::BattleJoinReq),
     GameBattleJoinResp(super::game::BattleJoinResp),
+    GameBattleCreateReq(super::game::BattleCreateReq),
+    GameBattleCreateResp(super::game::BattleCreateResp),
     GameBattleInputPush(super::game::BattleInputPush),
     GameBattleSnapshotPush(super::game::BattleSnapshotPush),
     GatewayServerStatusPush(super::gateway::ServerStatusPush),
@@ -32,6 +34,10 @@ pub enum MessageType {
     GatewayServerOnlinePush(super::gateway::ServerOnlinePush),
     GatewayServerOfflinePush(super::gateway::ServerOfflinePush),
     GatewayForwardToServerReq(super::gateway::ForwardToServerReq),
+    GatewayServiceLoadReportPush(super::gateway::ServiceLoadReportPush),
+    GatewayBindServiceResp(super::gateway::BindServiceResp),
+    GatewayServerPingReq(super::gateway::ServerPingReq),
+    GatewayServerPongResp(super::gateway::ServerPongResp),
 }
 
 impl MessageType {
@@ -56,6 +62,8 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
         MessageType::GamePlayerState(_) => Some(20000u32),
         MessageType::GameBattleJoinReq(_) => Some(20010u32),
         MessageType::GameBattleJoinResp(_) => Some(20011u32),
+        MessageType::GameBattleCreateReq(_) => Some(20014u32),
+        MessageType::GameBattleCreateResp(_) => Some(20015u32),
         MessageType::GameBattleInputPush(_) => Some(20012u32),
         MessageType::GameBattleSnapshotPush(_) => Some(20013u32),
         MessageType::GatewayServerStatusPush(_) => Some(1u32),
@@ -70,6 +78,10 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
         MessageType::GatewayServerOnlinePush(_) => Some(10u32),
         MessageType::GatewayServerOfflinePush(_) => Some(11u32),
         MessageType::GatewayForwardToServerReq(_) => Some(12u32),
+        MessageType::GatewayServiceLoadReportPush(_) => Some(13u32),
+        MessageType::GatewayBindServiceResp(_) => Some(14u32),
+        MessageType::GatewayServerPingReq(_) => Some(15u32),
+        MessageType::GatewayServerPongResp(_) => Some(16u32),
         _ => None,
     }
 }
@@ -132,6 +144,14 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
             Ok(message) => Ok(MessageType::GameBattleJoinResp(message)),
             Err(err) => Err(err),
         },
+        20014u32 => match super::game::BattleCreateReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameBattleCreateReq(message)),
+            Err(err) => Err(err),
+        },
+        20015u32 => match super::game::BattleCreateResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameBattleCreateResp(message)),
+            Err(err) => Err(err),
+        },
         20012u32 => match super::game::BattleInputPush::decode(bytes) {
             Ok(message) => Ok(MessageType::GameBattleInputPush(message)),
             Err(err) => Err(err),
@@ -188,6 +208,22 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
             Ok(message) => Ok(MessageType::GatewayForwardToServerReq(message)),
             Err(err) => Err(err),
         },
+        13u32 => match super::gateway::ServiceLoadReportPush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayServiceLoadReportPush(message)),
+            Err(err) => Err(err),
+        },
+        14u32 => match super::gateway::BindServiceResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayBindServiceResp(message)),
+            Err(err) => Err(err),
+        },
+        15u32 => match super::gateway::ServerPingReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayServerPingReq(message)),
+            Err(err) => Err(err),
+        },
+        16u32 => match super::gateway::ServerPongResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayServerPongResp(message)),
+            Err(err) => Err(err),
+        },
         _ => Err(DecodeError::new("unknown message id")),
     }
 }
@@ -208,6 +244,8 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
         MessageType::GamePlayerState(msg) => Some((20000u32, msg.encode_to_vec())),
         MessageType::GameBattleJoinReq(msg) => Some((20010u32, msg.encode_to_vec())),
         MessageType::GameBattleJoinResp(msg) => Some((20011u32, msg.encode_to_vec())),
+        MessageType::GameBattleCreateReq(msg) => Some((20014u32, msg.encode_to_vec())),
+        MessageType::GameBattleCreateResp(msg) => Some((20015u32, msg.encode_to_vec())),
         MessageType::GameBattleInputPush(msg) => Some((20012u32, msg.encode_to_vec())),
         MessageType::GameBattleSnapshotPush(msg) => Some((20013u32, msg.encode_to_vec())),
         MessageType::GatewayServerStatusPush(msg) => Some((1u32, msg.encode_to_vec())),
@@ -222,6 +260,10 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
         MessageType::GatewayServerOnlinePush(msg) => Some((10u32, msg.encode_to_vec())),
         MessageType::GatewayServerOfflinePush(msg) => Some((11u32, msg.encode_to_vec())),
         MessageType::GatewayForwardToServerReq(msg) => Some((12u32, msg.encode_to_vec())),
+        MessageType::GatewayServiceLoadReportPush(msg) => Some((13u32, msg.encode_to_vec())),
+        MessageType::GatewayBindServiceResp(msg) => Some((14u32, msg.encode_to_vec())),
+        MessageType::GatewayServerPingReq(msg) => Some((15u32, msg.encode_to_vec())),
+        MessageType::GatewayServerPongResp(msg) => Some((16u32, msg.encode_to_vec())),
         _ => None,
     }
 }
@@ -242,6 +284,8 @@ pub fn get_message_size(message: &MessageType) -> usize {
         MessageType::GamePlayerState(msg) => msg.encoded_len(),
         MessageType::GameBattleJoinReq(msg) => msg.encoded_len(),
         MessageType::GameBattleJoinResp(msg) => msg.encoded_len(),
+        MessageType::GameBattleCreateReq(msg) => msg.encoded_len(),
+        MessageType::GameBattleCreateResp(msg) => msg.encoded_len(),
         MessageType::GameBattleInputPush(msg) => msg.encoded_len(),
         MessageType::GameBattleSnapshotPush(msg) => msg.encoded_len(),
         MessageType::GatewayServerStatusPush(msg) => msg.encoded_len(),
@@ -256,6 +300,10 @@ pub fn get_message_size(message: &MessageType) -> usize {
         MessageType::GatewayServerOnlinePush(msg) => msg.encoded_len(),
         MessageType::GatewayServerOfflinePush(msg) => msg.encoded_len(),
         MessageType::GatewayForwardToServerReq(msg) => msg.encoded_len(),
+        MessageType::GatewayServiceLoadReportPush(msg) => msg.encoded_len(),
+        MessageType::GatewayBindServiceResp(msg) => msg.encoded_len(),
+        MessageType::GatewayServerPingReq(msg) => msg.encoded_len(),
+        MessageType::GatewayServerPongResp(msg) => msg.encoded_len(),
         _ => 0,
     }
 }
@@ -276,6 +324,8 @@ pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
         MessageType::GamePlayerState(msg) => msg.encode_raw(buf),
         MessageType::GameBattleJoinReq(msg) => msg.encode_raw(buf),
         MessageType::GameBattleJoinResp(msg) => msg.encode_raw(buf),
+        MessageType::GameBattleCreateReq(msg) => msg.encode_raw(buf),
+        MessageType::GameBattleCreateResp(msg) => msg.encode_raw(buf),
         MessageType::GameBattleInputPush(msg) => msg.encode_raw(buf),
         MessageType::GameBattleSnapshotPush(msg) => msg.encode_raw(buf),
         MessageType::GatewayServerStatusPush(msg) => msg.encode_raw(buf),
@@ -290,6 +340,10 @@ pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
         MessageType::GatewayServerOnlinePush(msg) => msg.encode_raw(buf),
         MessageType::GatewayServerOfflinePush(msg) => msg.encode_raw(buf),
         MessageType::GatewayForwardToServerReq(msg) => msg.encode_raw(buf),
+        MessageType::GatewayServiceLoadReportPush(msg) => msg.encode_raw(buf),
+        MessageType::GatewayBindServiceResp(msg) => msg.encode_raw(buf),
+        MessageType::GatewayServerPingReq(msg) => msg.encode_raw(buf),
+        MessageType::GatewayServerPongResp(msg) => msg.encode_raw(buf),
         _ => {}
     }
 }
@@ -311,6 +365,8 @@ pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {
         MessageType::GamePlayerState(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleJoinReq(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleJoinResp(msg) => serde_json::to_string(&msg),
+        MessageType::GameBattleCreateReq(msg) => serde_json::to_string(&msg),
+        MessageType::GameBattleCreateResp(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleInputPush(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleSnapshotPush(msg) => serde_json::to_string(&msg),
         MessageType::GatewayServerStatusPush(msg) => serde_json::to_string(&msg),
@@ -325,6 +381,10 @@ pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {
         MessageType::GatewayServerOnlinePush(msg) => serde_json::to_string(&msg),
         MessageType::GatewayServerOfflinePush(msg) => serde_json::to_string(&msg),
         MessageType::GatewayForwardToServerReq(msg) => serde_json::to_string(&msg),
+        MessageType::GatewayServiceLoadReportPush(msg) => serde_json::to_string(&msg),
+        MessageType::GatewayBindServiceResp(msg) => serde_json::to_string(&msg),
+        MessageType::GatewayServerPingReq(msg) => serde_json::to_string(&msg),
+        MessageType::GatewayServerPongResp(msg) => serde_json::to_string(&msg),
         _ => Ok("null".into()),
     }
 }

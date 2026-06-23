@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::bind_manager::BindManager;
 use crate::config::GatewayConfig;
 use crate::router::Router;
 use crate::server_registry::ServerRegistry;
@@ -12,6 +13,7 @@ pub struct GatewayContext {
     pub sessions: SessionManager,
     pub registry: ServerRegistry,
     pub router: Router,
+    pub binds: BindManager,
 }
 
 impl GatewayContext {
@@ -22,6 +24,7 @@ impl GatewayContext {
             sessions: SessionManager::new(),
             registry: ServerRegistry::new(),
             router,
+            binds: BindManager::new(),
         }
     }
 }

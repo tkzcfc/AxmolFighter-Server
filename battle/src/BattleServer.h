@@ -1,5 +1,6 @@
 #pragma once
 
+#include "game.pb.h"
 #include "mugen/core/ecs/Types.h"
 #include "net/GatewayClient.h"
 #include <memory>
@@ -20,8 +21,13 @@ struct BattleServerConfig
     int gatewayPort = 7100;
     float reconnectInterval = 3.0f;
     int tickRate = 30;
+    // 控制本实例可承载的战斗和玩家数量。
+    uint32_t maxBattles = 100;
+    uint32_t maxSessions = 200;
+    float loadReportInterval = 5.0f;
 };
 
+// 第一版一个 BattleInstance 对应一场战斗。
 struct BattleInstance
 {
     uint32_t battleId = 0;
@@ -47,26 +53,31 @@ private:
                       const std::string_view& payload);
     void onSessionOnline(uint32_t sessionId);
     void onSessionOffline(uint32_t sessionId);
-    void onBattleJoin(uint32_t sessionId, int32_t serial, const std::string_view& payload);
+    void onBattleCreate(uint32_t sessionId, int32_t serial, const std::string_view& payload,
+                        uint32_t sourceServiceId, uint32_t sourceInstanceId);
     void onBattleInput(uint32_t sessionId, const std::string_view& payload);
 
-    BattleInstance* findJoinableBattle(int32_t mapId);
-    BattleInstance* createBattle(int32_t mapId);
+    BattleInstance* createBattle(uint32_t battleId, int32_t mapId);
     bool addPlayerToBattle(BattleInstance& battle, uint32_t sessionId);
     void removePlayer(uint32_t sessionId);
 
     std::string serializeWorld(const BattleInstance& battle) const;
-    void sendJoinResp(uint32_t sessionId, int32_t serial, int32_t code, const std::string& message,
-                      const BattleInstance* battle);
+    void sendBattleCreateResp(uint32_t targetServiceId, uint32_t targetInstanceId, int32_t serial,
+                              int32_t code, const std::string& message,
+                              const BattleInstance* battle);
     void sendSnapshot(const BattleInstance& battle);
+    // 定期给网关上报负载评分。
+    void sendLoadReport();
+    uint32_t activeSessionCount() const;
+    bool canAcceptBinding(uint32_t sessionId) const;
     void tick(float dt);
 
 private:
     BattleServerConfig m_config;
     GatewayClient m_gateway;
     bool m_running;
-    uint32_t m_battleIdSeed;
     uint64_t m_randomSeed;
+    float m_loadReportTimer;
 
     std::unordered_map<uint32_t, std::unique_ptr<BattleInstance>> m_battles;
     std::unordered_map<uint32_t, uint32_t> m_sessionToBattle;

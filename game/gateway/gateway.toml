@@ -8,6 +8,11 @@ range = [1, 9999]
 require_binding = false
 
 [[route]]
+service_id = 0
+range = [20010, 20010]
+require_binding = false
+
+[[route]]
 service_id = 1
 range = [20000, 29999]
 require_binding = true

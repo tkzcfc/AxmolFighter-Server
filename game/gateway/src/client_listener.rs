@@ -14,8 +14,13 @@ use base::net::{WriterMessage, session_delegate::SessionDelegate};
 
 use crate::codec::{encode_backend_frame, encode_client_frame, try_extract_client_frame};
 use crate::context::GatewayContext;
-use crate::protocol::{CMD_BUSINESS, CMD_GATEWAY_CONTROL, CMD_GATEWAY_ERROR};
+use crate::frame_cmd::{CMD_BUSINESS, CMD_GATEWAY_CONTROL, CMD_GATEWAY_ERROR};
 use crate::router::RouteTarget;
+
+// 客户端不能直接发网关控制帧。
+// 路由命中了服务，但没有可用实例。
+// 这条消息需要先绑定服务实例。
+// gateway.toml 没有覆盖这个 msg_id。
 
 // 客户端只能发送业务帧，不能直接发送网关控制帧。
 const GATEWAY_ERR_INVALID_CMD: u32 = 1;
@@ -42,6 +47,7 @@ impl ClientDelegate {
     }
 
     fn build_status(&self) -> ServerStatusPush {
+        // 客户端上线时先拿一份服务快照。
         ServerStatusPush {
             services: self
                 .ctx
@@ -68,6 +74,7 @@ impl ClientDelegate {
         }
 
         if let Some(tx) = &self.tx {
+            // 只有 request 才回错误；push 出错只记日志。
             let resp = GatewayErrorResp {
                 code,
                 message: message.to_string(),
@@ -95,6 +102,7 @@ impl SessionDelegate for ClientDelegate {
 
         debug!("client session {} connected", session_id);
 
+        // 通知后端：这个客户端已经上线。
         let notify = MessageType::GatewaySessionOnlinePush(SessionOnlinePush { session_id });
         let (msg_id, payload) = encode_message(&notify).unwrap();
         let data =
@@ -120,6 +128,7 @@ impl SessionDelegate for ClientDelegate {
         self.ctx.sessions.remove(self.session_id);
         self.ctx.router.cleanup_session(self.session_id);
 
+        // 下线时清理绑定，并同步通知所有后端。
         let notify = MessageType::GatewaySessionOfflinePush(SessionOfflinePush {
             session_id: self.session_id,
         });
@@ -179,6 +188,7 @@ impl SessionDelegate for ClientDelegate {
 
         match self.ctx.router.resolve(msg_id, self.session_id) {
             RouteTarget::Service(service_id) => {
+                // 不要求绑定的消息，转给任意一个同类服务。
                 if let Some(tx) = self.ctx.registry.find_by_service(service_id) {
                     let data = encode_backend_frame(
                         CMD_BUSINESS,
@@ -205,6 +215,7 @@ impl SessionDelegate for ClientDelegate {
                 service_id,
                 instance_id,
             } => {
+                // 要求绑定的消息，只能发到已经确认过的实例。
                 if let Some(tx) = self.ctx.registry.find_by_instance(service_id, instance_id) {
                     let data = encode_backend_frame(
                         CMD_BUSINESS,

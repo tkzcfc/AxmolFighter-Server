@@ -331,13 +331,13 @@ fn build(proto_file_list: &[impl AsRef<Path>], include_list: &[impl AsRef<Path>]
         let path = entry.path();
 
         // 判断文件是否以pb.开头
-        if let Some(name) = path.file_stem() {
-            if name.to_string_lossy().starts_with("pb.") {
-                let new_name = name.to_string_lossy().replace("pb.", "");
-                let new_path = out_dir.join(new_name + ".rs");
-                // 重命名文件
-                fs::rename(path, new_path)?;
-            }
+        if let Some(name) = path.file_stem()
+            && name.to_string_lossy().starts_with("pb.")
+        {
+            let new_name = name.to_string_lossy().replace("pb.", "");
+            let new_path = out_dir.join(new_name + ".rs");
+            // 重命名文件
+            fs::rename(path, new_path)?;
         }
     }
 

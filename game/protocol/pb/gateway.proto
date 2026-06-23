@@ -4,127 +4,133 @@ package PB.Gateway;
 
 option optimize_for = LITE_RUNTIME;
 
-// 网关控制协议。
-// 外层 frame 的 cmd 只区分帧类别，具体控制消息类型由 msg_id 对应这里的协议 Id。
-
-// 单个后端服务实例的状态。
+// 后端服务在线状态。
 message ServiceStatus {
-    // 服务类型，例如 game=0、battle=1。
     uint32 service_id = 1;
-    // 服务实例 ID。
     uint32 instance_id = 2;
-    // 是否在线。
     bool online = 3;
 }
 
-// 网关推送给客户端的服务状态快照。
+// 当前可见的后端服务列表。
 message ServerStatusPush {
     enum MsgId { None = 0; Id = 1; }
-    // 当前在线服务实例列表。
     repeated ServiceStatus services = 1;
 }
 
-// 网关返回给客户端的错误响应。
+// 网关给客户端的错误响应。
 message GatewayErrorResp {
     enum MsgId { None = 0; Id = 2; }
-    // 错误码。
     uint32 code = 1;
-    // 错误说明。
     string message = 2;
 }
 
-// 后端服务实例地址描述。
 message ServiceEndpoint {
-    // 服务类型。
     uint32 service_id = 1;
-    // 服务实例 ID。
     uint32 instance_id = 2;
 }
 
-// 后端服务连接网关后的注册请求。
+// 后端连上网关后的注册消息。
 message ServerRegReq {
     enum MsgId { None = 0; Id = 3; }
-    // 服务类型。
     uint32 service_id = 1;
-    // 服务实例 ID。
     uint32 instance_id = 2;
+    // 注册时带上初始负载，避免首次选择缺数据。
+    uint32 load_score = 3;
+    bool accepting_bindings = 4;
+    string load_message = 5;
 }
 
-// 网关返回给后端服务的注册结果。
+// 网关返回注册结果。
 message ServerRegResp {
     enum MsgId { None = 0; Id = 4; }
-    // 0 表示成功，非 0 表示失败。
     uint32 code = 1;
-    // 注册前已经在线的服务实例列表。
     repeated ServiceEndpoint servers = 2;
 }
 
-// 后端请求网关将客户端会话绑定到某类服务实例。
+// 把客户端会话绑定到某类后端服务。
 message BindServiceReq {
     enum MsgId { None = 0; Id = 5; }
-    // 客户端会话 ID。
     uint32 session_id = 1;
-    // 要绑定的服务类型。
     uint32 service_id = 2;
-    // 目标服务实例 ID；小于 0 表示由网关自动选择。
+    // 小于 0 时由网关选择最低负载实例。
     int32 target_instance_id = 3;
 }
 
-// 后端请求网关取消客户端会话和某类服务的绑定。
 message UnbindServiceReq {
     enum MsgId { None = 0; Id = 6; }
-    // 客户端会话 ID。
     uint32 session_id = 1;
-    // 要取消绑定的服务类型。
     uint32 service_id = 2;
 }
 
-// 后端请求网关断开某个客户端会话。
 message KickSessionReq {
     enum MsgId { None = 0; Id = 7; }
-    // 客户端会话 ID。
     uint32 session_id = 1;
 }
 
-// 网关通知后端：客户端会话已上线。
 message SessionOnlinePush {
     enum MsgId { None = 0; Id = 8; }
-    // 客户端会话 ID。
     uint32 session_id = 1;
 }
 
-// 网关通知后端：客户端会话已下线。
 message SessionOfflinePush {
     enum MsgId { None = 0; Id = 9; }
-    // 客户端会话 ID。
     uint32 session_id = 1;
 }
 
-// 网关通知后端：某个服务实例已上线。
 message ServerOnlinePush {
     enum MsgId { None = 0; Id = 10; }
-    // 服务类型。
     uint32 service_id = 1;
-    // 服务实例 ID。
     uint32 instance_id = 2;
 }
 
-// 网关通知后端：某个服务实例已下线。
 message ServerOfflinePush {
     enum MsgId { None = 0; Id = 11; }
-    // 服务类型。
     uint32 service_id = 1;
-    // 服务实例 ID。
     uint32 instance_id = 2;
 }
 
-// 后端请求网关将已封装好的后端帧转发给指定服务实例。
+// 后端服务之间转发完整后端帧。
 message ForwardToServerReq {
     enum MsgId { None = 0; Id = 12; }
-    // 目标服务类型。
     uint32 target_service_id = 1;
-    // 目标服务实例 ID。
-    uint32 target_instance_id = 2;
-    // 要转发的完整后端帧 payload。
+    // 小于 0 时由网关选择最低负载实例。
+    int32 target_instance_id = 2;
+    // 完整后端帧数据。
     bytes payload = 3;
+    // 来源由网关根据连接注册信息覆盖。
+    uint32 source_service_id = 4;
+    uint32 source_instance_id = 5;
+}
+
+// 后端定期上报自己的负载。
+message ServiceLoadReportPush {
+    enum MsgId { None = 0; Id = 13; }
+    // 0 最空闲，100 视为满载。
+    uint32 load_score = 1;
+    // 是否接收绑定
+    bool accepting_bindings = 2;
+    string message = 3;
+}
+
+// 网关返回服务绑定结果。
+message BindServiceResp {
+    enum MsgId { None = 0; Id = 14; }
+    uint32 session_id = 1;
+    uint32 service_id = 2;
+    uint32 instance_id = 3;
+    // 0=OK,1=NO_AVAILABLE_SERVICE,2=TARGET_SERVICE_UNREACHABLE。
+    uint32 code = 4;
+    string message = 5;
+}
+
+// 网关定时发给后端服务的心跳请求。
+message ServerPingReq {
+    enum MsgId { None = 0; Id = 15; }
+    uint64 nonce = 1;
+}
+
+// 后端服务回复网关心跳，nonce 必须原样返回。
+message ServerPongResp {
+    enum MsgId { None = 0; Id = 16; }
+    uint64 nonce = 1;
 }

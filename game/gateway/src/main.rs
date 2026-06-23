@@ -1,11 +1,12 @@
 #![allow(dead_code)]
 
+mod bind_manager;
 mod client_listener;
 mod codec;
 mod config;
 mod context;
+mod frame_cmd;
 mod internal_listener;
-mod protocol;
 mod router;
 mod server_registry;
 mod session;
@@ -23,6 +24,32 @@ use crate::client_listener::ClientDelegate;
 use crate::config::GatewayConfig;
 use crate::context::GatewayContext;
 use crate::internal_listener::InternalDelegate;
+
+async fn wait_for_shutdown_signal() -> anyhow::Result<()> {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        let mut sigterm = signal(SignalKind::terminate())?;
+
+        tokio::select! {
+            _ = signal::ctrl_c() => {
+                info!("received Ctrl+C");
+            }
+            _ = sigterm.recv() => {
+                info!("received SIGTERM");
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        signal::ctrl_c().await?;
+        info!("received Ctrl+C");
+    }
+
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -59,7 +86,10 @@ async fn main() -> anyhow::Result<()> {
         let builder = tcp_server::Builder::new(Box::new(move || {
             Box::new(ClientDelegate::new(client_ctx.clone()))
         }));
-        if let Err(e) = builder.build(&client_addr, client_shutdown.notified()).await {
+        if let Err(e) = builder
+            .build(&client_addr, client_shutdown.notified())
+            .await
+        {
             tracing::error!("client listener error: {}", e);
         }
     });
@@ -83,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
     info!("gateway started");
 
     // 等待关闭信号
-    signal::ctrl_c().await?;
+    wait_for_shutdown_signal().await?;
     info!("shutting down...");
 
     // 通知所有 listener 停止接受新连接

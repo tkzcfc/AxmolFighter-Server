@@ -50,7 +50,9 @@ pub async fn run_server(
                     }
 
                     if consecutive_errors >= MAX_CONSECUTIVE_ERRORS {
-                        error!("UDP recv_from too many consecutive errors ({consecutive_errors}), last: {e}, exiting recv loop");
+                        error!(
+                            "UDP recv_from too many consecutive errors ({consecutive_errors}), last: {e}, exiting recv loop"
+                        );
                         break;
                     }
 

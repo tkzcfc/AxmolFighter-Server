@@ -47,7 +47,10 @@ impl SessionManager {
     /// 向所有客户端广播
     pub fn broadcast_to_clients(&self, data: Bytes) {
         for entry in self.sessions.iter() {
-            let _ = entry.value().tx.send(WriterMessage::Send(data.clone(), true));
+            let _ = entry
+                .value()
+                .tx
+                .send(WriterMessage::Send(data.clone(), true));
         }
     }
 

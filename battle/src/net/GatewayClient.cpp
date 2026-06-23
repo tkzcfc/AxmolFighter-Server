@@ -19,6 +19,20 @@
 namespace
 {
 void defaultRequestCallback(bool, const std::string_view&) {}
+
+void writeUint16(std::string& data, size_t offset, uint16_t value)
+{
+    data[offset] = static_cast<char>((value >> 8) & 0xFF);
+    data[offset + 1] = static_cast<char>(value & 0xFF);
+}
+
+void writeUint32(std::string& data, size_t offset, uint32_t value)
+{
+    data[offset] = static_cast<char>((value >> 24) & 0xFF);
+    data[offset + 1] = static_cast<char>((value >> 16) & 0xFF);
+    data[offset + 2] = static_cast<char>((value >> 8) & 0xFF);
+    data[offset + 3] = static_cast<char>(value & 0xFF);
+}
 }
 
 GatewayClient::GatewayClient()
@@ -169,12 +183,26 @@ void GatewayClient::onRecvFrame(const std::string_view& data)
                 m_state = State::Registered;
                 AXLOGI("GatewayClient: registered successfully (service=%d, instance=%u)",
                        m_config.serviceId, m_config.instanceId);
+                if (m_onConnect)
+                    m_onConnect(true, "");
             }
             else
             {
                 AXLOGE("GatewayClient: registration failed, code=%u", resp.code());
                 stop();
             }
+        }
+        return;
+    }
+
+    if (cmd == CMD_GATEWAY_CONTROL && msgId == PB::Gateway::ServerPingReq::Id)
+    {
+        PB::Gateway::ServerPingReq ping;
+        if (ping.ParseFromArray(payload, static_cast<int>(payloadLen)))
+        {
+            PB::Gateway::ServerPongResp pong;
+            pong.set_nonce(ping.nonce());
+            sendControl(0, 0, pong);
         }
         return;
     }
@@ -200,6 +228,9 @@ void GatewayClient::sendRegisterReq()
     PB::Gateway::ServerRegReq req;
     req.set_service_id(m_config.serviceId);
     req.set_instance_id(m_config.instanceId);
+    req.set_load_score(m_config.initialLoadScore > 100 ? 100 : m_config.initialLoadScore);
+    req.set_accepting_bindings(m_config.initialAcceptingBindings);
+    req.set_load_message(m_config.initialLoadMessage);
     std::string payload;
     req.SerializeToString(&payload);
     sendFrame(CMD_GATEWAY_CONTROL, PB::Gateway::ServerRegReq::Id, 0, 0, payload.data(), payload.size());
@@ -290,7 +321,7 @@ int GatewayClient::kickSession(uint32_t sessionId)
                      payload.data(), payload.size());
 }
 
-int GatewayClient::forwardToServer(uint8_t targetServiceId, uint32_t targetInstanceId,
+int GatewayClient::forwardToServer(uint8_t targetServiceId, int32_t targetInstanceId,
                                    const char* data, size_t length)
 {
     PB::Gateway::ForwardToServerReq req;
@@ -303,6 +334,29 @@ int GatewayClient::forwardToServer(uint8_t targetServiceId, uint32_t targetInsta
         return -1;
     return sendFrame(CMD_GATEWAY_CONTROL, PB::Gateway::ForwardToServerReq::Id, 0, 0,
                      payload.data(), payload.size());
+}
+
+int GatewayClient::forwardMessageToServer(uint8_t targetServiceId, int32_t targetInstanceId,
+                                          uint8_t cmd, uint16_t msgId, int32_t serial,
+                                          uint32_t sessionId, const char* data, size_t length)
+{
+    const uint32_t frameLen = static_cast<uint32_t>(BACKEND_FRAME_HEADER_SIZE + length);
+    std::string frame(frameLen, '\0');
+    writeUint32(frame, 0, frameLen);
+    frame[4] = static_cast<char>(cmd);
+    writeUint16(frame, 5, msgId);
+    writeUint32(frame, 7, static_cast<uint32_t>(serial));
+    writeUint32(frame, 11, sessionId);
+    if (length > 0)
+        std::memcpy(frame.data() + BACKEND_FRAME_HEADER_SIZE, data, length);
+
+    return forwardToServer(targetServiceId, targetInstanceId, frame.data(), frame.size());
+}
+
+int GatewayClient::sendControl(uint16_t msgId, int32_t serial, uint32_t sessionId,
+                               const char* data, size_t length)
+{
+    return sendFrame(CMD_GATEWAY_CONTROL, msgId, serial, sessionId, data, length);
 }
 
 GatewayTask GatewayClient::requestAsync(uint32_t sessionId, uint16_t msgId,

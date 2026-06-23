@@ -66,6 +66,12 @@ static BattleServerConfig loadConfig(const std::string& path)
             config.gatewayPort = std::stoi(value);
         else if (key == "reconnect_interval")
             config.reconnectInterval = std::stof(value);
+        else if (key == "max_battles")
+            config.maxBattles = static_cast<uint32_t>(std::stoul(value));
+        else if (key == "max_sessions")
+            config.maxSessions = static_cast<uint32_t>(std::stoul(value));
+        else if (key == "load_report_interval")
+            config.loadReportInterval = std::stof(value);
     }
 
     return config;
@@ -80,8 +86,9 @@ int main(int argc, char* argv[])
 
     auto config = loadConfig(configPath);
 
-    printf("[main] Battle Server starting (instance_id=%u, gateway=%s:%d, tick_rate=%d)\n",
-           config.instanceId, config.gatewayHost.c_str(), config.gatewayPort, config.tickRate);
+    printf("[main] Battle Server starting (instance_id=%u, gateway=%s:%d, tick_rate=%d, max_battles=%u, max_sessions=%u)\n",
+           config.instanceId, config.gatewayHost.c_str(), config.gatewayPort, config.tickRate,
+           config.maxBattles, config.maxSessions);
 
     BattleServer server;
     g_server = &server;

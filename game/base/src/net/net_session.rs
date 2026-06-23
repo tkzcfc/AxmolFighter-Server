@@ -1,5 +1,5 @@
-use crate::net::session_delegate::SessionDelegate;
 use crate::net::WriterMessage;
+use crate::net::session_delegate::SessionDelegate;
 use anyhow::anyhow;
 use bytes::BytesMut;
 use log::{error, info};
@@ -10,7 +10,7 @@ use tokio::io::{
 };
 use tokio::select;
 use tokio::sync::broadcast;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
+use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 use tokio::time::sleep;
 
 static SESSION_COUNTER: AtomicU32 = AtomicU32::new(0);
@@ -97,12 +97,10 @@ async fn poll_write<S>(
                         break;
                     }
 
-                    if flush {
-                        if let Err(error) = writer.flush().await {
-                            // flush 失败说明 socket 已损坏，后续写入也会失败，直接退出
-                            error!("[{addr}] error when flushing {}", error);
-                            break;
-                        }
+                    if flush && let Err(error) = writer.flush().await {
+                        // flush 失败说明 socket 已损坏，后续写入也会失败，直接退出
+                        error!("[{addr}] error when flushing {}", error);
+                        break;
                     }
                 }
             }

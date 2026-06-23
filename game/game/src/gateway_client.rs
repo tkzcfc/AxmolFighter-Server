@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::{Bytes, BytesMut};
-use protocol::gateway::ServerRegReq;
+use protocol::gateway::{ServerPongResp, ServerRegReq};
 use protocol::message_map::{MessageType, decode_message, encode_message};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -63,7 +63,8 @@ impl GatewayClient {
                         encode_frame(CMD_GATEWAY_CONTROL, reg_msg_id, 0, 0, &reg_payload);
                     let _ = tx.send(reg_frame);
 
-                    self.run_connection(stream, rx, handler.clone()).await;
+                    self.run_connection(stream, rx, tx.clone(), handler.clone())
+                        .await;
 
                     handler.on_gateway_disconnected();
                     warn!(
@@ -90,6 +91,7 @@ impl GatewayClient {
         &self,
         stream: TcpStream,
         mut rx: mpsc::UnboundedReceiver<Bytes>,
+        tx: GatewaySender,
         handler: Arc<dyn MessageHandler>,
     ) {
         let (mut reader, mut writer) = stream.into_split();
@@ -126,7 +128,7 @@ impl GatewayClient {
                         }
                         Ok(_) => {
                             while let Ok(Some(frame)) = try_extract_frame(&mut buf) {
-                                self.dispatch_frame(frame, &handler).await;
+                                self.dispatch_frame(frame, &tx, &handler).await;
                             }
                         }
                         Err(err) => {
@@ -142,9 +144,14 @@ impl GatewayClient {
         write_task.abort();
     }
 
-    async fn dispatch_frame(&self, frame: BackendFrame, handler: &Arc<dyn MessageHandler>) {
+    async fn dispatch_frame(
+        &self,
+        frame: BackendFrame,
+        tx: &GatewaySender,
+        handler: &Arc<dyn MessageHandler>,
+    ) {
         match frame.cmd {
-            CMD_GATEWAY_CONTROL => self.dispatch_control_frame(frame, handler).await,
+            CMD_GATEWAY_CONTROL => self.dispatch_control_frame(frame, tx, handler).await,
             CMD_BUSINESS => {
                 let handler = handler.clone();
                 tokio::spawn(async move {
@@ -159,7 +166,42 @@ impl GatewayClient {
         }
     }
 
-    async fn dispatch_control_frame(&self, frame: BackendFrame, handler: &Arc<dyn MessageHandler>) {
+    async fn dispatch_server_forward(
+        &self,
+        req: protocol::gateway::ForwardToServerReq,
+        handler: &Arc<dyn MessageHandler>,
+    ) {
+        let mut buf = BytesMut::from(req.payload.as_slice());
+        let Ok(Some(inner)) = try_extract_frame(&mut buf) else {
+            debug!(
+                "invalid forwarded backend frame from service_id={} instance_id={}",
+                req.source_service_id, req.source_instance_id
+            );
+            return;
+        };
+
+        match inner.cmd {
+            CMD_BUSINESS => {
+                let handler = handler.clone();
+                tokio::spawn(async move {
+                    handler
+                        .on_message(inner.msg_id, inner.serial, inner.session_id, inner.payload)
+                        .await;
+                });
+            }
+            CMD_GATEWAY_CONTROL => {
+                debug!("ignored forwarded gateway control msg_id={}", inner.msg_id)
+            }
+            _ => debug!("unhandled forwarded cmd={}", inner.cmd),
+        }
+    }
+
+    async fn dispatch_control_frame(
+        &self,
+        frame: BackendFrame,
+        tx: &GatewaySender,
+        handler: &Arc<dyn MessageHandler>,
+    ) {
         match decode_message(frame.msg_id as u32, &frame.payload) {
             Ok(MessageType::GatewayServerRegResp(resp)) => {
                 if resp.code == 0 {
@@ -186,6 +228,20 @@ impl GatewayClient {
                     push.service_id, push.instance_id
                 );
             }
+            Ok(MessageType::GatewayBindServiceResp(resp)) => {
+                handler.on_bind_service_resp(frame.serial, resp).await;
+            }
+            Ok(MessageType::GatewayForwardToServerReq(req)) => {
+                self.dispatch_server_forward(req, handler).await;
+            }
+            Ok(MessageType::GatewayServerPingReq(ping)) => {
+                let message =
+                    MessageType::GatewayServerPongResp(ServerPongResp { nonce: ping.nonce });
+                if let Some((msg_id, payload)) = encode_message(&message) {
+                    let data = encode_frame(CMD_GATEWAY_CONTROL, msg_id as u16, 0, 0, &payload);
+                    let _ = tx.send(data);
+                }
+            }
             Ok(_) => {
                 debug!("unhandled gateway control msg_id={}", frame.msg_id);
             }
@@ -202,6 +258,9 @@ impl GatewayClient {
         let message = MessageType::GatewayServerRegReq(ServerRegReq {
             service_id: SERVICE_ID_GAME as u32,
             instance_id: self.instance_id,
+            load_score: 0,
+            accepting_bindings: true,
+            load_message: String::new(),
         });
         let (msg_id, payload) = encode_message(&message).unwrap();
         (msg_id as u16, payload)
