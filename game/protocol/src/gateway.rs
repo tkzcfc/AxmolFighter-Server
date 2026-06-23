@@ -96,6 +96,21 @@ pub struct UnbindServiceReq {
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UnbindServiceResp {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 17; }
+    #[prost(uint32, tag = "1")]
+    pub session_id: u32,
+    #[prost(uint32, tag = "2")]
+    pub service_id: u32,
+    /// 0=OK.
+    #[prost(uint32, tag = "3")]
+    pub code: u32,
+    #[prost(string, tag = "4")]
+    pub message: ::prost::alloc::string::String,
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KickSessionReq {
     /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 7; }
     #[prost(uint32, tag = "1")]

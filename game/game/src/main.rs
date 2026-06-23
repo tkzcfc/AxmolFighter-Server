@@ -4,6 +4,8 @@ mod codec;
 mod config;
 mod gateway_client;
 mod handler;
+mod player;
+mod wire;
 
 use std::env;
 use std::time::Duration;
@@ -66,13 +68,16 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // 连接数据库
+    info!("connecting to database...");
     let pool = PgPoolOptions::new()
         .max_connections(config.database.max_connections)
+        .acquire_timeout(Duration::from_secs(5))
         .connect(&config.database.url)
         .await?;
     info!("database connected");
 
     // 运行数据库迁移
+    info!("applying database migrations...");
     sqlx::migrate!("./migrations").run(&pool).await?;
     info!("database migrations applied");
 

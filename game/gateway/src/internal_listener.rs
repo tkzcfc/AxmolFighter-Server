@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use ::protocol::gateway::{
-    ServerOfflinePush, ServerOnlinePush, ServerPingReq, ServerRegResp, ServerStatusPush,
-    ServiceEndpoint, ServiceStatus as GatewayServiceStatus, SessionOnlinePush,
+    GatewayErrorResp, ServerOfflinePush, ServerOnlinePush, ServerPingReq, ServerRegResp,
+    ServerStatusPush, ServiceEndpoint, ServiceStatus as GatewayServiceStatus, SessionOnlinePush,
 };
 use ::protocol::message_map::{MessageType, decode_message, encode_message};
 use async_trait::async_trait;
@@ -129,6 +129,28 @@ impl InternalDelegate {
         )
     }
 
+    fn reply_control_error_if_request(&self, serial: i32, code: u32, message: &str) {
+        if serial == 0 {
+            return;
+        }
+
+        let Some(tx) = &self.tx else {
+            warn!(
+                "failed to reply control error before writer is ready, serial={}",
+                serial
+            );
+            return;
+        };
+
+        let response_serial = if serial < 0 { -serial } else { serial };
+        let resp = MessageType::GatewayGatewayErrorResp(GatewayErrorResp {
+            code,
+            message: message.to_string(),
+        });
+        let data = self.encode_control_frame(resp, response_serial, 0);
+        let _ = tx.send(WriterMessage::Send(data, true));
+    }
+
     fn start_heartbeat(&mut self, tx: mpsc::UnboundedSender<WriterMessage>) {
         let session_id = self.session_id;
         let heartbeat = self.heartbeat.clone();
@@ -189,7 +211,7 @@ impl SessionDelegate for InternalDelegate {
         self.session_id = session_id;
         self.tx = Some(tx.clone());
         self.start_heartbeat(tx);
-        debug!("internal connection {} from {}", session_id, addr);
+        info!("internal connection {} from {}", session_id, addr);
         Ok(())
     }
 
@@ -281,8 +303,23 @@ impl InternalDelegate {
             return Ok(());
         }
 
-        match decode_message(msg_id as u32, &payload)? {
+        let message = match decode_message(msg_id as u32, &payload) {
+            Ok(message) => message,
+            Err(err) => {
+                warn!(
+                    "failed to decode internal control msg_id={} serial={} session_id={}: {}",
+                    msg_id, serial, self.session_id, err
+                );
+                return Ok(());
+            }
+        };
+
+        match message {
             MessageType::GatewayServerRegReq(req) => {
+                info!(
+                    "received register request service_id={} instance_id={} from internal session {}",
+                    req.service_id, req.instance_id, self.session_id
+                );
                 let service_id = req.service_id as u8;
                 let Some(tx) = self.tx.clone() else {
                     // 这种情况理论上不应该发生，因为注册请求来自连接的服务实例，而连接成功的前提是 writer 已经准备好。
@@ -489,13 +526,28 @@ impl InternalDelegate {
             }
 
             MessageType::GatewayUnbindServiceReq(req) => {
-                self.ctx
-                    .router
-                    .unbind_service(req.session_id, req.service_id as u8);
+                let session_id = req.session_id;
+                let service_id = req.service_id;
+                self.ctx.router.unbind_service(session_id, service_id as u8);
                 debug!(
                     "unbound session {} from service_id={}",
-                    req.session_id, req.service_id
+                    session_id, service_id
                 );
+                if serial != 0 {
+                    let resp = MessageType::GatewayUnbindServiceResp(
+                        protocol::gateway::UnbindServiceResp {
+                            session_id,
+                            service_id,
+                            code: 0,
+                            message: String::new(),
+                        },
+                    );
+                    let response_serial = if serial < 0 { -serial } else { serial };
+                    let data = self.encode_control_frame(resp, response_serial, session_id);
+                    if let Some(tx) = &self.tx {
+                        let _ = tx.send(WriterMessage::Send(data, true));
+                    }
+                }
             }
 
             MessageType::GatewayKickSessionReq(req) => {
@@ -523,6 +575,7 @@ impl InternalDelegate {
                 "forward requested by unregistered internal session {}",
                 self.session_id
             );
+            self.reply_control_error_if_request(serial, 3, "requester service not registered");
             return;
         };
 
@@ -569,6 +622,11 @@ impl InternalDelegate {
                         "forward to service_id={} instance_id={} failed: channel closed",
                         target_service_id, instance_id
                     );
+                    self.reply_control_error_if_request(
+                        serial,
+                        2,
+                        "target service instance unreachable",
+                    );
                 }
             }
             Err((code, message)) => {
@@ -576,6 +634,7 @@ impl InternalDelegate {
                     "forward target service_id={} instance {} failed: code={} {}",
                     req.target_service_id, req.target_instance_id, code, message
                 );
+                self.reply_control_error_if_request(serial, code, message);
             }
         }
     }
@@ -584,6 +643,10 @@ impl InternalDelegate {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::codec::try_extract_backend_frame;
+    use crate::config::{GatewayConfig, GatewaySection};
+    use ::protocol::gateway::UnbindServiceReq;
+    use ::protocol::message_map::{MessageType, decode_message, encode_message};
 
     #[test]
     fn heartbeat_acknowledges_matching_nonce() {
@@ -619,5 +682,55 @@ mod tests {
 
         assert!(!heartbeat.timed_out(start + Duration::from_secs(14), HEARTBEAT_TIMEOUT));
         assert!(heartbeat.timed_out(start + Duration::from_secs(15), HEARTBEAT_TIMEOUT));
+    }
+
+    #[tokio::test]
+    async fn unbind_service_request_replies_with_response() {
+        let ctx = GatewayContext::new(GatewayConfig {
+            gateway: GatewaySection {
+                client_listen: "127.0.0.1:0".to_string(),
+                internal_listen: "127.0.0.1:0".to_string(),
+            },
+            route: vec![],
+        });
+        ctx.router.bind_service(42, 1, 7);
+
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        let mut delegate = InternalDelegate::new(ctx.clone());
+        delegate.session_id = 9001;
+        delegate.tx = Some(tx);
+
+        let (msg_id, payload) =
+            encode_message(&MessageType::GatewayUnbindServiceReq(UnbindServiceReq {
+                session_id: 42,
+                service_id: 1,
+            }))
+            .unwrap();
+
+        delegate
+            .handle_internal(
+                CMD_GATEWAY_CONTROL,
+                msg_id as u16,
+                -123,
+                42,
+                Bytes::from(payload),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(ctx.router.binding_count(1, 7), 0);
+
+        let WriterMessage::Send(data, _) = rx.recv().await.unwrap() else {
+            panic!("expected response frame");
+        };
+        let mut buf = BytesMut::from(data.as_ref());
+        let frame = try_extract_backend_frame(&mut buf).unwrap().unwrap();
+        assert_eq!(frame.serial, 123);
+        assert_eq!(frame.session_id, 42);
+        assert!(matches!(
+            decode_message(frame.msg_id as u32, &frame.payload).unwrap(),
+            MessageType::GatewayUnbindServiceResp(resp)
+                if resp.session_id == 42 && resp.service_id == 1 && resp.code == 0
+        ));
     }
 }

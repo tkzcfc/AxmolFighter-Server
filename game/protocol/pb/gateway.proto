@@ -62,6 +62,15 @@ message UnbindServiceReq {
     uint32 service_id = 2;
 }
 
+message UnbindServiceResp {
+    enum MsgId { None = 0; Id = 17; }
+    uint32 session_id = 1;
+    uint32 service_id = 2;
+    // 0=OK.
+    uint32 code = 3;
+    string message = 4;
+}
+
 message KickSessionReq {
     enum MsgId { None = 0; Id = 7; }
     uint32 session_id = 1;
