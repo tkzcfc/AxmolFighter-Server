@@ -7,7 +7,7 @@ use protocol::message_map::{MessageType, decode_message, encode_message};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
-use tokio::sync::watch;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
 use crate::codec::{BackendFrame, encode_frame, try_extract_frame};
@@ -25,7 +25,7 @@ pub struct GatewayClient {
     addr: String,
     instance_id: u32,
     reconnect_interval: Duration,
-    shutdown: watch::Receiver<bool>,
+    shutdown: CancellationToken,
 }
 
 impl GatewayClient {
@@ -33,7 +33,7 @@ impl GatewayClient {
         addr: String,
         instance_id: u32,
         reconnect_interval: Duration,
-        shutdown: watch::Receiver<bool>,
+        shutdown: CancellationToken,
     ) -> Self {
         Self {
             addr,
@@ -44,9 +44,9 @@ impl GatewayClient {
     }
 
     // 启动连接循环，断线后按配置间隔自动重连。
-    pub async fn run(mut self, handler: Arc<dyn MessageHandler>) {
+    pub async fn run(self, handler: Arc<dyn MessageHandler>) {
         loop {
-            if *self.shutdown.borrow() {
+            if self.shutdown.is_cancelled() {
                 info!("gateway client shutting down");
                 return;
             }
@@ -79,7 +79,7 @@ impl GatewayClient {
 
             tokio::select! {
                 _ = tokio::time::sleep(self.reconnect_interval) => {}
-                _ = self.shutdown.changed() => {
+                _ = self.shutdown.cancelled() => {
                     info!("gateway client shutting down");
                     return;
                 }
@@ -95,9 +95,9 @@ impl GatewayClient {
         handler: Arc<dyn MessageHandler>,
     ) {
         let (mut reader, mut writer) = stream.into_split();
-        let mut shutdown = self.shutdown.clone();
+        let shutdown = self.shutdown.clone();
 
-        let mut write_shutdown = self.shutdown.clone();
+        let write_shutdown = self.shutdown.clone();
         let write_task = tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -112,7 +112,7 @@ impl GatewayClient {
                             None => break,
                         }
                     }
-                    _ = write_shutdown.changed() => break,
+                    _ = write_shutdown.cancelled() => break,
                 }
             }
         });
@@ -137,7 +137,7 @@ impl GatewayClient {
                         }
                     }
                 }
-                _ = shutdown.changed() => break,
+                _ = shutdown.cancelled() => break,
             }
         }
 

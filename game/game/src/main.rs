@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use sqlx::postgres::PgPoolOptions;
 use tokio::signal;
-use tokio::sync::watch;
+use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 use crate::config::GameConfig;
@@ -76,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!("./migrations").run(&pool).await?;
     info!("database migrations applied");
 
-    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let shutdown_token = CancellationToken::new();
 
     // 创建消息处理器
     let handler = GameHandler::new(pool);
@@ -86,7 +86,7 @@ async fn main() -> anyhow::Result<()> {
         config.gateway.addr.clone(),
         config.server.instance_id,
         Duration::from_secs(config.gateway.reconnect_interval),
-        shutdown_rx,
+        shutdown_token.clone(),
     );
 
     let gw_handler = handler.clone();
@@ -100,7 +100,7 @@ async fn main() -> anyhow::Result<()> {
     wait_for_shutdown_signal().await?;
     info!("shutting down...");
 
-    let _ = shutdown_tx.send(true);
+    shutdown_token.cancel();
 
     let _ = gw_task.await;
 
