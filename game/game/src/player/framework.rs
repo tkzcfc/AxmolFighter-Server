@@ -56,14 +56,10 @@ impl PlayerActor {
     }
 
     async fn handle_push(&mut self, msg_id: u16, msg: MessageType) {
-        match msg {
-            other => {
-                debug!(
-                    "unhandled push message type, msg_id={}, session={}",
-                    msg_id, self.session_id
-                );
-                drop(other);
-            }
-        }
+        debug!(
+            "unhandled push message type, msg_id={}, session={}",
+            msg_id, self.session_id
+        );
+        drop(msg);
     }
 }

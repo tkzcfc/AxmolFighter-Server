@@ -2,7 +2,7 @@ use protocol::game::*;
 use protocol::message_map::MessageType;
 use tracing::warn;
 
-use crate::handler::GameShared;
+use crate::game_shared::GameShared;
 use crate::player::PlayerActor;
 
 impl PlayerActor {

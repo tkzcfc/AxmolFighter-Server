@@ -612,7 +612,7 @@ impl InternalDelegate {
                 let forward_data = encode_backend_frame(
                     CMD_GATEWAY_CONTROL,
                     forward_msg_id as u16,
-                    serial,
+                    0, // 转发请求不需要回复，serial=0,实际序号在payload里面自己解析
                     0,
                     &forward_payload,
                 );

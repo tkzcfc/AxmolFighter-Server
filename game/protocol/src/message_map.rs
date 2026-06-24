@@ -4,6 +4,8 @@ use prost::{DecodeError, Message};
 #[derive(Clone)]
 pub enum MessageType {
     None,
+    GameCommonSuccessResp(super::game::CommonSuccessResp),
+    GameCommonErrorResp(super::game::CommonErrorResp),
     GameLoginReq(super::game::LoginReq),
     GameLoginResp(super::game::LoginResp),
     GameRegisterReq(super::game::RegisterReq),
@@ -49,6 +51,8 @@ impl MessageType {
 
 pub fn get_message_id(message: &MessageType) -> Option<u32> {
     match message {
+        MessageType::GameCommonSuccessResp(_) => Some(900u32),
+        MessageType::GameCommonErrorResp(_) => Some(901u32),
         MessageType::GameLoginReq(_) => Some(1000u32),
         MessageType::GameLoginResp(_) => Some(1001u32),
         MessageType::GameRegisterReq(_) => Some(1002u32),
@@ -90,6 +94,14 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
 
 pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, DecodeError> {
     match message_id {
+        900u32 => match super::game::CommonSuccessResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameCommonSuccessResp(message)),
+            Err(err) => Err(err),
+        },
+        901u32 => match super::game::CommonErrorResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameCommonErrorResp(message)),
+            Err(err) => Err(err),
+        },
         1000u32 => match super::game::LoginReq::decode(bytes) {
             Ok(message) => Ok(MessageType::GameLoginReq(message)),
             Err(err) => Err(err),
@@ -236,6 +248,8 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
 
 pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
     match message {
+        MessageType::GameCommonSuccessResp(msg) => Some((900u32, msg.encode_to_vec())),
+        MessageType::GameCommonErrorResp(msg) => Some((901u32, msg.encode_to_vec())),
         MessageType::GameLoginReq(msg) => Some((1000u32, msg.encode_to_vec())),
         MessageType::GameLoginResp(msg) => Some((1001u32, msg.encode_to_vec())),
         MessageType::GameRegisterReq(msg) => Some((1002u32, msg.encode_to_vec())),
@@ -277,6 +291,8 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
 
 pub fn get_message_size(message: &MessageType) -> usize {
     match message {
+        MessageType::GameCommonSuccessResp(msg) => msg.encoded_len(),
+        MessageType::GameCommonErrorResp(msg) => msg.encoded_len(),
         MessageType::GameLoginReq(msg) => msg.encoded_len(),
         MessageType::GameLoginResp(msg) => msg.encoded_len(),
         MessageType::GameRegisterReq(msg) => msg.encoded_len(),
@@ -318,6 +334,8 @@ pub fn get_message_size(message: &MessageType) -> usize {
 
 pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
     match message {
+        MessageType::GameCommonSuccessResp(msg) => msg.encode_raw(buf),
+        MessageType::GameCommonErrorResp(msg) => msg.encode_raw(buf),
         MessageType::GameLoginReq(msg) => msg.encode_raw(buf),
         MessageType::GameLoginResp(msg) => msg.encode_raw(buf),
         MessageType::GameRegisterReq(msg) => msg.encode_raw(buf),
@@ -360,6 +378,8 @@ pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
 #[cfg(feature = "serde-serialize")]
 pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {
     match message {
+        MessageType::GameCommonSuccessResp(msg) => serde_json::to_string(&msg),
+        MessageType::GameCommonErrorResp(msg) => serde_json::to_string(&msg),
         MessageType::GameLoginReq(msg) => serde_json::to_string(&msg),
         MessageType::GameLoginResp(msg) => serde_json::to_string(&msg),
         MessageType::GameRegisterReq(msg) => serde_json::to_string(&msg),

@@ -9,7 +9,7 @@ use bytes::Bytes;
 use tokio::sync::mpsc;
 use tokio::task::AbortHandle;
 
-use crate::handler::GameShared;
+use crate::game_shared::GameShared;
 
 const PLAYER_MAILBOX_SIZE: usize = 256;
 

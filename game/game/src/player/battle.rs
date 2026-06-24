@@ -5,7 +5,7 @@ use protocol::gateway::BindServiceReq;
 use protocol::message_map::MessageType;
 use tracing::warn;
 
-use crate::handler::framework::RpcError;
+use crate::game_shared::rpc::RpcError;
 use crate::player::PlayerActor;
 
 const SERVICE_ID_BATTLE: u32 = 1;

@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::{Bytes, BytesMut};
-use protocol::gateway::{ServerPongResp, ServerRegReq};
+use protocol::gateway::ServerRegReq;
 use protocol::message_map::{MessageType, decode_message, encode_message};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -17,7 +17,7 @@ use crate::wire::{CMD_BUSINESS, CMD_GATEWAY_CONTROL};
 
 const SERVICE_ID_GAME: u8 = 0;
 const REGISTER_SERIAL: i32 = -1;
-const REGISTER_TIMEOUT: Duration = Duration::from_secs(10);
+const REGISTER_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub type GatewaySender = mpsc::UnboundedSender<Bytes>;
 
@@ -51,33 +51,43 @@ impl GatewayClient {
                 return;
             }
 
+            info!("connecting to gateway at {}...", self.addr);
             match TcpStream::connect(&self.addr).await {
                 Ok(mut stream) => {
                     info!("connected to gateway at {}", self.addr);
-                    if let Err(err) = self.register_stream(&mut stream).await {
-                        warn!("gateway registration failed: {}", err);
-                        drop(stream);
-                        warn!(
-                            "disconnected from gateway, reconnecting in {}s...",
-                            self.reconnect_interval.as_secs()
-                        );
-                    } else {
-                        info!("registered to gateway successfully");
+                    match self.register_stream(&mut stream).await {
+                        Err(err) => {
+                            warn!("gateway registration failed: {}", err);
+                            drop(stream);
+                            warn!(
+                                "disconnected from gateway, reconnecting in {}s...",
+                                self.reconnect_interval.as_secs()
+                            );
+                        }
+                        Ok(remaining_buf) => {
+                            info!("registered to gateway successfully");
 
-                        let (tx, rx) = mpsc::unbounded_channel::<Bytes>();
-                        handler.on_gateway_connected(tx.clone());
+                            let (tx, rx) = mpsc::unbounded_channel::<Bytes>();
+                            handler.on_gateway_connected(tx.clone());
 
-                        self.run_connection(stream, rx, tx, handler.clone()).await;
+                            self.run_connection(stream, rx, tx, handler.clone(), remaining_buf)
+                                .await;
 
-                        handler.on_gateway_disconnected();
-                        warn!(
-                            "disconnected from gateway, reconnecting in {}s...",
-                            self.reconnect_interval.as_secs()
-                        );
+                            handler.on_gateway_disconnected();
+                            warn!(
+                                "disconnected from gateway, reconnecting in {}s...",
+                                self.reconnect_interval.as_secs()
+                            );
+                        }
                     }
                 }
                 Err(err) => {
-                    error!("failed to connect gateway at {}: {}", self.addr, err);
+                    error!(
+                        "failed to connect gateway at {}: {}, retrying in {}s...",
+                        self.addr,
+                        err,
+                        self.reconnect_interval.as_secs()
+                    );
                 }
             }
 
@@ -97,11 +107,12 @@ impl GatewayClient {
         mut rx: mpsc::UnboundedReceiver<Bytes>,
         tx: GatewaySender,
         handler: Arc<dyn MessageHandler>,
+        initial_buf: BytesMut,
     ) {
         let (reader, writer) = stream.into_split();
 
         tokio::select! {
-            result = self.read_loop(reader, tx, handler) => {
+            result = self.read_loop(reader, tx, handler, initial_buf) => {
                 if let Err(err) = result {
                     debug!("gateway read loop ended: {}", err);
                 }
@@ -120,11 +131,11 @@ impl GatewayClient {
         mut reader: OwnedReadHalf,
         tx: GatewaySender,
         handler: Arc<dyn MessageHandler>,
+        mut buf: BytesMut,
     ) -> anyhow::Result<()> {
-        let mut buf = BytesMut::with_capacity(8192);
         loop {
             if reader.read_buf(&mut buf).await? == 0 {
-                debug!("gateway connection EOF");
+                warn!("gateway connection EOF");
                 return Ok(());
             }
 
@@ -146,8 +157,17 @@ impl GatewayClient {
         Ok(())
     }
 
-    async fn register_stream(&self, stream: &mut TcpStream) -> anyhow::Result<()> {
-        let (reg_msg_id, reg_payload) = self.build_reg_req();
+    /// 向网关注册，返回残留的未完成字节缓冲（注册成功后立即退出，后续帧仍在 buf 中）。
+    async fn register_stream(&self, stream: &mut TcpStream) -> anyhow::Result<BytesMut> {
+        let reg_msg = MessageType::GatewayServerRegReq(ServerRegReq {
+            service_id: SERVICE_ID_GAME as u32,
+            instance_id: self.instance_id,
+            load_score: 0,
+            accepting_bindings: true,
+            load_message: String::new(),
+        });
+        let (reg_msg_id, reg_payload) = encode_message(&reg_msg).unwrap();
+        let reg_msg_id = reg_msg_id as u16;
         let reg_frame = encode_frame(
             CMD_GATEWAY_CONTROL,
             reg_msg_id,
@@ -163,6 +183,7 @@ impl GatewayClient {
         );
 
         let mut buf = BytesMut::with_capacity(8192);
+
         tokio::time::timeout(REGISTER_TIMEOUT, async {
             loop {
                 if stream.read_buf(&mut buf).await? == 0 {
@@ -171,7 +192,7 @@ impl GatewayClient {
 
                 while let Some(frame) = try_extract_frame(&mut buf)? {
                     if frame.cmd != CMD_GATEWAY_CONTROL {
-                        debug!("ignored frame before registration cmd={}", frame.cmd);
+                        warn!("ignored frame before registration cmd={}", frame.cmd);
                         continue;
                     }
 
@@ -182,147 +203,35 @@ impl GatewayClient {
                             }
                             anyhow::bail!("gateway registration failed, code={}", resp.code);
                         }
-                        MessageType::GatewayServerPingReq(ping) => {
-                            let message = self.build_pong_resp(ping.nonce);
-                            if let Some((msg_id, payload)) = encode_message(&message) {
-                                let data = encode_frame(
-                                    CMD_GATEWAY_CONTROL,
-                                    msg_id as u16,
-                                    0,
-                                    0,
-                                    &payload,
-                                );
-                                stream.write_all(&data).await?;
-                                stream.flush().await?;
-                            }
-                        }
                         _ => {
-                            debug!("ignored pre-registration control msg_id={}", frame.msg_id);
+                            warn!("ignored pre-registration control msg_id={}", frame.msg_id);
                         }
                     }
                 }
             }
         })
         .await
-        .map_err(|_| anyhow::anyhow!("gateway registration timeout"))?
+        .map_err(|_| anyhow::anyhow!("gateway registration timeout"))??;
+
+        Ok(buf)
     }
 
     async fn dispatch_frame(
         &self,
         frame: BackendFrame,
-        tx: &GatewaySender,
+        _tx: &GatewaySender,
         handler: &Arc<dyn MessageHandler>,
     ) {
         match frame.cmd {
-            CMD_GATEWAY_CONTROL => self.dispatch_control_frame(frame, tx, handler).await,
+            CMD_GATEWAY_CONTROL => {
+                handler.on_gateway_control_frame(frame).await;
+            }
             CMD_BUSINESS => {
-                handler
-                    .on_message(frame.msg_id, frame.serial, frame.session_id, frame.payload)
-                    .await;
+                handler.on_business_frame(frame).await;
             }
             _ => {
                 debug!("unhandled gateway cmd={}", frame.cmd);
             }
         }
-    }
-
-    async fn dispatch_server_forward(
-        &self,
-        req: protocol::gateway::ForwardToServerReq,
-        handler: &Arc<dyn MessageHandler>,
-    ) {
-        let mut buf = BytesMut::from(req.payload.as_slice());
-        let Ok(Some(inner)) = try_extract_frame(&mut buf) else {
-            debug!(
-                "invalid forwarded backend frame from service_id={} instance_id={}",
-                req.source_service_id, req.source_instance_id
-            );
-            return;
-        };
-
-        match inner.cmd {
-            CMD_BUSINESS => {
-                handler
-                    .on_message(inner.msg_id, inner.serial, inner.session_id, inner.payload)
-                    .await;
-            }
-            CMD_GATEWAY_CONTROL => {
-                debug!("ignored forwarded gateway control msg_id={}", inner.msg_id)
-            }
-            _ => debug!("unhandled forwarded cmd={}", inner.cmd),
-        }
-    }
-
-    async fn dispatch_control_frame(
-        &self,
-        frame: BackendFrame,
-        tx: &GatewaySender,
-        handler: &Arc<dyn MessageHandler>,
-    ) {
-        match decode_message(frame.msg_id as u32, &frame.payload) {
-            Ok(MessageType::GatewayGatewayErrorResp(resp)) => {
-                handler.on_gateway_error_resp(frame.serial, resp).await;
-            }
-            Ok(MessageType::GatewaySessionOnlinePush(push)) => {
-                handler.on_session_online(push.session_id).await;
-            }
-            Ok(MessageType::GatewaySessionOfflinePush(push)) => {
-                handler.on_session_offline(push.session_id).await;
-            }
-            Ok(MessageType::GatewayServerOnlinePush(push)) => {
-                debug!(
-                    "server online: type={}, instance={}",
-                    push.service_id, push.instance_id
-                );
-            }
-            Ok(MessageType::GatewayServerOfflinePush(push)) => {
-                debug!(
-                    "server offline: type={}, instance={}",
-                    push.service_id, push.instance_id
-                );
-            }
-            Ok(MessageType::GatewayBindServiceResp(resp)) => {
-                handler.on_bind_service_resp(frame.serial, resp).await;
-            }
-            Ok(MessageType::GatewayUnbindServiceResp(resp)) => {
-                handler.on_unbind_service_resp(frame.serial, resp).await;
-            }
-            Ok(MessageType::GatewayForwardToServerReq(req)) => {
-                self.dispatch_server_forward(req, handler).await;
-            }
-            Ok(MessageType::GatewayServerPingReq(ping)) => {
-                let message =
-                    MessageType::GatewayServerPongResp(ServerPongResp { nonce: ping.nonce });
-                if let Some((msg_id, payload)) = encode_message(&message) {
-                    let data = encode_frame(CMD_GATEWAY_CONTROL, msg_id as u16, 0, 0, &payload);
-                    let _ = tx.send(data);
-                }
-            }
-            Ok(_) => {
-                debug!("unhandled gateway control msg_id={}", frame.msg_id);
-            }
-            Err(err) => {
-                debug!(
-                    "failed to decode gateway control msg_id={}: {}",
-                    frame.msg_id, err
-                );
-            }
-        }
-    }
-
-    fn build_reg_req(&self) -> (u16, Vec<u8>) {
-        let message = MessageType::GatewayServerRegReq(ServerRegReq {
-            service_id: SERVICE_ID_GAME as u32,
-            instance_id: self.instance_id,
-            load_score: 0,
-            accepting_bindings: true,
-            load_message: String::new(),
-        });
-        let (msg_id, payload) = encode_message(&message).unwrap();
-        (msg_id as u16, payload)
-    }
-
-    fn build_pong_resp(&self, nonce: u64) -> MessageType {
-        MessageType::GatewayServerPongResp(ServerPongResp { nonce })
     }
 }

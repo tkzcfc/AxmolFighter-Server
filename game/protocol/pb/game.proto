@@ -4,6 +4,18 @@ package PB.Game;
 
 option optimize_for = LITE_RUNTIME;
 
+message CommonSuccessResp {
+    enum MsgId { None = 0; Id = 900; }
+    int32 code = 1;
+    string message = 2;
+}
+
+message CommonErrorResp {
+    enum MsgId { None = 0; Id = 901; }
+    int32 code = 1;
+    string message = 2;
+}
+
 // 登录。
 message LoginReq {
     enum MsgId { None = 0; Id = 1000; }

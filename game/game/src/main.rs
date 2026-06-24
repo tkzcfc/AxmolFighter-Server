@@ -2,12 +2,16 @@
 
 mod codec;
 mod config;
+mod error_code;
+mod game_shared;
 mod gateway_client;
 mod handler;
 mod player;
+mod server_source;
 mod wire;
 
 use std::env;
+use std::sync::Arc;
 use std::time::Duration;
 
 use sqlx::postgres::PgPoolOptions;
@@ -83,10 +87,8 @@ async fn main() -> anyhow::Result<()> {
 
     let shutdown_token = CancellationToken::new();
 
-    // 创建消息处理器
-    let handler = GameHandler::new(pool);
-
-    // 启动网关连接
+    // 创建消息处理器并启动网关连接
+    let gw_handler = Arc::new(GameHandler::new(pool));
     let gw_client = GatewayClient::new(
         config.gateway.addr.clone(),
         config.server.instance_id,
@@ -94,7 +96,6 @@ async fn main() -> anyhow::Result<()> {
         shutdown_token.clone(),
     );
 
-    let gw_handler = handler.clone();
     let gw_task = tokio::spawn(async move {
         gw_client.run(gw_handler).await;
     });

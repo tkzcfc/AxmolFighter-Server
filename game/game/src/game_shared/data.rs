@@ -1,9 +1,15 @@
+use std::sync::atomic::Ordering;
+
 use protocol::game::CharacterInfo;
 
-use crate::handler::GameShared;
+use super::GameShared;
 
 impl GameShared {
-    pub(crate) async fn query_max_character_count(&self) -> i32 {
+    pub fn next_battle_id(&self) -> u32 {
+        self.battle_id_seed.fetch_add(1, Ordering::Relaxed)
+    }
+
+    pub async fn query_max_character_count(&self) -> i32 {
         match sqlx::query_scalar::<_, i64>(
             "SELECT value_int FROM server_settings WHERE key = 'max_character_count'",
         )
@@ -15,7 +21,7 @@ impl GameShared {
         }
     }
 
-    pub(crate) fn db_character_to_proto(
+    pub fn db_character_to_proto(
         character_id: i64,
         name: String,
         class_id: i32,
