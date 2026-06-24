@@ -2,6 +2,8 @@ use bytes::Bytes;
 use protocol::message_map::{MessageType, decode_message};
 use tracing::{debug, warn};
 
+use crate::error_code::ErrorCode;
+
 use crate::player::PlayerActor;
 
 impl PlayerActor {
@@ -13,9 +15,8 @@ impl PlayerActor {
                     return;
                 }
 
-                if let Some(resp) = self.handle_client_request(msg_id, msg).await {
-                    self.shared.send_msg(&resp, -serial, self.session_id);
-                }
+                let resp = self.handle_client_request(msg_id, msg).await;
+                self.shared.send_msg(&resp, -serial, self.session_id);
             }
             Err(e) => {
                 warn!(
@@ -26,31 +27,27 @@ impl PlayerActor {
         }
     }
 
-    async fn handle_client_request(
-        &mut self,
-        msg_id: u16,
-        msg: MessageType,
-    ) -> Option<MessageType> {
+    async fn handle_client_request(&mut self, msg_id: u16, msg: MessageType) -> MessageType {
         match msg {
-            MessageType::GameLoginReq(req) => Some(self.handle_login(req).await),
-            MessageType::GameRegisterReq(req) => Some(self.handle_register(req).await),
+            MessageType::GameLoginReq(req) => self.handle_login(req).await.into(),
+            MessageType::GameRegisterReq(req) => self.handle_register(req).await.into(),
             MessageType::GameFetchCharacterListReq(req) => {
-                Some(self.handle_fetch_character_list(req).await)
+                self.handle_fetch_character_list(req).await.into()
             }
             MessageType::GameCreateCharacterReq(req) => {
-                Some(self.handle_create_character(req).await)
+                self.handle_create_character(req).await.into()
             }
             MessageType::GameSelectCharacterReq(req) => {
-                Some(self.handle_select_character(req).await)
+                self.handle_select_character(req).await.into()
             }
-            MessageType::GameBattleJoinReq(req) => Some(self.handle_battle_join(req).await),
+            MessageType::GameBattleJoinReq(req) => self.handle_battle_join(req).await.into(),
             other => {
                 warn!(
                     "no request handler for msg_id={}, session={}",
                     msg_id, self.session_id
                 );
                 drop(other);
-                None
+                ErrorCode::InternalError.to_common_error_message()
             }
         }
     }

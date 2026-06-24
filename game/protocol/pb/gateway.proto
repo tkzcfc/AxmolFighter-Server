@@ -56,14 +56,25 @@ message BindServiceReq {
     int32 target_instance_id = 3;
 }
 
-message UnbindServiceReq {
+// 网关返回服务绑定结果。
+message BindServiceResp {
     enum MsgId { None = 0; Id = 6; }
+    uint32 session_id = 1;
+    uint32 service_id = 2;
+    uint32 instance_id = 3;
+    // 0=OK,1=NO_AVAILABLE_SERVICE,2=TARGET_SERVICE_UNREACHABLE。
+    uint32 code = 4;
+    string message = 5;
+}
+
+message UnbindServiceReq {
+    enum MsgId { None = 0; Id = 7; }
     uint32 session_id = 1;
     uint32 service_id = 2;
 }
 
 message UnbindServiceResp {
-    enum MsgId { None = 0; Id = 17; }
+    enum MsgId { None = 0; Id = 8; }
     uint32 session_id = 1;
     uint32 service_id = 2;
     // 0=OK.
@@ -72,35 +83,41 @@ message UnbindServiceResp {
 }
 
 message KickSessionReq {
-    enum MsgId { None = 0; Id = 7; }
-    uint32 session_id = 1;
-}
-
-message SessionOnlinePush {
-    enum MsgId { None = 0; Id = 8; }
-    uint32 session_id = 1;
-}
-
-message SessionOfflinePush {
     enum MsgId { None = 0; Id = 9; }
     uint32 session_id = 1;
 }
 
-message ServerOnlinePush {
+message KickSessionRsp {
     enum MsgId { None = 0; Id = 10; }
+    uint32 code = 1;
+    uint32 session_id = 2;
+}
+
+message SessionOnlinePush {
+    enum MsgId { None = 0; Id = 11; }
+    uint32 session_id = 1;
+}
+
+message SessionOfflinePush {
+    enum MsgId { None = 0; Id = 12; }
+    uint32 session_id = 1;
+}
+
+message ServerOnlinePush {
+    enum MsgId { None = 0; Id = 13; }
     uint32 service_id = 1;
     uint32 instance_id = 2;
 }
 
 message ServerOfflinePush {
-    enum MsgId { None = 0; Id = 11; }
+    enum MsgId { None = 0; Id = 14; }
     uint32 service_id = 1;
     uint32 instance_id = 2;
 }
 
 // 后端服务之间转发完整后端帧。
 message ForwardToServerReq {
-    enum MsgId { None = 0; Id = 12; }
+    enum MsgId { None = 0; Id = 15; }
     uint32 target_service_id = 1;
     // 小于 0 时由网关选择最低负载实例。
     int32 target_instance_id = 2;
@@ -113,7 +130,7 @@ message ForwardToServerReq {
 
 // 后端定期上报自己的负载。
 message ServiceLoadReportPush {
-    enum MsgId { None = 0; Id = 13; }
+    enum MsgId { None = 0; Id = 16; }
     // 0 最空闲，100 视为满载。
     uint32 load_score = 1;
     // 是否接收绑定
@@ -121,25 +138,14 @@ message ServiceLoadReportPush {
     string message = 3;
 }
 
-// 网关返回服务绑定结果。
-message BindServiceResp {
-    enum MsgId { None = 0; Id = 14; }
-    uint32 session_id = 1;
-    uint32 service_id = 2;
-    uint32 instance_id = 3;
-    // 0=OK,1=NO_AVAILABLE_SERVICE,2=TARGET_SERVICE_UNREACHABLE。
-    uint32 code = 4;
-    string message = 5;
-}
-
 // 网关定时发给后端服务的心跳请求。
 message ServerPingReq {
-    enum MsgId { None = 0; Id = 15; }
+    enum MsgId { None = 0; Id = 17; }
     uint64 nonce = 1;
 }
 
 // 后端服务回复网关心跳，nonce 必须原样返回。
 message ServerPongResp {
-    enum MsgId { None = 0; Id = 16; }
+    enum MsgId { None = 0; Id = 18; }
     uint64 nonce = 1;
 }

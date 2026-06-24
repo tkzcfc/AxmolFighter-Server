@@ -533,7 +533,7 @@ impl InternalDelegate {
                     "unbound session {} from service_id={}",
                     session_id, service_id
                 );
-                if serial != 0 {
+                if serial < 0 {
                     let resp = MessageType::GatewayUnbindServiceResp(
                         protocol::gateway::UnbindServiceResp {
                             session_id,
@@ -542,8 +542,7 @@ impl InternalDelegate {
                             message: String::new(),
                         },
                     );
-                    let response_serial = if serial < 0 { -serial } else { serial };
-                    let data = self.encode_control_frame(resp, response_serial, session_id);
+                    let data = self.encode_control_frame(resp, -serial, 0);
                     if let Some(tx) = &self.tx {
                         let _ = tx.send(WriterMessage::Send(data, true));
                     }
@@ -554,6 +553,17 @@ impl InternalDelegate {
                 self.ctx.sessions.kick(req.session_id);
                 self.ctx.router.cleanup_session(req.session_id);
                 debug!("kicked session {}", req.session_id);
+                if serial < 0 {
+                    let resp =
+                        MessageType::GatewayKickSessionRsp(protocol::gateway::KickSessionRsp {
+                            session_id: req.session_id,
+                            code: 0,
+                        });
+                    let data = self.encode_control_frame(resp, -serial, 0);
+                    if let Some(tx) = &self.tx {
+                        let _ = tx.send(WriterMessage::Send(data, true));
+                    }
+                }
             }
 
             MessageType::GatewayForwardToServerReq(req) => {

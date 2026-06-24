@@ -1,5 +1,4 @@
 use protocol::game::*;
-use protocol::message_map::MessageType;
 use tracing::warn;
 
 use crate::game_shared::GameShared;
@@ -9,13 +8,13 @@ impl PlayerActor {
     pub(super) async fn handle_fetch_character_list(
         &mut self,
         _req: FetchCharacterListReq,
-    ) -> MessageType {
+    ) -> FetchCharacterListResp {
         let Some(account_id) = self.account_id() else {
-            return MessageType::GameFetchCharacterListResp(FetchCharacterListResp {
+            return FetchCharacterListResp {
                 code: 401,
                 message: "请先登录".to_string(),
                 characters: vec![],
-            });
+            };
         };
 
         let result = sqlx::query_as::<_, (i64, String, i32, i32, i32, i64, i64)>(
@@ -34,30 +33,33 @@ impl PlayerActor {
                     ));
                 }
 
-                MessageType::GameFetchCharacterListResp(FetchCharacterListResp {
+                FetchCharacterListResp {
                     code: 0,
                     message: String::new(),
                     characters,
-                })
+                }
             }
             Err(e) => {
                 warn!("fetch character list failed: {}", e);
-                MessageType::GameFetchCharacterListResp(FetchCharacterListResp {
+                FetchCharacterListResp {
                     code: -1,
                     message: "服务器内部错误".to_string(),
                     characters: vec![],
-                })
+                }
             }
         }
     }
 
-    pub(super) async fn handle_create_character(&mut self, req: CreateCharacterReq) -> MessageType {
+    pub(super) async fn handle_create_character(
+        &mut self,
+        req: CreateCharacterReq,
+    ) -> CreateCharacterResp {
         let Some(account_id) = self.account_id() else {
-            return MessageType::GameCreateCharacterResp(CreateCharacterResp {
+            return CreateCharacterResp {
                 code: 401,
                 message: "请先登录".to_string(),
                 character: None,
-            });
+            };
         };
 
         let max_count = self.shared.query_max_character_count().await as i64;
@@ -69,11 +71,11 @@ impl PlayerActor {
                 .unwrap_or(0);
 
         if current_count >= max_count {
-            return MessageType::GameCreateCharacterResp(CreateCharacterResp {
+            return CreateCharacterResp {
                 code: 2,
                 message: "角色数量已达上限".to_string(),
                 character: None,
-            });
+            };
         }
 
         let insert_result = sqlx::query_as::<_, (i64, String, i32, i32, i32, i64, i64)>(
@@ -92,18 +94,18 @@ impl PlayerActor {
                 if let Some(db_err) = e.as_database_error()
                     && db_err.is_unique_violation()
                 {
-                    return MessageType::GameCreateCharacterResp(CreateCharacterResp {
+                    return CreateCharacterResp {
                         code: 1,
                         message: "角色名已存在".to_string(),
                         character: None,
-                    });
+                    };
                 }
                 warn!("create character failed: {}", e);
-                return MessageType::GameCreateCharacterResp(CreateCharacterResp {
+                return CreateCharacterResp {
                     code: -1,
                     message: "服务器内部错误".to_string(),
                     character: None,
-                });
+                };
             }
         };
 
@@ -117,23 +119,26 @@ impl PlayerActor {
             .await;
         }
 
-        MessageType::GameCreateCharacterResp(CreateCharacterResp {
+        CreateCharacterResp {
             code: 0,
             message: String::new(),
             character: Some(GameShared::db_character_to_proto(
                 id, name, class_id, gender, level, exp, gold,
             )),
-        })
+        }
     }
 
-    pub(super) async fn handle_select_character(&mut self, req: SelectCharacterReq) -> MessageType {
+    pub(super) async fn handle_select_character(
+        &mut self,
+        req: SelectCharacterReq,
+    ) -> SelectCharacterResp {
         let Some(account_id) = self.account_id() else {
-            return MessageType::GameSelectCharacterResp(SelectCharacterResp {
+            return SelectCharacterResp {
                 code: 401,
                 message: "请先登录".to_string(),
                 character: None,
                 inventory: None,
-            });
+            };
         };
 
         let character_row = sqlx::query_as::<_, (i64, String, i32, i32, i32, i64, i64)>(
@@ -148,20 +153,20 @@ impl PlayerActor {
             Ok(v) => v,
             Err(e) => {
                 warn!("select character query failed: {}", e);
-                return MessageType::GameSelectCharacterResp(SelectCharacterResp {
+                return SelectCharacterResp {
                     code: -1,
                     message: "服务器内部错误".to_string(),
                     character: None,
                     inventory: None,
-                });
+                };
             }
         }) else {
-            return MessageType::GameSelectCharacterResp(SelectCharacterResp {
+            return SelectCharacterResp {
                 code: 2,
                 message: "角色不存在或不属于当前账号".to_string(),
                 character: None,
                 inventory: None,
-            });
+            };
         };
 
         let equip_rows = sqlx::query_as::<_, (i64, i64, i32, i32, i32, bool)>(
@@ -203,13 +208,13 @@ impl PlayerActor {
             });
         }
 
-        MessageType::GameSelectCharacterResp(SelectCharacterResp {
+        SelectCharacterResp {
             code: 0,
             message: String::new(),
             character: Some(GameShared::db_character_to_proto(
                 id, name, class_id, gender, level, exp, gold,
             )),
             inventory: Some(InventoryInfo { items, equipments }),
-        })
+        }
     }
 }

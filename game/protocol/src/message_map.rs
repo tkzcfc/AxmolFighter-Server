@@ -29,16 +29,17 @@ pub enum MessageType {
     GatewayServerRegReq(super::gateway::ServerRegReq),
     GatewayServerRegResp(super::gateway::ServerRegResp),
     GatewayBindServiceReq(super::gateway::BindServiceReq),
+    GatewayBindServiceResp(super::gateway::BindServiceResp),
     GatewayUnbindServiceReq(super::gateway::UnbindServiceReq),
     GatewayUnbindServiceResp(super::gateway::UnbindServiceResp),
     GatewayKickSessionReq(super::gateway::KickSessionReq),
+    GatewayKickSessionRsp(super::gateway::KickSessionRsp),
     GatewaySessionOnlinePush(super::gateway::SessionOnlinePush),
     GatewaySessionOfflinePush(super::gateway::SessionOfflinePush),
     GatewayServerOnlinePush(super::gateway::ServerOnlinePush),
     GatewayServerOfflinePush(super::gateway::ServerOfflinePush),
     GatewayForwardToServerReq(super::gateway::ForwardToServerReq),
     GatewayServiceLoadReportPush(super::gateway::ServiceLoadReportPush),
-    GatewayBindServiceResp(super::gateway::BindServiceResp),
     GatewayServerPingReq(super::gateway::ServerPingReq),
     GatewayServerPongResp(super::gateway::ServerPongResp),
 }
@@ -46,6 +47,197 @@ pub enum MessageType {
 impl MessageType {
     pub fn is_none(&self) -> bool {
         matches!(self, MessageType::None)
+    }
+}
+
+impl From<super::game::CommonSuccessResp> for MessageType {
+    fn from(v: super::game::CommonSuccessResp) -> Self {
+        MessageType::GameCommonSuccessResp(v)
+    }
+}
+impl From<super::game::CommonErrorResp> for MessageType {
+    fn from(v: super::game::CommonErrorResp) -> Self {
+        MessageType::GameCommonErrorResp(v)
+    }
+}
+impl From<super::game::LoginReq> for MessageType {
+    fn from(v: super::game::LoginReq) -> Self {
+        MessageType::GameLoginReq(v)
+    }
+}
+impl From<super::game::LoginResp> for MessageType {
+    fn from(v: super::game::LoginResp) -> Self {
+        MessageType::GameLoginResp(v)
+    }
+}
+impl From<super::game::RegisterReq> for MessageType {
+    fn from(v: super::game::RegisterReq) -> Self {
+        MessageType::GameRegisterReq(v)
+    }
+}
+impl From<super::game::RegisterResp> for MessageType {
+    fn from(v: super::game::RegisterResp) -> Self {
+        MessageType::GameRegisterResp(v)
+    }
+}
+impl From<super::game::PlayerInfo> for MessageType {
+    fn from(v: super::game::PlayerInfo) -> Self {
+        MessageType::GamePlayerInfo(v)
+    }
+}
+impl From<super::game::CreateCharacterReq> for MessageType {
+    fn from(v: super::game::CreateCharacterReq) -> Self {
+        MessageType::GameCreateCharacterReq(v)
+    }
+}
+impl From<super::game::CreateCharacterResp> for MessageType {
+    fn from(v: super::game::CreateCharacterResp) -> Self {
+        MessageType::GameCreateCharacterResp(v)
+    }
+}
+impl From<super::game::FetchCharacterListReq> for MessageType {
+    fn from(v: super::game::FetchCharacterListReq) -> Self {
+        MessageType::GameFetchCharacterListReq(v)
+    }
+}
+impl From<super::game::FetchCharacterListResp> for MessageType {
+    fn from(v: super::game::FetchCharacterListResp) -> Self {
+        MessageType::GameFetchCharacterListResp(v)
+    }
+}
+impl From<super::game::SelectCharacterReq> for MessageType {
+    fn from(v: super::game::SelectCharacterReq) -> Self {
+        MessageType::GameSelectCharacterReq(v)
+    }
+}
+impl From<super::game::SelectCharacterResp> for MessageType {
+    fn from(v: super::game::SelectCharacterResp) -> Self {
+        MessageType::GameSelectCharacterResp(v)
+    }
+}
+impl From<super::game::PlayerState> for MessageType {
+    fn from(v: super::game::PlayerState) -> Self {
+        MessageType::GamePlayerState(v)
+    }
+}
+impl From<super::game::BattleJoinReq> for MessageType {
+    fn from(v: super::game::BattleJoinReq) -> Self {
+        MessageType::GameBattleJoinReq(v)
+    }
+}
+impl From<super::game::BattleJoinResp> for MessageType {
+    fn from(v: super::game::BattleJoinResp) -> Self {
+        MessageType::GameBattleJoinResp(v)
+    }
+}
+impl From<super::game::BattleCreateReq> for MessageType {
+    fn from(v: super::game::BattleCreateReq) -> Self {
+        MessageType::GameBattleCreateReq(v)
+    }
+}
+impl From<super::game::BattleCreateResp> for MessageType {
+    fn from(v: super::game::BattleCreateResp) -> Self {
+        MessageType::GameBattleCreateResp(v)
+    }
+}
+impl From<super::game::BattleInputPush> for MessageType {
+    fn from(v: super::game::BattleInputPush) -> Self {
+        MessageType::GameBattleInputPush(v)
+    }
+}
+impl From<super::game::BattleSnapshotPush> for MessageType {
+    fn from(v: super::game::BattleSnapshotPush) -> Self {
+        MessageType::GameBattleSnapshotPush(v)
+    }
+}
+impl From<super::gateway::ServerStatusPush> for MessageType {
+    fn from(v: super::gateway::ServerStatusPush) -> Self {
+        MessageType::GatewayServerStatusPush(v)
+    }
+}
+impl From<super::gateway::GatewayErrorResp> for MessageType {
+    fn from(v: super::gateway::GatewayErrorResp) -> Self {
+        MessageType::GatewayGatewayErrorResp(v)
+    }
+}
+impl From<super::gateway::ServerRegReq> for MessageType {
+    fn from(v: super::gateway::ServerRegReq) -> Self {
+        MessageType::GatewayServerRegReq(v)
+    }
+}
+impl From<super::gateway::ServerRegResp> for MessageType {
+    fn from(v: super::gateway::ServerRegResp) -> Self {
+        MessageType::GatewayServerRegResp(v)
+    }
+}
+impl From<super::gateway::BindServiceReq> for MessageType {
+    fn from(v: super::gateway::BindServiceReq) -> Self {
+        MessageType::GatewayBindServiceReq(v)
+    }
+}
+impl From<super::gateway::BindServiceResp> for MessageType {
+    fn from(v: super::gateway::BindServiceResp) -> Self {
+        MessageType::GatewayBindServiceResp(v)
+    }
+}
+impl From<super::gateway::UnbindServiceReq> for MessageType {
+    fn from(v: super::gateway::UnbindServiceReq) -> Self {
+        MessageType::GatewayUnbindServiceReq(v)
+    }
+}
+impl From<super::gateway::UnbindServiceResp> for MessageType {
+    fn from(v: super::gateway::UnbindServiceResp) -> Self {
+        MessageType::GatewayUnbindServiceResp(v)
+    }
+}
+impl From<super::gateway::KickSessionReq> for MessageType {
+    fn from(v: super::gateway::KickSessionReq) -> Self {
+        MessageType::GatewayKickSessionReq(v)
+    }
+}
+impl From<super::gateway::KickSessionRsp> for MessageType {
+    fn from(v: super::gateway::KickSessionRsp) -> Self {
+        MessageType::GatewayKickSessionRsp(v)
+    }
+}
+impl From<super::gateway::SessionOnlinePush> for MessageType {
+    fn from(v: super::gateway::SessionOnlinePush) -> Self {
+        MessageType::GatewaySessionOnlinePush(v)
+    }
+}
+impl From<super::gateway::SessionOfflinePush> for MessageType {
+    fn from(v: super::gateway::SessionOfflinePush) -> Self {
+        MessageType::GatewaySessionOfflinePush(v)
+    }
+}
+impl From<super::gateway::ServerOnlinePush> for MessageType {
+    fn from(v: super::gateway::ServerOnlinePush) -> Self {
+        MessageType::GatewayServerOnlinePush(v)
+    }
+}
+impl From<super::gateway::ServerOfflinePush> for MessageType {
+    fn from(v: super::gateway::ServerOfflinePush) -> Self {
+        MessageType::GatewayServerOfflinePush(v)
+    }
+}
+impl From<super::gateway::ForwardToServerReq> for MessageType {
+    fn from(v: super::gateway::ForwardToServerReq) -> Self {
+        MessageType::GatewayForwardToServerReq(v)
+    }
+}
+impl From<super::gateway::ServiceLoadReportPush> for MessageType {
+    fn from(v: super::gateway::ServiceLoadReportPush) -> Self {
+        MessageType::GatewayServiceLoadReportPush(v)
+    }
+}
+impl From<super::gateway::ServerPingReq> for MessageType {
+    fn from(v: super::gateway::ServerPingReq) -> Self {
+        MessageType::GatewayServerPingReq(v)
+    }
+}
+impl From<super::gateway::ServerPongResp> for MessageType {
+    fn from(v: super::gateway::ServerPongResp) -> Self {
+        MessageType::GatewayServerPongResp(v)
     }
 }
 
@@ -76,18 +268,19 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
         MessageType::GatewayServerRegReq(_) => Some(3u32),
         MessageType::GatewayServerRegResp(_) => Some(4u32),
         MessageType::GatewayBindServiceReq(_) => Some(5u32),
-        MessageType::GatewayUnbindServiceReq(_) => Some(6u32),
-        MessageType::GatewayUnbindServiceResp(_) => Some(17u32),
-        MessageType::GatewayKickSessionReq(_) => Some(7u32),
-        MessageType::GatewaySessionOnlinePush(_) => Some(8u32),
-        MessageType::GatewaySessionOfflinePush(_) => Some(9u32),
-        MessageType::GatewayServerOnlinePush(_) => Some(10u32),
-        MessageType::GatewayServerOfflinePush(_) => Some(11u32),
-        MessageType::GatewayForwardToServerReq(_) => Some(12u32),
-        MessageType::GatewayServiceLoadReportPush(_) => Some(13u32),
-        MessageType::GatewayBindServiceResp(_) => Some(14u32),
-        MessageType::GatewayServerPingReq(_) => Some(15u32),
-        MessageType::GatewayServerPongResp(_) => Some(16u32),
+        MessageType::GatewayBindServiceResp(_) => Some(6u32),
+        MessageType::GatewayUnbindServiceReq(_) => Some(7u32),
+        MessageType::GatewayUnbindServiceResp(_) => Some(8u32),
+        MessageType::GatewayKickSessionReq(_) => Some(9u32),
+        MessageType::GatewayKickSessionRsp(_) => Some(10u32),
+        MessageType::GatewaySessionOnlinePush(_) => Some(11u32),
+        MessageType::GatewaySessionOfflinePush(_) => Some(12u32),
+        MessageType::GatewayServerOnlinePush(_) => Some(13u32),
+        MessageType::GatewayServerOfflinePush(_) => Some(14u32),
+        MessageType::GatewayForwardToServerReq(_) => Some(15u32),
+        MessageType::GatewayServiceLoadReportPush(_) => Some(16u32),
+        MessageType::GatewayServerPingReq(_) => Some(17u32),
+        MessageType::GatewayServerPongResp(_) => Some(18u32),
         _ => None,
     }
 }
@@ -194,51 +387,55 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
             Ok(message) => Ok(MessageType::GatewayBindServiceReq(message)),
             Err(err) => Err(err),
         },
-        6u32 => match super::gateway::UnbindServiceReq::decode(bytes) {
-            Ok(message) => Ok(MessageType::GatewayUnbindServiceReq(message)),
-            Err(err) => Err(err),
-        },
-        17u32 => match super::gateway::UnbindServiceResp::decode(bytes) {
-            Ok(message) => Ok(MessageType::GatewayUnbindServiceResp(message)),
-            Err(err) => Err(err),
-        },
-        7u32 => match super::gateway::KickSessionReq::decode(bytes) {
-            Ok(message) => Ok(MessageType::GatewayKickSessionReq(message)),
-            Err(err) => Err(err),
-        },
-        8u32 => match super::gateway::SessionOnlinePush::decode(bytes) {
-            Ok(message) => Ok(MessageType::GatewaySessionOnlinePush(message)),
-            Err(err) => Err(err),
-        },
-        9u32 => match super::gateway::SessionOfflinePush::decode(bytes) {
-            Ok(message) => Ok(MessageType::GatewaySessionOfflinePush(message)),
-            Err(err) => Err(err),
-        },
-        10u32 => match super::gateway::ServerOnlinePush::decode(bytes) {
-            Ok(message) => Ok(MessageType::GatewayServerOnlinePush(message)),
-            Err(err) => Err(err),
-        },
-        11u32 => match super::gateway::ServerOfflinePush::decode(bytes) {
-            Ok(message) => Ok(MessageType::GatewayServerOfflinePush(message)),
-            Err(err) => Err(err),
-        },
-        12u32 => match super::gateway::ForwardToServerReq::decode(bytes) {
-            Ok(message) => Ok(MessageType::GatewayForwardToServerReq(message)),
-            Err(err) => Err(err),
-        },
-        13u32 => match super::gateway::ServiceLoadReportPush::decode(bytes) {
-            Ok(message) => Ok(MessageType::GatewayServiceLoadReportPush(message)),
-            Err(err) => Err(err),
-        },
-        14u32 => match super::gateway::BindServiceResp::decode(bytes) {
+        6u32 => match super::gateway::BindServiceResp::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayBindServiceResp(message)),
             Err(err) => Err(err),
         },
-        15u32 => match super::gateway::ServerPingReq::decode(bytes) {
+        7u32 => match super::gateway::UnbindServiceReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayUnbindServiceReq(message)),
+            Err(err) => Err(err),
+        },
+        8u32 => match super::gateway::UnbindServiceResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayUnbindServiceResp(message)),
+            Err(err) => Err(err),
+        },
+        9u32 => match super::gateway::KickSessionReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayKickSessionReq(message)),
+            Err(err) => Err(err),
+        },
+        10u32 => match super::gateway::KickSessionRsp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayKickSessionRsp(message)),
+            Err(err) => Err(err),
+        },
+        11u32 => match super::gateway::SessionOnlinePush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewaySessionOnlinePush(message)),
+            Err(err) => Err(err),
+        },
+        12u32 => match super::gateway::SessionOfflinePush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewaySessionOfflinePush(message)),
+            Err(err) => Err(err),
+        },
+        13u32 => match super::gateway::ServerOnlinePush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayServerOnlinePush(message)),
+            Err(err) => Err(err),
+        },
+        14u32 => match super::gateway::ServerOfflinePush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayServerOfflinePush(message)),
+            Err(err) => Err(err),
+        },
+        15u32 => match super::gateway::ForwardToServerReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayForwardToServerReq(message)),
+            Err(err) => Err(err),
+        },
+        16u32 => match super::gateway::ServiceLoadReportPush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayServiceLoadReportPush(message)),
+            Err(err) => Err(err),
+        },
+        17u32 => match super::gateway::ServerPingReq::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayServerPingReq(message)),
             Err(err) => Err(err),
         },
-        16u32 => match super::gateway::ServerPongResp::decode(bytes) {
+        18u32 => match super::gateway::ServerPongResp::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayServerPongResp(message)),
             Err(err) => Err(err),
         },
@@ -273,18 +470,19 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
         MessageType::GatewayServerRegReq(msg) => Some((3u32, msg.encode_to_vec())),
         MessageType::GatewayServerRegResp(msg) => Some((4u32, msg.encode_to_vec())),
         MessageType::GatewayBindServiceReq(msg) => Some((5u32, msg.encode_to_vec())),
-        MessageType::GatewayUnbindServiceReq(msg) => Some((6u32, msg.encode_to_vec())),
-        MessageType::GatewayUnbindServiceResp(msg) => Some((17u32, msg.encode_to_vec())),
-        MessageType::GatewayKickSessionReq(msg) => Some((7u32, msg.encode_to_vec())),
-        MessageType::GatewaySessionOnlinePush(msg) => Some((8u32, msg.encode_to_vec())),
-        MessageType::GatewaySessionOfflinePush(msg) => Some((9u32, msg.encode_to_vec())),
-        MessageType::GatewayServerOnlinePush(msg) => Some((10u32, msg.encode_to_vec())),
-        MessageType::GatewayServerOfflinePush(msg) => Some((11u32, msg.encode_to_vec())),
-        MessageType::GatewayForwardToServerReq(msg) => Some((12u32, msg.encode_to_vec())),
-        MessageType::GatewayServiceLoadReportPush(msg) => Some((13u32, msg.encode_to_vec())),
-        MessageType::GatewayBindServiceResp(msg) => Some((14u32, msg.encode_to_vec())),
-        MessageType::GatewayServerPingReq(msg) => Some((15u32, msg.encode_to_vec())),
-        MessageType::GatewayServerPongResp(msg) => Some((16u32, msg.encode_to_vec())),
+        MessageType::GatewayBindServiceResp(msg) => Some((6u32, msg.encode_to_vec())),
+        MessageType::GatewayUnbindServiceReq(msg) => Some((7u32, msg.encode_to_vec())),
+        MessageType::GatewayUnbindServiceResp(msg) => Some((8u32, msg.encode_to_vec())),
+        MessageType::GatewayKickSessionReq(msg) => Some((9u32, msg.encode_to_vec())),
+        MessageType::GatewayKickSessionRsp(msg) => Some((10u32, msg.encode_to_vec())),
+        MessageType::GatewaySessionOnlinePush(msg) => Some((11u32, msg.encode_to_vec())),
+        MessageType::GatewaySessionOfflinePush(msg) => Some((12u32, msg.encode_to_vec())),
+        MessageType::GatewayServerOnlinePush(msg) => Some((13u32, msg.encode_to_vec())),
+        MessageType::GatewayServerOfflinePush(msg) => Some((14u32, msg.encode_to_vec())),
+        MessageType::GatewayForwardToServerReq(msg) => Some((15u32, msg.encode_to_vec())),
+        MessageType::GatewayServiceLoadReportPush(msg) => Some((16u32, msg.encode_to_vec())),
+        MessageType::GatewayServerPingReq(msg) => Some((17u32, msg.encode_to_vec())),
+        MessageType::GatewayServerPongResp(msg) => Some((18u32, msg.encode_to_vec())),
         _ => None,
     }
 }
@@ -316,16 +514,17 @@ pub fn get_message_size(message: &MessageType) -> usize {
         MessageType::GatewayServerRegReq(msg) => msg.encoded_len(),
         MessageType::GatewayServerRegResp(msg) => msg.encoded_len(),
         MessageType::GatewayBindServiceReq(msg) => msg.encoded_len(),
+        MessageType::GatewayBindServiceResp(msg) => msg.encoded_len(),
         MessageType::GatewayUnbindServiceReq(msg) => msg.encoded_len(),
         MessageType::GatewayUnbindServiceResp(msg) => msg.encoded_len(),
         MessageType::GatewayKickSessionReq(msg) => msg.encoded_len(),
+        MessageType::GatewayKickSessionRsp(msg) => msg.encoded_len(),
         MessageType::GatewaySessionOnlinePush(msg) => msg.encoded_len(),
         MessageType::GatewaySessionOfflinePush(msg) => msg.encoded_len(),
         MessageType::GatewayServerOnlinePush(msg) => msg.encoded_len(),
         MessageType::GatewayServerOfflinePush(msg) => msg.encoded_len(),
         MessageType::GatewayForwardToServerReq(msg) => msg.encoded_len(),
         MessageType::GatewayServiceLoadReportPush(msg) => msg.encoded_len(),
-        MessageType::GatewayBindServiceResp(msg) => msg.encoded_len(),
         MessageType::GatewayServerPingReq(msg) => msg.encoded_len(),
         MessageType::GatewayServerPongResp(msg) => msg.encoded_len(),
         _ => 0,
@@ -359,16 +558,17 @@ pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
         MessageType::GatewayServerRegReq(msg) => msg.encode_raw(buf),
         MessageType::GatewayServerRegResp(msg) => msg.encode_raw(buf),
         MessageType::GatewayBindServiceReq(msg) => msg.encode_raw(buf),
+        MessageType::GatewayBindServiceResp(msg) => msg.encode_raw(buf),
         MessageType::GatewayUnbindServiceReq(msg) => msg.encode_raw(buf),
         MessageType::GatewayUnbindServiceResp(msg) => msg.encode_raw(buf),
         MessageType::GatewayKickSessionReq(msg) => msg.encode_raw(buf),
+        MessageType::GatewayKickSessionRsp(msg) => msg.encode_raw(buf),
         MessageType::GatewaySessionOnlinePush(msg) => msg.encode_raw(buf),
         MessageType::GatewaySessionOfflinePush(msg) => msg.encode_raw(buf),
         MessageType::GatewayServerOnlinePush(msg) => msg.encode_raw(buf),
         MessageType::GatewayServerOfflinePush(msg) => msg.encode_raw(buf),
         MessageType::GatewayForwardToServerReq(msg) => msg.encode_raw(buf),
         MessageType::GatewayServiceLoadReportPush(msg) => msg.encode_raw(buf),
-        MessageType::GatewayBindServiceResp(msg) => msg.encode_raw(buf),
         MessageType::GatewayServerPingReq(msg) => msg.encode_raw(buf),
         MessageType::GatewayServerPongResp(msg) => msg.encode_raw(buf),
         _ => {}
@@ -403,16 +603,17 @@ pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {
         MessageType::GatewayServerRegReq(msg) => serde_json::to_string(&msg),
         MessageType::GatewayServerRegResp(msg) => serde_json::to_string(&msg),
         MessageType::GatewayBindServiceReq(msg) => serde_json::to_string(&msg),
+        MessageType::GatewayBindServiceResp(msg) => serde_json::to_string(&msg),
         MessageType::GatewayUnbindServiceReq(msg) => serde_json::to_string(&msg),
         MessageType::GatewayUnbindServiceResp(msg) => serde_json::to_string(&msg),
         MessageType::GatewayKickSessionReq(msg) => serde_json::to_string(&msg),
+        MessageType::GatewayKickSessionRsp(msg) => serde_json::to_string(&msg),
         MessageType::GatewaySessionOnlinePush(msg) => serde_json::to_string(&msg),
         MessageType::GatewaySessionOfflinePush(msg) => serde_json::to_string(&msg),
         MessageType::GatewayServerOnlinePush(msg) => serde_json::to_string(&msg),
         MessageType::GatewayServerOfflinePush(msg) => serde_json::to_string(&msg),
         MessageType::GatewayForwardToServerReq(msg) => serde_json::to_string(&msg),
         MessageType::GatewayServiceLoadReportPush(msg) => serde_json::to_string(&msg),
-        MessageType::GatewayBindServiceResp(msg) => serde_json::to_string(&msg),
         MessageType::GatewayServerPingReq(msg) => serde_json::to_string(&msg),
         MessageType::GatewayServerPongResp(msg) => serde_json::to_string(&msg),
         _ => Ok("null".into()),

@@ -147,6 +147,7 @@ fn format_message_type_name(message_info: &MessageInfo) -> String {
 
 fn build_code(messages: &[MessageInfo]) -> String {
     let mut code_message = Vec::new();
+    let mut code_from_impl = Vec::new();
     let mut code_get_message_id = Vec::new();
     let mut code_decode_message = Vec::new();
     let mut code_encode_message = Vec::new();
@@ -157,6 +158,18 @@ fn build_code(messages: &[MessageInfo]) -> String {
     messages.iter().for_each(|info| {
         let code = format!("    {}({}),", format_message_type_name(info), format_message_full_type(info));
         code_message.push(code);
+
+        let code = format!(
+            r#"impl From<{}> for MessageType {{
+    fn from(v: {}) -> Self {{
+        MessageType::{}(v)
+    }}
+}}"#,
+            format_message_full_type(info),
+            format_message_full_type(info),
+            format_message_type_name(info)
+        );
+        code_from_impl.push(code);
 
         let code = format!("        MessageType::{}(_) => Some({}u32),", format_message_type_name(info), info.id);
         code_get_message_id.push(code);
@@ -205,6 +218,8 @@ impl MessageType {{
     }}
 }}
 
+{}
+
 pub fn get_message_id(message: &MessageType) -> Option<u32> {{
     match message {{
 {}
@@ -249,6 +264,7 @@ pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {{
 }}
 "#,
         code_message.join("\n"),
+        code_from_impl.join("\n"),
         code_get_message_id.join("\n"),
         code_decode_message.join("\n"),
         code_encode_message.join("\n"),

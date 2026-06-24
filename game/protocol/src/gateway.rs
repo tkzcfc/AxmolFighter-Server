@@ -83,11 +83,29 @@ pub struct BindServiceReq {
     #[prost(int32, tag = "3")]
     pub target_instance_id: i32,
 }
+/// 网关返回服务绑定结果。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BindServiceResp {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 6; }
+    #[prost(uint32, tag = "1")]
+    pub session_id: u32,
+    #[prost(uint32, tag = "2")]
+    pub service_id: u32,
+    #[prost(uint32, tag = "3")]
+    pub instance_id: u32,
+    /// 0=OK,1=NO_AVAILABLE_SERVICE,2=TARGET_SERVICE_UNREACHABLE。
+    #[prost(uint32, tag = "4")]
+    pub code: u32,
+    #[prost(string, tag = "5")]
+    pub message: ::prost::alloc::string::String,
+}
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UnbindServiceReq {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 6; }
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 7; }
     #[prost(uint32, tag = "1")]
     pub session_id: u32,
     #[prost(uint32, tag = "2")]
@@ -97,7 +115,7 @@ pub struct UnbindServiceReq {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UnbindServiceResp {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 17; }
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 8; }
     #[prost(uint32, tag = "1")]
     pub session_id: u32,
     #[prost(uint32, tag = "2")]
@@ -112,22 +130,6 @@ pub struct UnbindServiceResp {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KickSessionReq {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 7; }
-    #[prost(uint32, tag = "1")]
-    pub session_id: u32,
-}
-#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SessionOnlinePush {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 8; }
-    #[prost(uint32, tag = "1")]
-    pub session_id: u32,
-}
-#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SessionOfflinePush {
     /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 9; }
     #[prost(uint32, tag = "1")]
     pub session_id: u32,
@@ -135,8 +137,34 @@ pub struct SessionOfflinePush {
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ServerOnlinePush {
+pub struct KickSessionRsp {
     /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 10; }
+    #[prost(uint32, tag = "1")]
+    pub code: u32,
+    #[prost(uint32, tag = "2")]
+    pub session_id: u32,
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SessionOnlinePush {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 11; }
+    #[prost(uint32, tag = "1")]
+    pub session_id: u32,
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SessionOfflinePush {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 12; }
+    #[prost(uint32, tag = "1")]
+    pub session_id: u32,
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ServerOnlinePush {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 13; }
     #[prost(uint32, tag = "1")]
     pub service_id: u32,
     #[prost(uint32, tag = "2")]
@@ -146,7 +174,7 @@ pub struct ServerOnlinePush {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerOfflinePush {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 11; }
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 14; }
     #[prost(uint32, tag = "1")]
     pub service_id: u32,
     #[prost(uint32, tag = "2")]
@@ -157,7 +185,7 @@ pub struct ServerOfflinePush {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ForwardToServerReq {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 12; }
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 15; }
     #[prost(uint32, tag = "1")]
     pub target_service_id: u32,
     /// 小于 0 时由网关选择最低负载实例。
@@ -177,7 +205,7 @@ pub struct ForwardToServerReq {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServiceLoadReportPush {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 13; }
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 16; }
     /// 0 最空闲，100 视为满载。
     #[prost(uint32, tag = "1")]
     pub load_score: u32,
@@ -187,30 +215,12 @@ pub struct ServiceLoadReportPush {
     #[prost(string, tag = "3")]
     pub message: ::prost::alloc::string::String,
 }
-/// 网关返回服务绑定结果。
-#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BindServiceResp {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 14; }
-    #[prost(uint32, tag = "1")]
-    pub session_id: u32,
-    #[prost(uint32, tag = "2")]
-    pub service_id: u32,
-    #[prost(uint32, tag = "3")]
-    pub instance_id: u32,
-    /// 0=OK,1=NO_AVAILABLE_SERVICE,2=TARGET_SERVICE_UNREACHABLE。
-    #[prost(uint32, tag = "4")]
-    pub code: u32,
-    #[prost(string, tag = "5")]
-    pub message: ::prost::alloc::string::String,
-}
 /// 网关定时发给后端服务的心跳请求。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerPingReq {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 15; }
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 17; }
     #[prost(uint64, tag = "1")]
     pub nonce: u64,
 }
@@ -219,7 +229,7 @@ pub struct ServerPingReq {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerPongResp {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 16; }
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 18; }
     #[prost(uint64, tag = "1")]
     pub nonce: u64,
 }

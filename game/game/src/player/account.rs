@@ -1,11 +1,10 @@
 use protocol::game::*;
-use protocol::message_map::MessageType;
 use tracing::{info, warn};
 
 use crate::player::PlayerActor;
 
 impl PlayerActor {
-    pub(super) async fn handle_login(&mut self, req: LoginReq) -> MessageType {
+    pub(super) async fn handle_login(&mut self, req: LoginReq) -> LoginResp {
         info!(
             "login request from session={}: account={}",
             self.session_id, req.account
@@ -18,7 +17,7 @@ impl PlayerActor {
         .fetch_optional(&self.shared.pool)
         .await;
 
-        let resp = match login_result {
+        match login_result {
             Ok(Some((player_id, stored_password, nickname))) => {
                 if stored_password == req.password {
                     self.account_id = Some(player_id);
@@ -69,18 +68,16 @@ impl PlayerActor {
                     account_info: None,
                 }
             }
-        };
-
-        MessageType::GameLoginResp(resp)
+        }
     }
 
-    pub(super) async fn handle_register(&mut self, req: RegisterReq) -> MessageType {
+    pub(super) async fn handle_register(&mut self, req: RegisterReq) -> RegisterResp {
         info!(
             "register request from session={}: account={}",
             self.session_id, req.account
         );
 
-        let resp = match sqlx::query_scalar::<_, i64>(
+        match sqlx::query_scalar::<_, i64>(
             "INSERT INTO accounts (account, password, nickname) VALUES ($1, $2, $3) RETURNING id",
         )
         .bind(&req.account)
@@ -119,8 +116,6 @@ impl PlayerActor {
                     }
                 }
             }
-        };
-
-        MessageType::GameRegisterResp(resp)
+        }
     }
 }

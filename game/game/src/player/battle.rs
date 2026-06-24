@@ -12,15 +12,15 @@ const SERVICE_ID_BATTLE: u32 = 1;
 const DEFAULT_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
 impl PlayerActor {
-    pub(super) async fn handle_battle_join(&mut self, req: BattleJoinReq) -> MessageType {
+    pub(super) async fn handle_battle_join(&mut self, req: BattleJoinReq) -> BattleJoinResp {
         let Some(account_id) = self.account_id() else {
-            return MessageType::GameBattleJoinResp(BattleJoinResp {
+            return BattleJoinResp {
                 code: 401,
                 message: "please login first".to_string(),
                 battle_id: 0,
                 server_frame: 0,
                 world_dump: vec![],
-            });
+            };
         };
 
         let battle_id = self.shared.next_battle_id();
@@ -72,13 +72,13 @@ impl PlayerActor {
         };
 
         if create_resp.code != 0 {
-            return MessageType::GameBattleJoinResp(BattleJoinResp {
+            return BattleJoinResp {
                 code: create_resp.code,
                 message: create_resp.message,
                 battle_id: 0,
                 server_frame: 0,
                 world_dump: vec![],
-            });
+            };
         }
 
         let bind_resp = match self
@@ -120,7 +120,7 @@ impl PlayerActor {
         };
 
         if bind_resp.code != 0 {
-            return MessageType::GameBattleJoinResp(BattleJoinResp {
+            return BattleJoinResp {
                 code: bind_resp.code as i32,
                 message: if bind_resp.message.is_empty() {
                     "battle server unavailable".to_string()
@@ -130,25 +130,25 @@ impl PlayerActor {
                 battle_id: 0,
                 server_frame: 0,
                 world_dump: vec![],
-            });
+            };
         }
 
-        MessageType::GameBattleJoinResp(BattleJoinResp {
+        BattleJoinResp {
             code: 0,
             message: String::new(),
             battle_id,
             server_frame: create_resp.server_frame,
             world_dump: create_resp.world_dump,
-        })
+        }
     }
 
-    fn battle_join_error(code: i32, message: &str) -> MessageType {
-        MessageType::GameBattleJoinResp(BattleJoinResp {
+    fn battle_join_error(code: i32, message: &str) -> BattleJoinResp {
+        BattleJoinResp {
             code,
             message: message.to_string(),
             battle_id: 0,
             server_frame: 0,
             world_dump: vec![],
-        })
+        }
     }
 }
