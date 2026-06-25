@@ -54,21 +54,38 @@ impl GameShared {
         self.session.send_msg(msg, serial, session_id);
     }
 
-    pub async fn request_gateway(
+    pub async fn request_gateway_timeout(
         &self,
         msg: MessageType,
         timeout: Duration,
     ) -> Result<MessageType, RpcError> {
-        self.session.request_gateway(msg, timeout).await
+        self.session.request_gateway_timeout(msg, timeout).await
     }
 
-    pub async fn request_server(
+    pub async fn request_server_timeout(
         &self,
         target: ServerSource,
         msg: MessageType,
         timeout: Duration,
     ) -> Result<MessageType, RpcError> {
-        self.session.request_server(target, msg, timeout).await
+        self.session.request_server_timeout(target, msg, timeout).await
+    }
+
+    /// 向网关发 RPC 请求(默认超时 10s)。
+    pub async fn request_gateway(
+        &self,
+        msg: MessageType,
+    ) -> Result<MessageType, RpcError> {
+        self.session.request_gateway(msg).await
+    }
+
+    /// 向其他服务发 RPC 请求(默认超时 10s)。
+    pub async fn request_server(
+        &self,
+        target: ServerSource,
+        msg: MessageType,
+    ) -> Result<MessageType, RpcError> {
+        self.session.request_server(target, msg).await
     }
 
     // ── 账号管理 ────────────────────────────────────────────

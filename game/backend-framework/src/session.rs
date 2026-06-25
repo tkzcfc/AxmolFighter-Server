@@ -21,6 +21,7 @@ use crate::wire::{CMD_BUSINESS, CMD_GATEWAY_CONTROL};
 
 const SESSION_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(15);
 const CLIENT_MAILBOX_SIZE: usize = 256;
+const DEFAULT_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
 // ═══════════════════════════════════════════════════════════════
 // BackendSession — 后端会话(网络收发 + 协议路由 + session 管理)
@@ -317,7 +318,7 @@ impl BackendSession {
         self.try_send_frame_msg(CMD_GATEWAY_CONTROL, msg, serial, 0)
     }
 
-    pub async fn request_gateway(
+    pub async fn request_gateway_timeout(
         &self,
         msg: MessageType,
         timeout: Duration,
@@ -332,7 +333,7 @@ impl BackendSession {
         self.rpc.wait_response(request_id, rx, timeout).await
     }
 
-    pub async fn request_server(
+    pub async fn request_server_timeout(
         &self,
         target: ServerSource,
         msg: MessageType,
@@ -346,6 +347,20 @@ impl BackendSession {
             return Err(RpcError::Send(err.to_string()));
         }
         self.rpc.wait_response(request_id, rx, timeout).await
+    }
+
+    /// 向网关发 RPC 请求并等待回复(默认超时 10s)。
+    pub async fn request_gateway(&self, msg: MessageType) -> Result<MessageType, RpcError> {
+        self.request_gateway_timeout(msg, DEFAULT_RPC_TIMEOUT).await
+    }
+
+    /// 向其他服务发 RPC 请求并等待回复(默认超时 10s)。
+    pub async fn request_server(
+        &self,
+        target: ServerSource,
+        msg: MessageType,
+    ) -> Result<MessageType, RpcError> {
+        self.request_server_timeout(target, msg, DEFAULT_RPC_TIMEOUT).await
     }
 
     pub fn send_server_msg(

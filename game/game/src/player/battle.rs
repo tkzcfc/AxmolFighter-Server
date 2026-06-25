@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use protocol::game::*;
 use protocol::gateway::BindServiceReq;
 use protocol::message_map::MessageType;
@@ -9,8 +7,6 @@ use crate::player::PlayerSessionDelegate;
 use backend_framework::rpc::RpcError;
 use backend_framework::server_source::ServerSource;
 use backend_framework::service_id::SERVICE_ID_BATTLE;
-
-const DEFAULT_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
 impl PlayerSessionDelegate {
     pub(crate) async fn handle_battle_join(&self, req: BattleJoinReq) -> BattleJoinResp {
@@ -41,7 +37,6 @@ impl PlayerSessionDelegate {
             .request_server(
                 ServerSource::any_instance(SERVICE_ID_BATTLE),
                 create_req,
-                DEFAULT_RPC_TIMEOUT,
             )
             .await
         {
@@ -88,7 +83,6 @@ impl PlayerSessionDelegate {
                     service_id: SERVICE_ID_BATTLE,
                     target_instance_id: create_resp.battle_instance_id as i32,
                 }),
-                DEFAULT_RPC_TIMEOUT,
             )
             .await
         {
