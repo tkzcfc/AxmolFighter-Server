@@ -3,8 +3,10 @@
 members = [
     "protocol",
     "base",
+    "backend-framework",
     "game",
     "gateway",
+    "town",
 ]
 resolver = "2"
 

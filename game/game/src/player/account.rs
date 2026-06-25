@@ -1,10 +1,10 @@
 use protocol::game::*;
 use tracing::{info, warn};
 
-use crate::player::PlayerActor;
+use crate::player::PlayerSessionDelegate;
 
-impl PlayerActor {
-    pub(super) async fn handle_login(&mut self, req: LoginReq) -> LoginResp {
+impl PlayerSessionDelegate {
+    pub(crate) async fn handle_login(&self, req: LoginReq) -> LoginResp {
         info!(
             "login request from session={}: account={}",
             self.session_id, req.account
@@ -20,7 +20,7 @@ impl PlayerActor {
         match login_result {
             Ok(Some((player_id, stored_password, nickname))) => {
                 if stored_password == req.password {
-                    self.account_id = Some(player_id);
+                    *self.account_id.lock().unwrap() = Some(player_id);
                     self.shared.bind_account(self.session_id, player_id);
 
                     let max_character_count = self.shared.query_max_character_count().await;
@@ -71,7 +71,7 @@ impl PlayerActor {
         }
     }
 
-    pub(super) async fn handle_register(&mut self, req: RegisterReq) -> RegisterResp {
+    pub(crate) async fn handle_register(&self, req: RegisterReq) -> RegisterResp {
         info!(
             "register request from session={}: account={}",
             self.session_id, req.account

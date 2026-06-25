@@ -1,53 +1,20 @@
 #![allow(dead_code)]
 
-mod codec;
 mod config;
 mod error_code;
 mod game_shared;
-mod gateway_client;
-mod handler;
 mod player;
-mod server_source;
-mod wire;
 
 use std::env;
-use std::sync::Arc;
 use std::time::Duration;
 
+use backend_framework::bootstrap::{BackendConfig, spawn_backend, wait_for_shutdown_signal};
+use backend_framework::service_id::SERVICE_ID_GAME;
 use sqlx::postgres::PgPoolOptions;
-use tokio::signal;
-use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 use crate::config::GameConfig;
-use crate::gateway_client::GatewayClient;
-use crate::handler::GameHandler;
-
-async fn wait_for_shutdown_signal() -> anyhow::Result<()> {
-    #[cfg(unix)]
-    {
-        use tokio::signal::unix::{SignalKind, signal};
-
-        let mut sigterm = signal(SignalKind::terminate())?;
-
-        tokio::select! {
-            _ = signal::ctrl_c() => {
-                info!("received Ctrl+C");
-            }
-            _ = sigterm.recv() => {
-                info!("received SIGTERM");
-            }
-        }
-    }
-
-    #[cfg(not(unix))]
-    {
-        signal::ctrl_c().await?;
-        info!("received Ctrl+C");
-    }
-
-    Ok(())
-}
+use crate::game_shared::GameShared;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -85,20 +52,16 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!("./migrations").run(&pool).await?;
     info!("database migrations applied");
 
-    let shutdown_token = CancellationToken::new();
-
-    // 创建消息处理器并启动网关连接
-    let gw_handler = Arc::new(GameHandler::new(pool));
-    let gw_client = GatewayClient::new(
-        config.gateway.addr.clone(),
-        config.server.instance_id,
-        Duration::from_secs(config.gateway.reconnect_interval),
-        shutdown_token.clone(),
+    // 启动后端服务:spawn_backend 内部创建 BackendSession,并通过闭包把它交给 GameShared
+    let runtime = spawn_backend(
+        BackendConfig {
+            service_id: SERVICE_ID_GAME,
+            instance_id: config.server.instance_id,
+            gateway_addr: config.gateway.addr.clone(),
+            reconnect_interval: Duration::from_secs(config.gateway.reconnect_interval),
+        },
+        move |session| GameShared::new(pool, session),
     );
-
-    let gw_task = tokio::spawn(async move {
-        gw_client.run(gw_handler).await;
-    });
 
     info!("game server started");
 
@@ -106,9 +69,7 @@ async fn main() -> anyhow::Result<()> {
     wait_for_shutdown_signal().await?;
     info!("shutting down...");
 
-    shutdown_token.cancel();
-
-    let _ = gw_task.await;
+    runtime.shutdown().await;
 
     info!("game server stopped");
     Ok(())

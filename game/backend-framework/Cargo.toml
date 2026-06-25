@@ -1,19 +1,16 @@
 [package]
-name = "gateway"
+name = "backend-framework"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 base = { path = "../base" }
 protocol = { path = "../protocol" }
-backend-framework = { path = "../backend-framework" }
 anyhow = "1.0"
 async-trait = "0.1"
 bytes = "1"
 dashmap = "6"
 prost = "0.12"
-serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
-toml = "0.8"
+tokio-util = { version = "0.7", features = ["rt"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

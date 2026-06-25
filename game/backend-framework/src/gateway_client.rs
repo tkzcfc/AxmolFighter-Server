@@ -15,7 +15,6 @@ use crate::codec::{BackendFrame, encode_frame, try_extract_frame};
 use crate::handler::MessageHandler;
 use crate::wire::{CMD_BUSINESS, CMD_GATEWAY_CONTROL};
 
-const SERVICE_ID_GAME: u8 = 0;
 const REGISTER_SERIAL: i32 = -1;
 const REGISTER_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -23,6 +22,7 @@ pub type GatewaySender = mpsc::UnboundedSender<Bytes>;
 
 pub struct GatewayClient {
     addr: String,
+    service_id: u32,
     instance_id: u32,
     reconnect_interval: Duration,
     shutdown: CancellationToken,
@@ -31,12 +31,14 @@ pub struct GatewayClient {
 impl GatewayClient {
     pub fn new(
         addr: String,
+        service_id: u32,
         instance_id: u32,
         reconnect_interval: Duration,
         shutdown: CancellationToken,
     ) -> Self {
         Self {
             addr,
+            service_id,
             instance_id,
             reconnect_interval,
             shutdown,
@@ -126,6 +128,9 @@ impl GatewayClient {
         }
     }
 
+    /// 开始读循环
+    ///
+    /// `buf` 是注册后读取的多余数据(只有在极端情况下才会出现),从 register_stream() 返回结果传入
     async fn read_loop(
         &self,
         mut reader: OwnedReadHalf,
@@ -140,7 +145,7 @@ impl GatewayClient {
             }
 
             while let Some(frame) = try_extract_frame(&mut buf)? {
-                self.dispatch_frame(frame, &tx, &handler).await;
+                self.dispatch_frame(frame, &tx, &handler);
             }
         }
     }
@@ -160,13 +165,14 @@ impl GatewayClient {
     /// 向网关注册，返回残留的未完成字节缓冲（注册成功后立即退出，后续帧仍在 buf 中）。
     async fn register_stream(&self, stream: &mut TcpStream) -> anyhow::Result<BytesMut> {
         let reg_msg = MessageType::GatewayServerRegReq(ServerRegReq {
-            service_id: SERVICE_ID_GAME as u32,
+            service_id: self.service_id,
             instance_id: self.instance_id,
             load_score: 0,
             accepting_bindings: true,
             load_message: String::new(),
         });
-        let (reg_msg_id, reg_payload) = encode_message(&reg_msg).unwrap();
+        let (reg_msg_id, reg_payload) = encode_message(&reg_msg)
+            .ok_or_else(|| anyhow::anyhow!("failed to encode register message"))?;
         let reg_msg_id = reg_msg_id as u16;
         let reg_frame = encode_frame(
             CMD_GATEWAY_CONTROL,
@@ -179,7 +185,7 @@ impl GatewayClient {
         stream.flush().await?;
         info!(
             "sent gateway register request service_id={} instance_id={} msg_id={}",
-            SERVICE_ID_GAME, self.instance_id, reg_msg_id
+            self.service_id, self.instance_id, reg_msg_id
         );
 
         let mut buf = BytesMut::with_capacity(8192);
@@ -216,19 +222,15 @@ impl GatewayClient {
         Ok(buf)
     }
 
-    async fn dispatch_frame(
+    fn dispatch_frame(
         &self,
         frame: BackendFrame,
         _tx: &GatewaySender,
         handler: &Arc<dyn MessageHandler>,
     ) {
         match frame.cmd {
-            CMD_GATEWAY_CONTROL => {
-                handler.on_gateway_control_frame(frame).await;
-            }
-            CMD_BUSINESS => {
-                handler.on_business_frame(frame).await;
-            }
+            CMD_GATEWAY_CONTROL => handler.on_gateway_control_frame(frame),
+            CMD_BUSINESS => handler.on_business_frame(frame),
             _ => {
                 debug!("unhandled gateway cmd={}", frame.cmd);
             }

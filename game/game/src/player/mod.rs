@@ -1,93 +1,64 @@
 mod account;
 mod battle;
 mod character;
-mod framework;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use bytes::Bytes;
-use tokio::sync::mpsc;
-use tokio::task::AbortHandle;
+use protocol::message_map::MessageType;
+use tracing::{debug, warn};
+
+use backend_framework::session_delegate::SessionDelegate;
 
 use crate::game_shared::GameShared;
 
-const PLAYER_MAILBOX_SIZE: usize = 256;
-
-#[derive(Clone)]
-pub(crate) struct PlayerRef {
-    tx: mpsc::Sender<PlayerCommand>,
-    abort_handle: AbortHandle,
+pub(crate) struct PlayerSessionDelegate {
+    pub(crate) session_id: u32,
+    pub(crate) account_id: Mutex<Option<i64>>,
+    pub(crate) shared: Arc<GameShared>,
 }
 
-pub(crate) enum PlayerCommand {
-    ClientMessage {
-        msg_id: u16,
-        serial: i32,
-        payload: Bytes,
-    },
-    Stop,
-}
-
-pub(crate) enum PlayerSendError {
-    Full(PlayerCommand),
-    Closed(PlayerCommand),
-}
-
-pub(crate) struct PlayerActor {
-    pub(super) session_id: u32,
-    pub(super) account_id: Option<i64>,
-    pub(super) shared: Arc<GameShared>,
-    rx: mpsc::Receiver<PlayerCommand>,
-}
-
-impl PlayerRef {
-    fn new(tx: mpsc::Sender<PlayerCommand>, abort_handle: AbortHandle) -> Self {
-        Self { tx, abort_handle }
-    }
-
-    pub(crate) fn try_send(&self, cmd: PlayerCommand) -> Result<(), PlayerSendError> {
-        match self.tx.try_send(cmd) {
-            Ok(()) => Ok(()),
-            Err(mpsc::error::TrySendError::Full(cmd)) => Err(PlayerSendError::Full(cmd)),
-            Err(mpsc::error::TrySendError::Closed(cmd)) => Err(PlayerSendError::Closed(cmd)),
-        }
-    }
-
-    pub(crate) fn stop(&self) {
-        let _ = self.tx.try_send(PlayerCommand::Stop);
-        self.abort_handle.abort();
-    }
-}
-
-impl PlayerActor {
-    pub(crate) fn spawn(shared: Arc<GameShared>, session_id: u32) -> PlayerRef {
-        let (tx, rx) = mpsc::channel(PLAYER_MAILBOX_SIZE);
-        let actor = Self {
+impl PlayerSessionDelegate {
+    pub(crate) fn new(session_id: u32, shared: Arc<GameShared>) -> Self {
+        Self {
             session_id,
-            account_id: None,
+            account_id: Mutex::new(None),
             shared,
-            rx,
-        };
-        let handle = tokio::spawn(async move {
-            actor.run().await;
-        });
-        PlayerRef::new(tx, handle.abort_handle())
-    }
-
-    async fn run(mut self) {
-        while let Some(cmd) = self.rx.recv().await {
-            match cmd {
-                PlayerCommand::ClientMessage {
-                    msg_id,
-                    serial,
-                    payload,
-                } => self.handle_client_frame(msg_id, serial, payload).await,
-                PlayerCommand::Stop => break,
-            }
         }
     }
 
-    pub(super) fn account_id(&self) -> Option<i64> {
-        self.account_id
+    pub(crate) fn account_id(&self) -> Option<i64> {
+        *self.account_id.lock().unwrap()
+    }
+}
+
+#[async_trait::async_trait]
+impl SessionDelegate for PlayerSessionDelegate {
+    async fn on_client_request(&self, msg: MessageType) -> anyhow::Result<MessageType> {
+        let resp = match msg {
+            MessageType::GameLoginReq(req) => self.handle_login(req).await.into(),
+            MessageType::GameRegisterReq(req) => self.handle_register(req).await.into(),
+            MessageType::GameFetchCharacterListReq(req) => {
+                self.handle_fetch_character_list(req).await.into()
+            }
+            MessageType::GameCreateCharacterReq(req) => {
+                self.handle_create_character(req).await.into()
+            }
+            MessageType::GameSelectCharacterReq(req) => {
+                self.handle_select_character(req).await.into()
+            }
+            MessageType::GameBattleJoinReq(req) => self.handle_battle_join(req).await.into(),
+            other => {
+                warn!("no request handler for session={}", self.session_id);
+                drop(other);
+                return Err(anyhow::anyhow!("unhandled message type"));
+            }
+        };
+        Ok(resp)
+    }
+
+    async fn on_client_push(&self, msg: MessageType) -> anyhow::Result<()> {
+        debug!("unhandled push type session={}", self.session_id);
+        drop(msg);
+        Ok(())
     }
 }

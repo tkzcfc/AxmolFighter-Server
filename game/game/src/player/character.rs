@@ -2,11 +2,11 @@ use protocol::game::*;
 use tracing::warn;
 
 use crate::game_shared::GameShared;
-use crate::player::PlayerActor;
+use crate::player::PlayerSessionDelegate;
 
-impl PlayerActor {
-    pub(super) async fn handle_fetch_character_list(
-        &mut self,
+impl PlayerSessionDelegate {
+    pub(crate) async fn handle_fetch_character_list(
+        &self,
         _req: FetchCharacterListReq,
     ) -> FetchCharacterListResp {
         let Some(account_id) = self.account_id() else {
@@ -50,8 +50,8 @@ impl PlayerActor {
         }
     }
 
-    pub(super) async fn handle_create_character(
-        &mut self,
+    pub(crate) async fn handle_create_character(
+        &self,
         req: CreateCharacterReq,
     ) -> CreateCharacterResp {
         let Some(account_id) = self.account_id() else {
@@ -128,8 +128,8 @@ impl PlayerActor {
         }
     }
 
-    pub(super) async fn handle_select_character(
-        &mut self,
+    pub(crate) async fn handle_select_character(
+        &self,
         req: SelectCharacterReq,
     ) -> SelectCharacterResp {
         let Some(account_id) = self.account_id() else {

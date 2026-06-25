@@ -1,6 +1,8 @@
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
+// 帧头部长度: len(4) + cmd(1) + msg_id(2) + serial(4) + session_id(4) = 15
 pub const BACKEND_HEADER_SIZE: usize = 15;
+// 最大包长度限制
 pub const MAX_PACKET_SIZE: u32 = 1024 * 1024;
 
 #[derive(Debug, Clone)]

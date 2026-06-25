@@ -2,13 +2,9 @@ use std::fmt;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
 
-use bytes::Bytes;
 use dashmap::DashMap;
-use protocol::gateway::ForwardToServerReq;
 use protocol::message_map::MessageType;
 use tokio::sync::oneshot;
-
-use crate::wire::{CMD_BUSINESS, CMD_GATEWAY_CONTROL};
 
 pub enum PendingResponse {
     Message(MessageType),
@@ -46,27 +42,51 @@ impl fmt::Display for RpcError {
 
 impl std::error::Error for RpcError {}
 
+/// RPC pending 表管理。仅负责分配 request_id、登记/取消/完成 pending 请求,
+/// 不负责发送(发送由 `BackendSession` 直接调用 `try_send_frame_msg` 完成),
+/// 因此本结构不依赖任何发送句柄,也不再需要闭包。
 pub struct RpcManager {
     pending_requests: DashMap<i32, oneshot::Sender<PendingResponse>>,
-    control_serial_seed: AtomicI32,
+    serial_seed: AtomicI32,
+}
+
+impl Default for RpcManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RpcManager {
     pub fn new() -> Self {
         Self {
             pending_requests: DashMap::new(),
-            control_serial_seed: AtomicI32::new(1),
+            serial_seed: AtomicI32::new(1),
         }
     }
 
-    fn next_request_id(&self) -> i32 {
-        let request_id = self.control_serial_seed.fetch_add(1, Ordering::Relaxed);
-        if request_id <= 0 {
-            self.control_serial_seed.store(1, Ordering::Relaxed);
-            1
-        } else {
-            request_id
+    /// 分配一个唯一的正数 request_id(1..=i32::MAX)。
+    /// CAS 循环保证并发下不重复;达到 i32::MAX 后回绕到 1
+    /// (需 20 亿次 RPC 且与回绕后 id 碰撞的 pending 请求同时存在才会出问题,实际不可能)。
+    pub fn next_request_id(&self) -> i32 {
+        loop {
+            let current = self.serial_seed.load(Ordering::Relaxed);
+            let next = if current == i32::MAX { 1 } else { current + 1 };
+            if self
+                .serial_seed
+                .compare_exchange(current, next, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                return next;
+            }
         }
+    }
+
+    pub fn insert_pending(&self, request_id: i32, tx: oneshot::Sender<PendingResponse>) {
+        self.pending_requests.insert(request_id, tx);
+    }
+
+    pub fn remove_pending(&self, request_id: i32) {
+        self.pending_requests.remove(&request_id);
     }
 
     async fn wait_pending_response(
@@ -91,77 +111,24 @@ impl RpcManager {
         }
     }
 
-    /// 向网关发送 RPC 请求并等待回复。
-    pub async fn request_gateway<F>(
+    /// 由 `BackendSession` 的请求方法调用:登记 pending 后等待回复。
+    pub async fn wait_response(
         &self,
-        try_send: &F,
-        msg: MessageType,
-        session_id: u32,
+        request_id: i32,
+        rx: oneshot::Receiver<PendingResponse>,
         timeout: Duration,
-    ) -> Result<MessageType, RpcError>
-    where
-        F: Fn(u8, &MessageType, i32, u32) -> anyhow::Result<()> + Sync,
-    {
-        let request_id = self.next_request_id();
-        let (tx, rx) = oneshot::channel();
-        self.pending_requests.insert(request_id, tx);
-
-        if let Err(err) = try_send(CMD_GATEWAY_CONTROL, &msg, -request_id, session_id) {
-            self.pending_requests.remove(&request_id);
-            return Err(RpcError::Send(err.to_string()));
-        }
-
-        self.wait_pending_response(request_id, rx, timeout).await
-    }
-
-    /// 向其他服务发送 RPC 请求并等待回复。
-    pub async fn request_server<F>(
-        &self,
-        try_send: &F,
-        target_service_id: u32,
-        target_instance_id: i32,
-        session_id: u32,
-        msg: MessageType,
-        timeout: Duration,
-    ) -> Result<MessageType, RpcError>
-    where
-        F: Fn(u8, &MessageType, i32, u32) -> anyhow::Result<()> + Sync,
-    {
-        let request_id = self.next_request_id();
-        let (tx, rx) = oneshot::channel();
-        self.pending_requests.insert(request_id, tx);
-
-        let send_result = (|| -> anyhow::Result<()> {
-            let (msg_id, payload) = protocol::message_map::encode_message(&msg)
-                .ok_or_else(|| anyhow::anyhow!("failed to encode inner message"))?;
-            let frame = crate::codec::encode_frame(
-                CMD_BUSINESS,
-                msg_id as u16,
-                -request_id,
-                session_id,
-                &payload,
-            );
-            let forward = MessageType::GatewayForwardToServerReq(ForwardToServerReq {
-                target_service_id,
-                target_instance_id,
-                payload: frame.to_vec(),
-                source_service_id: 0,
-                source_instance_id: 0,
-            });
-            try_send(CMD_GATEWAY_CONTROL, &forward, -request_id, session_id)
-        })();
-
-        if let Err(err) = send_result {
-            self.pending_requests.remove(&request_id);
-            return Err(RpcError::Send(err.to_string()));
-        }
-
+    ) -> Result<MessageType, RpcError> {
         self.wait_pending_response(request_id, rx, timeout).await
     }
 
     /// 尝试根据 serial 匹配并完成一个 pending 请求。
     /// 返回 `true` 表示成功匹配并投递了回复。
-    pub fn resolve_pending_response(&self, serial: i32, msg_id: u16, payload: Bytes) -> bool {
+    pub fn resolve_pending_response(
+        &self,
+        serial: i32,
+        msg_id: u16,
+        payload: bytes::Bytes,
+    ) -> bool {
         if serial <= 0 {
             return false;
         }
@@ -185,7 +152,7 @@ impl RpcManager {
         }
     }
 
-    /// 清空所有未完成的请求（网关断连时调用）。
+    /// 清空所有未完成的请求(网关断连时调用)。
     pub fn clear_pending(&self) {
         self.pending_requests.clear();
     }

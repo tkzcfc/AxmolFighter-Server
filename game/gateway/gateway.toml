@@ -2,17 +2,20 @@
 client_listen = "0.0.0.0:7000"
 internal_listen = "0.0.0.0:7100"
 
+# 游戏服 id为 0，协议范围 1-19999
 [[route]]
 service_id = 0
-range = [1, 9999]
+range = [1, 19999]
 require_binding = false
 
-[[route]]
-service_id = 0
-range = [20010, 20010]
-require_binding = false
-
+# 战斗服 id为 1，协议范围 20000-29999
 [[route]]
 service_id = 1
 range = [20000, 29999]
 require_binding = true
+
+# 城镇服 id为 2，协议范围 30000-39999
+[[route]]
+service_id = 2
+range = [30000, 39999]
+require_binding = false

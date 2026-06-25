@@ -5,14 +5,15 @@ use protocol::gateway::BindServiceReq;
 use protocol::message_map::MessageType;
 use tracing::warn;
 
-use crate::game_shared::rpc::RpcError;
-use crate::player::PlayerActor;
+use crate::player::PlayerSessionDelegate;
+use backend_framework::rpc::RpcError;
+use backend_framework::server_source::ServerSource;
+use backend_framework::service_id::SERVICE_ID_BATTLE;
 
-const SERVICE_ID_BATTLE: u32 = 1;
 const DEFAULT_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
-impl PlayerActor {
-    pub(super) async fn handle_battle_join(&mut self, req: BattleJoinReq) -> BattleJoinResp {
+impl PlayerSessionDelegate {
+    pub(crate) async fn handle_battle_join(&self, req: BattleJoinReq) -> BattleJoinResp {
         let Some(account_id) = self.account_id() else {
             return BattleJoinResp {
                 code: 401,
@@ -38,9 +39,7 @@ impl PlayerActor {
         let create_resp = match self
             .shared
             .request_server(
-                SERVICE_ID_BATTLE,
-                -1,
-                self.session_id,
+                ServerSource::any_instance(SERVICE_ID_BATTLE),
                 create_req,
                 DEFAULT_RPC_TIMEOUT,
             )
@@ -89,7 +88,6 @@ impl PlayerActor {
                     service_id: SERVICE_ID_BATTLE,
                     target_instance_id: create_resp.battle_instance_id as i32,
                 }),
-                self.session_id,
                 DEFAULT_RPC_TIMEOUT,
             )
             .await
