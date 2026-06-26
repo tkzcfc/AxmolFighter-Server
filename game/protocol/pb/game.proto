@@ -155,13 +155,13 @@ message PlayerState {
 
 // 客户端请求进入副本战斗。
 message BattleJoinReq {
-    enum MsgId { None = 0; Id = 20010; }
+    enum MsgId { None = 0; Id = 1300; }
     int64 player_id = 1;
     int32 map_id = 2;
 }
 
 message BattleJoinResp {
-    enum MsgId { None = 0; Id = 20011; }
+    enum MsgId { None = 0; Id = 1301; }
     int32 code = 1;
     string message = 2;
     uint32 battle_id = 3;

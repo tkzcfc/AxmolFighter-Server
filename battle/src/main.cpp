@@ -1,27 +1,27 @@
 #include "BattleServer.h"
-#include <cstdio>
-#include <cstdlib>
+#include "framework/Logger.h"
+
 #include <csignal>
+#include <cstdlib>
 #include <fstream>
-#include <sstream>
+#include <spdlog/spdlog.h>
 #include <string>
 
 static BattleServer* g_server = nullptr;
 
 void signalHandler(int sig)
 {
-    printf("\n[main] received signal %d, shutting down...\n", sig);
+    spdlog::info("Received signal {}, shutting down", sig);
     if (g_server)
         g_server->shutdown();
 }
 
-/// 简单的 TOML 解析（只支持基本 key=value）
 static std::string trim(const std::string& s)
 {
-    auto start = s.find_first_not_of(" \t\r\n");
+    const auto start = s.find_first_not_of(" \t\r\n");
     if (start == std::string::npos)
         return "";
-    auto end = s.find_last_not_of(" \t\r\n");
+    const auto end = s.find_last_not_of(" \t\r\n");
     return s.substr(start, end - start + 1);
 }
 
@@ -38,40 +38,53 @@ static BattleServerConfig loadConfig(const std::string& path)
     std::ifstream file(path);
     if (!file.is_open())
     {
-        printf("[main] config file not found: %s, using defaults\n", path.c_str());
+        spdlog::warn("Config file not found: {}, using defaults", path);
         return config;
     }
 
+    std::string section;
     std::string line;
     while (std::getline(file, line))
     {
         line = trim(line);
-        if (line.empty() || line[0] == '#' || line[0] == '[')
+        if (line.empty() || line[0] == '#')
             continue;
 
-        auto eq = line.find('=');
+        if (line.front() == '[' && line.back() == ']')
+        {
+            section = line.substr(1, line.size() - 2);
+            continue;
+        }
+
+        const auto eq = line.find('=');
         if (eq == std::string::npos)
             continue;
 
-        auto key   = trim(line.substr(0, eq));
-        auto value = trim(line.substr(eq + 1));
+        const auto key = trim(line.substr(0, eq));
+        const auto value = trim(line.substr(eq + 1));
 
-        if (key == "instance_id")
-            config.instanceId = static_cast<uint32_t>(std::stoul(value));
-        else if (key == "tick_rate")
-            config.tickRate = std::stoi(value);
-        else if (key == "host")
-            config.gatewayHost = stripQuotes(value);
-        else if (key == "port")
-            config.gatewayPort = std::stoi(value);
-        else if (key == "reconnect_interval")
-            config.reconnectInterval = std::stof(value);
-        else if (key == "max_battles")
-            config.maxBattles = static_cast<uint32_t>(std::stoul(value));
-        else if (key == "max_sessions")
-            config.maxSessions = static_cast<uint32_t>(std::stoul(value));
-        else if (key == "load_report_interval")
-            config.loadReportInterval = std::stof(value);
+        if (section == "server")
+        {
+            if (key == "instance_id")
+                config.instanceId = static_cast<std::uint32_t>(std::stoul(value));
+            else if (key == "tick_rate")
+                config.tickRate = std::stoi(value);
+            else if (key == "max_battles")
+                config.maxBattles = static_cast<std::uint32_t>(std::stoul(value));
+            else if (key == "max_sessions")
+                config.maxSessions = static_cast<std::uint32_t>(std::stoul(value));
+            else if (key == "load_report_interval")
+                config.loadReportInterval = std::stof(value);
+        }
+        else if (section == "gateway")
+        {
+            if (key == "host")
+                config.gatewayHost = stripQuotes(value);
+            else if (key == "port")
+                config.gatewayPort = std::stoi(value);
+            else if (key == "reconnect_interval")
+                config.reconnectInterval = std::stof(value);
+        }
     }
 
     return config;
@@ -79,31 +92,38 @@ static BattleServerConfig loadConfig(const std::string& path)
 
 int main(int argc, char* argv[])
 {
-    // 默认配置路径
+    battle::initLogger();
+
     std::string configPath = "config/battle.toml";
     if (argc > 1)
         configPath = argv[1];
 
-    auto config = loadConfig(configPath);
+    const auto config = loadConfig(configPath);
 
-    printf("[main] Battle Server starting (instance_id=%u, gateway=%s:%d, tick_rate=%d, max_battles=%u, max_sessions=%u)\n",
-           config.instanceId, config.gatewayHost.c_str(), config.gatewayPort, config.tickRate,
-           config.maxBattles, config.maxSessions);
+    spdlog::info("Battle Server starting instance_id={} gateway={}:{} tick_rate={} max_battles={} max_sessions={}",
+                 config.instanceId,
+                 config.gatewayHost,
+                 config.gatewayPort,
+                 config.tickRate,
+                 config.maxBattles,
+                 config.maxSessions);
 
     BattleServer server;
     g_server = &server;
 
-    signal(SIGINT, signalHandler);
-    signal(SIGTERM, signalHandler);
+    std::signal(SIGINT, signalHandler);
+    std::signal(SIGTERM, signalHandler);
 
     if (!server.init(config))
     {
-        printf("[main] init failed\n");
+        spdlog::error("Battle Server init failed");
+        battle::shutdownLogger();
         return 1;
     }
 
     server.run();
 
     g_server = nullptr;
+    battle::shutdownLogger();
     return 0;
 }

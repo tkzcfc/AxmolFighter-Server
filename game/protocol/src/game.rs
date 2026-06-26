@@ -260,7 +260,7 @@ pub struct PlayerState {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BattleJoinReq {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 20010; }
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 1300; }
     #[prost(int64, tag = "1")]
     pub player_id: i64,
     #[prost(int32, tag = "2")]
@@ -270,7 +270,7 @@ pub struct BattleJoinReq {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BattleJoinResp {
-    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 20011; }
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 1301; }
     #[prost(int32, tag = "1")]
     pub code: i32,
     #[prost(string, tag = "2")]

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(battle_server CXX)
+project(battle_server C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,17 +34,26 @@ set(protobuf_WITH_ZLIB OFF CACHE BOOL "" FORCE)
 set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "" FORCE)
 set(protobuf_BUILD_LIBPROTOC OFF CACHE BOOL "" FORCE)
 add_subdirectory("${PROTOBUF_DIR}/cmake" protobuf EXCLUDE_FROM_ALL)
+if(WIN32)
+    set_property(TARGET libprotobuf-lite PROPERTY INTERFACE_LINK_LIBRARIES "")
+    if(TARGET libprotobuf)
+        set_property(TARGET libprotobuf PROPERTY INTERFACE_LINK_LIBRARIES "")
+    endif()
+endif()
 
-# ========== concurrencpp ==========
-FetchContent_Declare(
-    concurrencpp
-    GIT_REPOSITORY https://github.com/David-Haim/concurrencpp.git
-    GIT_TAG v.0.1.7
-)
-FetchContent_MakeAvailable(concurrencpp)
-
-if(MSVC)
-    target_compile_options(concurrencpp PRIVATE /FIstring /FIchrono)
+# ========== spdlog ==========
+find_package(spdlog CONFIG QUIET)
+if(NOT spdlog_FOUND)
+    FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG v1.14.1
+    )
+    FetchContent_MakeAvailable(spdlog)
+endif()
+add_compile_definitions(FMT_USE_CONSTEVAL=0)
+if(TARGET spdlog)
+    target_compile_definitions(spdlog PUBLIC FMT_USE_CONSTEVAL=0 FMT_CONSTEVAL=)
 endif()
 
 # ========== mugen headless ==========
@@ -95,9 +104,9 @@ target_sources(${PROJECT_NAME} PRIVATE
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
     yasio
-    concurrencpp::concurrencpp
     mugen_headless
     libprotobuf-lite
+    spdlog::spdlog
 )
 
 if(WIN32)

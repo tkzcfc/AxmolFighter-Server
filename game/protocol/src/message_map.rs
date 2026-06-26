@@ -263,8 +263,8 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
         MessageType::GameSelectCharacterReq(_) => Some(1204u32),
         MessageType::GameSelectCharacterResp(_) => Some(1205u32),
         MessageType::GamePlayerState(_) => Some(20000u32),
-        MessageType::GameBattleJoinReq(_) => Some(20010u32),
-        MessageType::GameBattleJoinResp(_) => Some(20011u32),
+        MessageType::GameBattleJoinReq(_) => Some(1300u32),
+        MessageType::GameBattleJoinResp(_) => Some(1301u32),
         MessageType::GameBattleCreateReq(_) => Some(20014u32),
         MessageType::GameBattleCreateResp(_) => Some(20015u32),
         MessageType::GameBattleInputPush(_) => Some(20012u32),
@@ -350,11 +350,11 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
             Ok(message) => Ok(MessageType::GamePlayerState(message)),
             Err(err) => Err(err),
         },
-        20010u32 => match super::game::BattleJoinReq::decode(bytes) {
+        1300u32 => match super::game::BattleJoinReq::decode(bytes) {
             Ok(message) => Ok(MessageType::GameBattleJoinReq(message)),
             Err(err) => Err(err),
         },
-        20011u32 => match super::game::BattleJoinResp::decode(bytes) {
+        1301u32 => match super::game::BattleJoinResp::decode(bytes) {
             Ok(message) => Ok(MessageType::GameBattleJoinResp(message)),
             Err(err) => Err(err),
         },
@@ -470,8 +470,8 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
         MessageType::GameSelectCharacterReq(msg) => Some((1204u32, msg.encode_to_vec())),
         MessageType::GameSelectCharacterResp(msg) => Some((1205u32, msg.encode_to_vec())),
         MessageType::GamePlayerState(msg) => Some((20000u32, msg.encode_to_vec())),
-        MessageType::GameBattleJoinReq(msg) => Some((20010u32, msg.encode_to_vec())),
-        MessageType::GameBattleJoinResp(msg) => Some((20011u32, msg.encode_to_vec())),
+        MessageType::GameBattleJoinReq(msg) => Some((1300u32, msg.encode_to_vec())),
+        MessageType::GameBattleJoinResp(msg) => Some((1301u32, msg.encode_to_vec())),
         MessageType::GameBattleCreateReq(msg) => Some((20014u32, msg.encode_to_vec())),
         MessageType::GameBattleCreateResp(msg) => Some((20015u32, msg.encode_to_vec())),
         MessageType::GameBattleInputPush(msg) => Some((20012u32, msg.encode_to_vec())),
