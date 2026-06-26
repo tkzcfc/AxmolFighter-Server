@@ -34,10 +34,7 @@ impl PlayerSessionDelegate {
 
         let create_resp = match self
             .shared
-            .request_server(
-                ServerSource::any_instance(SERVICE_ID_BATTLE),
-                create_req,
-            )
+            .request_server(ServerSource::any_instance(SERVICE_ID_BATTLE), create_req)
             .await
         {
             Ok(MessageType::GameBattleCreateResp(resp)) => resp,
@@ -77,13 +74,11 @@ impl PlayerSessionDelegate {
 
         let bind_resp = match self
             .shared
-            .request_gateway(
-                MessageType::GatewayBindServiceReq(BindServiceReq {
-                    session_id: self.session_id,
-                    service_id: SERVICE_ID_BATTLE,
-                    target_instance_id: create_resp.battle_instance_id as i32,
-                }),
-            )
+            .request_gateway(MessageType::GatewayBindServiceReq(BindServiceReq {
+                session_id: self.session_id,
+                service_id: SERVICE_ID_BATTLE,
+                target_instance_id: create_resp.battle_instance_id as i32,
+            }))
             .await
         {
             Ok(MessageType::GatewayBindServiceResp(resp)) => resp,

@@ -24,6 +24,7 @@ pub enum MessageType {
     GameBattleCreateResp(super::game::BattleCreateResp),
     GameBattleInputPush(super::game::BattleInputPush),
     GameBattleSnapshotPush(super::game::BattleSnapshotPush),
+    GameAccountKickedPush(super::game::AccountKickedPush),
     GatewayServerStatusPush(super::gateway::ServerStatusPush),
     GatewayGatewayErrorResp(super::gateway::GatewayErrorResp),
     GatewayServerRegReq(super::gateway::ServerRegReq),
@@ -150,6 +151,11 @@ impl From<super::game::BattleSnapshotPush> for MessageType {
         MessageType::GameBattleSnapshotPush(v)
     }
 }
+impl From<super::game::AccountKickedPush> for MessageType {
+    fn from(v: super::game::AccountKickedPush) -> Self {
+        MessageType::GameAccountKickedPush(v)
+    }
+}
 impl From<super::gateway::ServerStatusPush> for MessageType {
     fn from(v: super::gateway::ServerStatusPush) -> Self {
         MessageType::GatewayServerStatusPush(v)
@@ -263,6 +269,7 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
         MessageType::GameBattleCreateResp(_) => Some(20015u32),
         MessageType::GameBattleInputPush(_) => Some(20012u32),
         MessageType::GameBattleSnapshotPush(_) => Some(20013u32),
+        MessageType::GameAccountKickedPush(_) => Some(20016u32),
         MessageType::GatewayServerStatusPush(_) => Some(1u32),
         MessageType::GatewayGatewayErrorResp(_) => Some(2u32),
         MessageType::GatewayServerRegReq(_) => Some(3u32),
@@ -367,6 +374,10 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
             Ok(message) => Ok(MessageType::GameBattleSnapshotPush(message)),
             Err(err) => Err(err),
         },
+        20016u32 => match super::game::AccountKickedPush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameAccountKickedPush(message)),
+            Err(err) => Err(err),
+        },
         1u32 => match super::gateway::ServerStatusPush::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayServerStatusPush(message)),
             Err(err) => Err(err),
@@ -465,6 +476,7 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
         MessageType::GameBattleCreateResp(msg) => Some((20015u32, msg.encode_to_vec())),
         MessageType::GameBattleInputPush(msg) => Some((20012u32, msg.encode_to_vec())),
         MessageType::GameBattleSnapshotPush(msg) => Some((20013u32, msg.encode_to_vec())),
+        MessageType::GameAccountKickedPush(msg) => Some((20016u32, msg.encode_to_vec())),
         MessageType::GatewayServerStatusPush(msg) => Some((1u32, msg.encode_to_vec())),
         MessageType::GatewayGatewayErrorResp(msg) => Some((2u32, msg.encode_to_vec())),
         MessageType::GatewayServerRegReq(msg) => Some((3u32, msg.encode_to_vec())),
@@ -509,6 +521,7 @@ pub fn get_message_size(message: &MessageType) -> usize {
         MessageType::GameBattleCreateResp(msg) => msg.encoded_len(),
         MessageType::GameBattleInputPush(msg) => msg.encoded_len(),
         MessageType::GameBattleSnapshotPush(msg) => msg.encoded_len(),
+        MessageType::GameAccountKickedPush(msg) => msg.encoded_len(),
         MessageType::GatewayServerStatusPush(msg) => msg.encoded_len(),
         MessageType::GatewayGatewayErrorResp(msg) => msg.encoded_len(),
         MessageType::GatewayServerRegReq(msg) => msg.encoded_len(),
@@ -553,6 +566,7 @@ pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
         MessageType::GameBattleCreateResp(msg) => msg.encode_raw(buf),
         MessageType::GameBattleInputPush(msg) => msg.encode_raw(buf),
         MessageType::GameBattleSnapshotPush(msg) => msg.encode_raw(buf),
+        MessageType::GameAccountKickedPush(msg) => msg.encode_raw(buf),
         MessageType::GatewayServerStatusPush(msg) => msg.encode_raw(buf),
         MessageType::GatewayGatewayErrorResp(msg) => msg.encode_raw(buf),
         MessageType::GatewayServerRegReq(msg) => msg.encode_raw(buf),
@@ -598,6 +612,7 @@ pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {
         MessageType::GameBattleCreateResp(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleInputPush(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleSnapshotPush(msg) => serde_json::to_string(&msg),
+        MessageType::GameAccountKickedPush(msg) => serde_json::to_string(&msg),
         MessageType::GatewayServerStatusPush(msg) => serde_json::to_string(&msg),
         MessageType::GatewayGatewayErrorResp(msg) => serde_json::to_string(&msg),
         MessageType::GatewayServerRegReq(msg) => serde_json::to_string(&msg),

@@ -21,7 +21,7 @@ impl PlayerSessionDelegate {
             Ok(Some((player_id, stored_password, nickname))) => {
                 if stored_password == req.password {
                     *self.account_id.lock().unwrap() = Some(player_id);
-                    self.shared.bind_account(self.session_id, player_id);
+                    self.shared.bind_account(self.session_id, player_id).await;
 
                     let max_character_count = self.shared.query_max_character_count().await;
                     LoginResp {

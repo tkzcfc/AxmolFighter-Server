@@ -68,14 +68,13 @@ impl GameShared {
         msg: MessageType,
         timeout: Duration,
     ) -> Result<MessageType, RpcError> {
-        self.session.request_server_timeout(target, msg, timeout).await
+        self.session
+            .request_server_timeout(target, msg, timeout)
+            .await
     }
 
     /// 向网关发 RPC 请求(默认超时 10s)。
-    pub async fn request_gateway(
-        &self,
-        msg: MessageType,
-    ) -> Result<MessageType, RpcError> {
+    pub async fn request_gateway(&self, msg: MessageType) -> Result<MessageType, RpcError> {
         self.session.request_gateway(msg).await
     }
 
@@ -90,7 +89,7 @@ impl GameShared {
 
     // ── 账号管理 ────────────────────────────────────────────
 
-    pub fn bind_account(&self, session_id: u32, account_id: i64) {
+    pub async fn bind_account(&self, session_id: u32, account_id: i64) {
         let old_binding = {
             let mut account_sessions = self.account_sessions.lock().unwrap();
             account_sessions.insert(account_id, session_id)
@@ -111,6 +110,14 @@ impl GameShared {
                 account_id, session_id, old_session_id
             );
 
+            // 先向旧客户端发送被踢下线的 Push 通知（原因：在其他地方登录）
+            let push_msg = MessageType::GameAccountKickedPush(protocol::game::AccountKickedPush {
+                reason: 1,
+                message: "您的账号在其他地方登录，您已被强制下线。".to_string(),
+            });
+            self.send_msg(&push_msg, 0, old_session_id);
+
+            // 再通知网关踢掉旧会话
             let msg = MessageType::GatewayKickSessionReq(KickSessionReq {
                 session_id: old_session_id,
             });

@@ -210,3 +210,11 @@ message BattleSnapshotPush {
     uint64 server_time_ms = 3;
     bytes world_dump = 4;
 }
+
+// 账号在别处登录，服务器主动踢下线通知（Push）。
+message AccountKickedPush {
+    enum MsgId { None = 0; Id = 20016; }
+    // 原因码: 1=在其他地方登录
+    int32 reason = 1;
+    string message = 2;
+}

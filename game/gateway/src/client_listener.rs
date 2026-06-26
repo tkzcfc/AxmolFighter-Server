@@ -14,7 +14,7 @@ use base::net::{WriterMessage, session_delegate::SessionDelegate};
 
 use crate::codec::{encode_backend_frame, encode_client_frame, try_extract_client_frame};
 use crate::context::GatewayContext;
-use crate::frame_cmd::{CMD_BUSINESS, CMD_GATEWAY_CONTROL, CMD_GATEWAY_ERROR};
+use crate::frame_cmd::{CMD_BUSINESS, CMD_GATEWAY_CONTROL};
 use crate::router::RouteTarget;
 
 // 客户端不能直接发网关控制帧。
@@ -81,8 +81,12 @@ impl ClientDelegate {
             };
             let (gateway_msg_id, payload) =
                 encode_message(&MessageType::GatewayGatewayErrorResp(resp)).unwrap();
-            let data =
-                encode_client_frame(CMD_GATEWAY_ERROR, gateway_msg_id as u16, -serial, &payload);
+            let data = encode_client_frame(
+                CMD_GATEWAY_CONTROL,
+                gateway_msg_id as u16,
+                -serial,
+                &payload,
+            );
             let _ = tx.send(WriterMessage::Send(data, true));
         }
     }

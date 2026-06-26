@@ -355,3 +355,15 @@ pub struct BattleSnapshotPush {
     #[prost(bytes = "vec", tag = "4")]
     pub world_dump: ::prost::alloc::vec::Vec<u8>,
 }
+/// 账号在别处登录，服务器主动踢下线通知（Push）。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AccountKickedPush {
+    /// @build_automatically_generate_message_id@    enum MsgId { None = 0; Id = 20016; }
+    /// 原因码: 1=在其他地方登录
+    #[prost(int32, tag = "1")]
+    pub reason: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}

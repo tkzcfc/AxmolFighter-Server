@@ -5,7 +5,7 @@ mod character;
 use std::sync::{Arc, Mutex};
 
 use protocol::message_map::MessageType;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 use backend_framework::session_delegate::SessionDelegate;
 
@@ -60,5 +60,24 @@ impl SessionDelegate for PlayerSessionDelegate {
         debug!("unhandled push type session={}", self.session_id);
         drop(msg);
         Ok(())
+    }
+
+    async fn on_start(&self) {
+        debug!("session {} started", self.session_id);
+    }
+
+    async fn on_stop(&self) {
+        debug!("session {} stopped", self.session_id);
+        if let Some(account_id) = self.account_id() {
+            info!(
+                "session {} disconnected, clearing account_id {} from session map",
+                self.session_id, account_id
+            );
+            let mut account_sessions = self.shared.account_sessions.lock().unwrap();
+            // 确保只有当前 session 还能持有这个 account_id 时才移除，防止被已登录的新 session 覆盖
+            if account_sessions.get(&account_id).copied() == Some(self.session_id) {
+                account_sessions.remove(&account_id);
+            }
+        }
     }
 }

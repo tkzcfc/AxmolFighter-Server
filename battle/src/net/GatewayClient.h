@@ -14,8 +14,7 @@
 constexpr size_t BACKEND_FRAME_HEADER_SIZE = 15;
 constexpr size_t BACKEND_FRAME_BODY_HEADER_SIZE = 11;
 
-constexpr uint8_t CMD_BUSINESS = 0;
-constexpr uint8_t CMD_GATEWAY_ERROR = 1;
+constexpr uint8_t CMD_BUSINESS = 1;
 constexpr uint8_t CMD_GATEWAY_CONTROL = 2;
 
 constexpr uint8_t SERVICE_ID_GAME = 0;
