@@ -1,93 +1,36 @@
 #include "BattleServer.h"
+#include "BattleConfigLoader.h"
 #include "framework/Logger.h"
 
+#include <atomic>
+#include <chrono>
 #include <csignal>
-#include <cstdlib>
-#include <fstream>
 #include <spdlog/spdlog.h>
 #include <string>
+#include <thread>
 
 static BattleServer* g_server = nullptr;
+static std::atomic_bool g_exiting = false;
 
 void signalHandler(int sig)
 {
     spdlog::info("Received signal {}, shutting down", sig);
+    g_exiting = true;
     if (g_server)
         g_server->shutdown();
 }
 
-static std::string trim(const std::string& s)
+static void sleepBeforeRestart(float seconds)
 {
-    const auto start = s.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos)
-        return "";
-    const auto end = s.find_last_not_of(" \t\r\n");
-    return s.substr(start, end - start + 1);
-}
+    if (seconds <= 0.0f)
+        return;
 
-static std::string stripQuotes(const std::string& s)
-{
-    if (s.size() >= 2 && s.front() == '"' && s.back() == '"')
-        return s.substr(1, s.size() - 2);
-    return s;
-}
+    const auto deadline = std::chrono::steady_clock::now() +
+        std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+            std::chrono::duration<float>(seconds));
 
-static BattleServerConfig loadConfig(const std::string& path)
-{
-    BattleServerConfig config;
-    std::ifstream file(path);
-    if (!file.is_open())
-    {
-        spdlog::warn("Config file not found: {}, using defaults", path);
-        return config;
-    }
-
-    std::string section;
-    std::string line;
-    while (std::getline(file, line))
-    {
-        line = trim(line);
-        if (line.empty() || line[0] == '#')
-            continue;
-
-        if (line.front() == '[' && line.back() == ']')
-        {
-            section = line.substr(1, line.size() - 2);
-            continue;
-        }
-
-        const auto eq = line.find('=');
-        if (eq == std::string::npos)
-            continue;
-
-        const auto key = trim(line.substr(0, eq));
-        const auto value = trim(line.substr(eq + 1));
-
-        if (section == "server")
-        {
-            if (key == "instance_id")
-                config.instanceId = static_cast<std::uint32_t>(std::stoul(value));
-            else if (key == "tick_rate")
-                config.tickRate = std::stoi(value);
-            else if (key == "max_battles")
-                config.maxBattles = static_cast<std::uint32_t>(std::stoul(value));
-            else if (key == "max_sessions")
-                config.maxSessions = static_cast<std::uint32_t>(std::stoul(value));
-            else if (key == "load_report_interval")
-                config.loadReportInterval = std::stof(value);
-        }
-        else if (section == "gateway")
-        {
-            if (key == "host")
-                config.gatewayHost = stripQuotes(value);
-            else if (key == "port")
-                config.gatewayPort = std::stoi(value);
-            else if (key == "reconnect_interval")
-                config.reconnectInterval = std::stof(value);
-        }
-    }
-
-    return config;
+    while (!g_exiting && std::chrono::steady_clock::now() < deadline)
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
 int main(int argc, char* argv[])
@@ -98,32 +41,61 @@ int main(int argc, char* argv[])
     if (argc > 1)
         configPath = argv[1];
 
-    const auto config = loadConfig(configPath);
+    const auto config = loadBattleServerConfig(configPath);
 
-    spdlog::info("Battle Server starting instance_id={} gateway={}:{} tick_rate={} max_battles={} max_sessions={}",
+    spdlog::info("Battle Server starting instance_id={} gateway={}:{} tick_rate={} max_battles={} max_sessions={} restart_on_gateway_disconnect={}",
                  config.instanceId,
                  config.gatewayHost,
                  config.gatewayPort,
                  config.tickRate,
                  config.maxBattles,
-                 config.maxSessions);
-
-    BattleServer server;
-    g_server = &server;
+                 config.maxSessions,
+                 config.restartOnGatewayDisconnect);
 
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
-    if (!server.init(config))
+    int exitCode = 0;
+    while (!g_exiting)
     {
-        spdlog::error("Battle Server init failed");
-        battle::shutdownLogger();
-        return 1;
-    }
+        bool initOk = false;
+        {
+            BattleServer server;
+            g_server = &server;
 
-    server.run();
+            initOk = server.init(config);
+            if (!initOk)
+            {
+                spdlog::error("Battle Server init failed");
+            }
+            else
+            {
+                server.run();
+            }
+
+            g_server = nullptr;
+        }
+
+        if (g_exiting)
+            break;
+
+        if (!config.restartOnGatewayDisconnect)
+        {
+            spdlog::error("{}; exiting because restart_on_gateway_disconnect=false",
+                          initOk ? "Battle Server stopped after gateway disconnect/failure"
+                                 : "Battle Server init failed");
+            exitCode = 1;
+            break;
+        }
+
+        spdlog::warn("{}; restarting in {:.2f}s",
+                     initOk ? "Battle Server stopped after gateway disconnect/failure"
+                            : "Battle Server init failed",
+                     config.reconnectInterval);
+        sleepBeforeRestart(config.reconnectInterval);
+    }
 
     g_server = nullptr;
     battle::shutdownLogger();
-    return 0;
+    return exitCode;
 }

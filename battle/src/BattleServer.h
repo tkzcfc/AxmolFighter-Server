@@ -25,6 +25,7 @@ struct BattleServerConfig
     std::uint32_t maxBattles = 100;
     std::uint32_t maxSessions = 200;
     float loadReportInterval = 5.0f;
+    bool restartOnGatewayDisconnect = true;
 };
 
 struct BattleInstance

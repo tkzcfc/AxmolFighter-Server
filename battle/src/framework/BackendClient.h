@@ -33,7 +33,6 @@ struct BackendConfig
     std::uint32_t instanceId = 1;
     std::string gatewayHost = "127.0.0.1";
     int gatewayPort = 7100;
-    float reconnectInterval = 3.0f;
     std::uint32_t initialLoadScore = 0;
     bool initialAcceptingBindings = true;
     std::string initialLoadMessage;
@@ -315,7 +314,7 @@ private:
     void processFrame(const BackendFrame& frame);
     void sendRegisterReq();
     void closeTransport();
-    void scheduleReconnect();
+    void handleConnectionFailure();
     void onGatewayConnected();
     void onGatewayDisconnected();
     void onGatewayFrame(const BackendFrame& frame);
@@ -327,14 +326,6 @@ private:
     void stopAllSessions();
     void processClientFrame(const BackendFrame& frame);
     void processServerFrame(ServerSource source, const BackendFrame& frame);
-    void sendMessageToClient(std::uint32_t sessionId,
-                             std::int32_t responseSerial,
-                             SerializedMessagePtr message,
-                             std::string error);
-    void sendMessageToServer(ServerSource target,
-                             std::int32_t responseSerial,
-                             SerializedMessagePtr message,
-                             std::string error);
     SerializedMessagePtr commonError(std::string message) const;
     void startRpcTimer();
 
@@ -346,7 +337,6 @@ private:
     RpcManager m_rpc;
     BackendDelegate* m_delegate = nullptr;
     bool m_running = false;
-    bool m_reconnectScheduled = false;
     std::chrono::steady_clock::time_point m_lastRpcUpdate;
     std::unordered_set<std::uint32_t> m_onlineSessions;
 };

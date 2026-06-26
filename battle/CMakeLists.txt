@@ -85,7 +85,7 @@ if(MSVC)
 endif()
 
 # ========== battle_server ==========
-file(GLOB_RECURSE BATTLE_SOURCES
+file(GLOB_RECURSE BATTLE_SOURCES CONFIGURE_DEPENDS
     "src/*.cpp"
     "src/*.h"
 )

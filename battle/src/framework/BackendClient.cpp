@@ -51,7 +51,6 @@ void BackendClient::stop()
     if (m_delegate)
         m_delegate->onShutdown(*this);
     m_rpc.failAll("backend session stopped");
-    m_reconnectScheduled = false;
     closeTransport();
     m_service.stop();
     m_state = State::Disconnected;
@@ -201,7 +200,7 @@ void BackendClient::handleNetworkEvent(yasio::io_event* event)
             spdlog::warn("BackendClient connect failed, status={}", event->status());
             m_transport = nullptr;
             m_state = State::Disconnected;
-            scheduleReconnect();
+            handleConnectionFailure();
         }
         break;
 
@@ -210,7 +209,7 @@ void BackendClient::handleNetworkEvent(yasio::io_event* event)
         m_transport = nullptr;
         m_state = State::Disconnected;
         onGatewayDisconnected();
-        scheduleReconnect();
+        handleConnectionFailure();
         break;
 
     case yasio::YEK_ON_PACKET:
@@ -255,7 +254,7 @@ void BackendClient::processFrame(const BackendFrame& frame)
             spdlog::error("BackendClient failed to decode ServerRegResp");
             closeTransport();
             m_state = State::Disconnected;
-            scheduleReconnect();
+            handleConnectionFailure();
             return;
         }
 
@@ -264,7 +263,7 @@ void BackendClient::processFrame(const BackendFrame& frame)
             spdlog::error("BackendClient registration failed, code={}", resp.code());
             closeTransport();
             m_state = State::Disconnected;
-            scheduleReconnect();
+            handleConnectionFailure();
             return;
         }
 
@@ -312,20 +311,15 @@ void BackendClient::closeTransport()
     }
 }
 
-void BackendClient::scheduleReconnect()
+void BackendClient::handleConnectionFailure()
 {
-    if (!m_running || m_reconnectScheduled)
+    if (!m_running)
         return;
 
-    m_reconnectScheduled = true;
-    const auto delay = std::chrono::microseconds(
-        static_cast<std::int64_t>(m_config.reconnectInterval * 1000000.0f));
-    m_service.schedule(delay, [this](yasio::io_service&) {
-        m_reconnectScheduled = false;
-        if (m_running && m_state == State::Disconnected)
-            openConnection();
-        return true;
-    });
+    spdlog::warn("BackendClient stopping after gateway disconnect/failure");
+    m_running = false;
+    m_rpc.failAll("gateway disconnected");
+    m_service.stop();
 }
 
 void BackendClient::onGatewayConnected()
@@ -439,7 +433,18 @@ void BackendClient::handleBusinessFrame(const BackendFrame& frame)
     {
         spdlog::warn("Dropped client frame for unknown session {}", frame.sessionId);
         if (frame.serial != 0)
-            sendMessageToClient(frame.sessionId, -frame.serial, commonError("unknown session"), "");
+        {
+            auto response = commonError("unknown session");
+            if (response)
+            {
+                sendFrame(kCmdBusiness,
+                          response->msgId,
+                          -frame.serial,
+                          frame.sessionId,
+                          response->payload.data(),
+                          response->payload.size());
+            }
+        }
         return;
     }
 
@@ -507,7 +512,18 @@ void BackendClient::processClientFrame(const BackendFrame& frame)
     if (!m_delegate)
     {
         if (frame.serial != 0)
-            sendMessageToClient(frame.sessionId, -frame.serial, nullptr, "no backend delegate");
+        {
+            auto response = commonError("no backend delegate");
+            if (response)
+            {
+                sendFrame(kCmdBusiness,
+                          response->msgId,
+                          -frame.serial,
+                          frame.sessionId,
+                          response->payload.data(),
+                          response->payload.size());
+            }
+        }
         return;
     }
 
@@ -518,15 +534,30 @@ void BackendClient::processClientFrame(const BackendFrame& frame)
     }
 
     auto response = m_delegate->onClientRequest(*this, frame.sessionId, frame);
-    sendMessageToClient(frame.sessionId, -frame.serial, std::move(response), "request failed");
+    if (!response)
+        response = commonError("request failed");
+
+    if (!response)
+    {
+        spdlog::error("Failed to create client response");
+        return;
+    }
+
+    sendFrame(kCmdBusiness,
+              response->msgId,
+              -frame.serial,
+              frame.sessionId,
+              response->payload.data(),
+              response->payload.size());
 }
 
 void BackendClient::processServerFrame(ServerSource source, const BackendFrame& frame)
 {
     if (!m_delegate)
     {
-        if (frame.serial != 0)
-            sendMessageToServer(source, -frame.serial, nullptr, "no backend delegate");
+        spdlog::error("No backend delegate to handle server frame from service_id={} instance_id={}",
+                      source.serviceId,
+                      source.instanceId);
         return;
     }
 
@@ -537,44 +568,18 @@ void BackendClient::processServerFrame(ServerSource source, const BackendFrame& 
     }
 
     auto response = m_delegate->onServerRequest(*this, source, frame);
-    sendMessageToServer(source, -frame.serial, std::move(response), "request failed");
-}
-
-void BackendClient::sendMessageToClient(std::uint32_t sessionId,
-                                        std::int32_t responseSerial,
-                                        SerializedMessagePtr message,
-                                        std::string error)
-{
-    auto response = message ? std::move(message) : commonError(error.empty() ? "request failed" : error);
     if (!response)
-    {
-        spdlog::error("Failed to create client response");
-        return;
-    }
+        response = commonError("request failed");
 
-    sendFrame(kCmdBusiness,
-              response->msgId,
-              responseSerial,
-              sessionId,
-              response->payload.data(),
-              response->payload.size());
-}
-
-void BackendClient::sendMessageToServer(ServerSource target,
-                                        std::int32_t responseSerial,
-                                        SerializedMessagePtr message,
-                                        std::string error)
-{
-    auto response = message ? std::move(message) : commonError(error.empty() ? "request failed" : error);
     if (!response)
     {
         spdlog::error("Failed to create server response");
         return;
     }
 
-    sendServerPayload(target,
+    sendServerPayload(source,
                       response->msgId,
-                      responseSerial,
+                      -frame.serial,
                       0,
                       response->payload.data(),
                       response->payload.size());

@@ -26,7 +26,6 @@ bool BattleServer::init(const BattleServerConfig& config)
     backendConfig.instanceId = config.instanceId;
     backendConfig.gatewayHost = config.gatewayHost;
     backendConfig.gatewayPort = config.gatewayPort;
-    backendConfig.reconnectInterval = config.reconnectInterval;
     backendConfig.initialLoadScore = 0;
     backendConfig.initialAcceptingBindings = config.maxBattles > 0 && config.maxSessions > 0;
     backendConfig.initialLoadMessage = backendConfig.initialAcceptingBindings

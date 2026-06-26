@@ -4,6 +4,7 @@ tick_rate = 30
 max_battles = 100
 max_sessions = 200
 load_report_interval = 5.0
+restart_on_gateway_disconnect = true
 
 [gateway]
 host = "127.0.0.1"
