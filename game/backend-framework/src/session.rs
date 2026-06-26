@@ -5,8 +5,8 @@ use bytes::BytesMut;
 use dashmap::DashMap;
 use protocol::gateway::{ForwardToServerReq, ServerPongResp};
 use protocol::message_map::{MessageType, decode_message, encode_message};
-use tokio::sync::{broadcast, mpsc, oneshot};
-use tokio::task::{AbortHandle, JoinHandle};
+use tokio::sync::{mpsc, oneshot};
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
@@ -34,7 +34,7 @@ const DEFAULT_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
 struct SessionHandle {
     client_tx: mpsc::Sender<BackendFrame>,
-    abort_handle: AbortHandle,
+    cancel_token: CancellationToken,
 }
 
 pub struct BackendSession {
@@ -49,8 +49,6 @@ pub struct BackendSession {
     sessions: DashMap<u32, SessionHandle>,
     /// 服务间消息分发通道
     server_dispatch_tx: OnceLock<mpsc::UnboundedSender<(ServerSource, BackendFrame)>>,
-    /// 全服关闭广播(对标 base net 的 notify_shutdown)
-    shutdown_tx: broadcast::Sender<()>,
     /// 每个 session task 持 clone,退出时 drop;shutdown 先 take 自身再等 recv(None)
     shutdown_complete_tx: Mutex<Option<mpsc::Sender<()>>>,
     shutdown_complete_rx: tokio::sync::Mutex<mpsc::Receiver<()>>,
@@ -58,7 +56,6 @@ pub struct BackendSession {
 
 impl BackendSession {
     pub fn new(service_id: u32, instance_id: u32) -> Arc<Self> {
-        let (shutdown_tx, _) = broadcast::channel::<()>(1);
         let (shutdown_complete_tx, shutdown_complete_rx) = mpsc::channel::<()>(1);
         Arc::new_cyclic(|weak| {
             let s = Self {
@@ -70,7 +67,6 @@ impl BackendSession {
                 self_weak: OnceLock::new(),
                 sessions: DashMap::new(),
                 server_dispatch_tx: OnceLock::new(),
-                shutdown_tx,
                 shutdown_complete_tx: Mutex::new(Some(shutdown_complete_tx)),
                 shutdown_complete_rx: tokio::sync::Mutex::new(shutdown_complete_rx),
             };
@@ -150,7 +146,8 @@ impl BackendSession {
                     inner.msg_id, source, err
                 );
                 if serial != 0 {
-                    let resp = common_error_response(format!("decode server message failed: {err}"));
+                    let resp =
+                        common_error_response(format!("decode server message failed: {err}"));
                     let _ = self.send_server_msg(source, &resp, -serial);
                 }
             }
@@ -170,41 +167,44 @@ impl BackendSession {
         let session_delegate = delegate.create_session_delegate(sid, self.arc_self());
 
         let (client_tx, mut client_rx) = mpsc::channel::<BackendFrame>(CLIENT_MAILBOX_SIZE);
-        let mut shutdown_rx = self.shutdown_tx.subscribe();
         let shutdown_complete = self.shutdown_complete_tx.lock().unwrap().clone();
         let bs = self.arc_self();
 
-        let handle = tokio::spawn(async move {
-            session_delegate.on_start().await;
-            loop {
-                tokio::select! {
-                    biased;
-                    _ = shutdown_rx.recv() => break,
-                    frame = client_rx.recv() => {
-                        let Some(frame) = frame else { break };
-                        bs.process_client_frame(&*session_delegate, frame).await;
+        let cancel_token = CancellationToken::new();
+        let _handle = tokio::spawn({
+            let cancel_token = cancel_token.clone();
+            async move {
+                session_delegate.on_start().await;
+                loop {
+                    tokio::select! {
+                        biased;
+                        _ = cancel_token.cancelled() => break,
+                        frame = client_rx.recv() => {
+                            let Some(frame) = frame else { break };
+                            bs.process_client_frame(&*session_delegate, frame).await;
+                        }
                     }
                 }
+                session_delegate.on_stop().await;
+                drop(shutdown_complete);
             }
-            session_delegate.on_stop().await;
-            drop(shutdown_complete);
         });
 
         self.sessions.insert(
             sid,
             SessionHandle {
                 client_tx,
-                abort_handle: handle.abort_handle(),
+                cancel_token,
             },
         );
         debug!("session {} spawned", sid);
     }
 
-    /// 强停 session(force abort,用于 offline / 网关断连 / 替换)。
+    /// 强停 session(取消令牌,任务自然退出 → on_stop → drop shutdown_complete)。
     fn stop_session(&self, sid: u32) {
         if let Some((_, handle)) = self.sessions.remove(&sid) {
-            handle.abort_handle.abort();
-            debug!("session {} stopped", sid);
+            handle.cancel_token.cancel();
+            debug!("session {} cancel signalled", sid);
         }
     }
 
@@ -216,11 +216,11 @@ impl BackendSession {
     }
 
     /// 全服优雅关闭入口(由 BackendRuntime::shutdown 调用)。
-    /// 
-    /// 流程: 广播 → 等全部 session 退出 → 清理 → delegate.on_shutdown
+    ///
+    /// 流程: 取消所有 session → 等全部退出 → 清理 → delegate.on_shutdown
     pub async fn shutdown(&self) {
         info!("shutdown: notifying all sessions");
-        let _ = self.shutdown_tx.send(());
+        self.stop_all_sessions();
         // take 并立即 drop 掉服务端的 sender,这样 recv() 才能在所有 session 退出后返回 None
         drop(self.shutdown_complete_tx.lock().unwrap().take());
         // 等待所有 session 退出,超时则强制退出
@@ -233,7 +233,6 @@ impl BackendSession {
         } else {
             info!("all sessions exited gracefully");
         }
-        self.stop_all_sessions();
         if let Some(delegate) = self.delegate() {
             delegate.on_shutdown().await;
         }
@@ -360,7 +359,8 @@ impl BackendSession {
         target: ServerSource,
         msg: MessageType,
     ) -> Result<MessageType, RpcError> {
-        self.request_server_timeout(target, msg, DEFAULT_RPC_TIMEOUT).await
+        self.request_server_timeout(target, msg, DEFAULT_RPC_TIMEOUT)
+            .await
     }
 
     pub fn send_server_msg(
