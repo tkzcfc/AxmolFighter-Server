@@ -35,11 +35,19 @@ async fn main() -> anyhow::Result<()> {
             gateway_addr,
             reconnect_interval,
         },
-        move |_| Arc::new(TownDelegate) as Arc<dyn BackendDelegate>,
+        move |_, shutdown| Arc::new(TownDelegate::new(shutdown)) as Arc<dyn BackendDelegate>,
     );
 
     info!("town server started");
-    wait_for_shutdown_signal().await?;
+    let shutdown_token = runtime.shutdown_token();
+    tokio::select! {
+        result = wait_for_shutdown_signal() => {
+            result?;
+        }
+        _ = shutdown_token.cancelled() => {
+            info!("town server shutdown requested");
+        }
+    }
     info!("shutting down...");
     runtime.shutdown().await;
     info!("town server stopped");

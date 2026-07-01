@@ -4,12 +4,22 @@ use async_trait::async_trait;
 use protocol::message_map::MessageType;
 use tracing::info;
 
+use backend_framework::bootstrap::ShutdownHandle;
 use backend_framework::delegate::BackendDelegate;
+use backend_framework::service_id::SERVICE_ID_GAME;
 use backend_framework::session::BackendSession;
 use backend_framework::session_delegate::SessionDelegate;
 
 /// 城镇服业务代理（空壳，后续添加城镇逻辑）
-pub struct TownDelegate;
+pub struct TownDelegate {
+    shutdown: ShutdownHandle,
+}
+
+impl TownDelegate {
+    pub fn new(shutdown: ShutdownHandle) -> Self {
+        Self { shutdown }
+    }
+}
 
 struct TownSessionDelegate;
 
@@ -35,7 +45,19 @@ impl BackendDelegate for TownDelegate {
     }
 
     fn on_disconnected(&self) {
-        info!("town server disconnected from gateway");
+        info!("town server disconnected from gateway, shutting down");
+        self.shutdown.request_shutdown();
+    }
+
+    fn on_server_offline(&self, service_id: u32, instance_id: u32) {
+        info!(
+            "backend server offline service_id={} instance_id={}",
+            service_id, instance_id
+        );
+        if service_id == SERVICE_ID_GAME {
+            info!("game server offline, shutting down town server");
+            self.shutdown.request_shutdown();
+        }
     }
 
     fn create_session_delegate(

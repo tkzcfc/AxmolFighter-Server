@@ -25,7 +25,6 @@ struct BattleServerConfig
     std::uint32_t maxBattles = 100;
     std::uint32_t maxSessions = 200;
     float loadReportInterval = 5.0f;
-    bool restartOnGatewayDisconnect = true;
 };
 
 struct BattleInstance
@@ -64,6 +63,12 @@ public:
     void onServerPush(battle::BackendClient& client,
                       battle::ServerSource source,
                       const battle::BackendFrame& frame) override;
+    void onServerOnline(battle::BackendClient& client,
+                        std::uint32_t serviceId,
+                        std::uint32_t instanceId) override;
+    void onServerOffline(battle::BackendClient& client,
+                         std::uint32_t serviceId,
+                         std::uint32_t instanceId) override;
     void onShutdown(battle::BackendClient& client) override;
 
 private:

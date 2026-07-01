@@ -42,7 +42,12 @@ impl BindManager {
         Self::send_bind_result(tx, serial, req, 0, code, message);
     }
 
-    pub fn start(&self, ctx: &GatewayContext, requester: BindRequester, req: BindServiceReq) {
+    pub fn start(
+        &self,
+        ctx: &GatewayContext,
+        requester: BindRequester,
+        req: BindServiceReq,
+    ) -> Option<(u32, u8, u32)> {
         let service_id = req.service_id as u8;
 
         let selected = if req.target_instance_id >= 0 {
@@ -79,6 +84,7 @@ impl BindManager {
                     BIND_OK,
                     "",
                 );
+                Some((req.session_id, service_id, instance_id))
             }
             Err((code, message)) => {
                 warn!(
@@ -86,6 +92,7 @@ impl BindManager {
                     req.session_id, req.service_id, req.target_instance_id, message
                 );
                 Self::send_bind_result(&requester.tx, requester.serial, &req, 0, code, message);
+                None
             }
         }
     }
@@ -143,6 +150,7 @@ mod tests {
             gateway: GatewaySection {
                 client_listen: "127.0.0.1:0".to_string(),
                 internal_listen: "127.0.0.1:0".to_string(),
+                client_auth_timeout_secs: 30,
             },
             route: vec![],
         })
@@ -171,7 +179,7 @@ mod tests {
         let (requester_tx, mut requester_rx) = mpsc::unbounded_channel();
         ctx.registry.register(101, 1, 7, target_tx);
 
-        ctx.binds.start(
+        let _ = ctx.binds.start(
             &ctx,
             requester(requester_tx),
             BindServiceReq {
@@ -190,7 +198,7 @@ mod tests {
         let ctx = test_context();
         let (requester_tx, mut requester_rx) = mpsc::unbounded_channel();
 
-        ctx.binds.start(
+        let _ = ctx.binds.start(
             &ctx,
             requester(requester_tx),
             BindServiceReq {
@@ -215,7 +223,7 @@ mod tests {
         ctx.registry.update_load(101, 1, 1, 80, true, String::new());
         ctx.registry.update_load(102, 1, 2, 20, true, String::new());
 
-        ctx.binds.start(
+        let _ = ctx.binds.start(
             &ctx,
             requester(requester_tx),
             BindServiceReq {

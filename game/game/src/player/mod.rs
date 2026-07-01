@@ -68,6 +68,7 @@ impl SessionDelegate for PlayerSessionDelegate {
 
     async fn on_stop(&self) {
         debug!("session {} stopped", self.session_id);
+        self.shared.clear_session_runtime_state(self.session_id);
         if let Some(account_id) = self.account_id() {
             info!(
                 "session {} disconnected, clearing account_id {} from session map",

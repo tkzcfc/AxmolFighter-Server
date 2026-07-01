@@ -120,6 +120,9 @@ impl PlayerSessionDelegate {
             };
         }
 
+        self.shared
+            .bind_battle_session(self.session_id, battle_id, create_resp.battle_instance_id);
+
         BattleJoinResp {
             code: 0,
             message: String::new(),

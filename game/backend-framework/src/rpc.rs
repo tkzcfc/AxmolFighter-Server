@@ -135,10 +135,12 @@ impl RpcManager {
 
         if let Some((_, tx)) = self.pending_requests.remove(&serial) {
             let response = match protocol::message_map::decode_message(msg_id as u32, &payload) {
-                Ok(MessageType::GatewayClientGatewayErrorResp(resp)) => PendingResponse::GatewayError {
-                    code: resp.code,
-                    message: resp.message,
-                },
+                Ok(MessageType::GatewayClientGatewayErrorResp(resp)) => {
+                    PendingResponse::GatewayError {
+                        code: resp.code,
+                        message: resp.message,
+                    }
+                }
                 Ok(msg) => PendingResponse::Message(msg),
                 Err(err) => PendingResponse::DecodeError {
                     msg_id,

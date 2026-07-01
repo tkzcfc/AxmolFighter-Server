@@ -22,6 +22,12 @@ pub trait BackendDelegate: Send + Sync {
     /// 网关连接断开(同步,重连前完成)
     fn on_disconnected(&self) {}
 
+    /// 其他后端服务实例上线。
+    fn on_server_online(&self, _service_id: u32, _instance_id: u32) {}
+
+    /// 其他后端服务实例下线。
+    fn on_server_offline(&self, _service_id: u32, _instance_id: u32) {}
+
     /// 工厂:每个客户端 session online 时创建 per-session delegate。
     /// 框架管理其生命周期(on_start → 循环 on_client_* → on_stop)。
     fn create_session_delegate(

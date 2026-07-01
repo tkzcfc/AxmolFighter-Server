@@ -272,7 +272,7 @@ namespace GatewayInternal {
 bool ServerRegReq_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 3:
+    case 100:
       return true;
     default:
       return false;
@@ -286,13 +286,13 @@ static const char ServerRegReq_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry ServerRegReq_MsgId_entries[] = {
-  { {ServerRegReq_MsgId_names + 0, 2}, 3 },
+  { {ServerRegReq_MsgId_names + 0, 2}, 100 },
   { {ServerRegReq_MsgId_names + 2, 4}, 0 },
 };
 
 static const int ServerRegReq_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 3 -> Id
+  0, // 100 -> Id
 };
 
 const std::string& ServerRegReq_MsgId_Name(
@@ -330,7 +330,7 @@ constexpr int ServerRegReq::MsgId_ARRAYSIZE;
 bool ServerRegResp_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 4:
+    case 101:
       return true;
     default:
       return false;
@@ -344,13 +344,13 @@ static const char ServerRegResp_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry ServerRegResp_MsgId_entries[] = {
-  { {ServerRegResp_MsgId_names + 0, 2}, 4 },
+  { {ServerRegResp_MsgId_names + 0, 2}, 101 },
   { {ServerRegResp_MsgId_names + 2, 4}, 0 },
 };
 
 static const int ServerRegResp_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 4 -> Id
+  0, // 101 -> Id
 };
 
 const std::string& ServerRegResp_MsgId_Name(
@@ -388,7 +388,7 @@ constexpr int ServerRegResp::MsgId_ARRAYSIZE;
 bool BindServiceReq_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 5:
+    case 102:
       return true;
     default:
       return false;
@@ -402,13 +402,13 @@ static const char BindServiceReq_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry BindServiceReq_MsgId_entries[] = {
-  { {BindServiceReq_MsgId_names + 0, 2}, 5 },
+  { {BindServiceReq_MsgId_names + 0, 2}, 102 },
   { {BindServiceReq_MsgId_names + 2, 4}, 0 },
 };
 
 static const int BindServiceReq_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 5 -> Id
+  0, // 102 -> Id
 };
 
 const std::string& BindServiceReq_MsgId_Name(
@@ -446,7 +446,7 @@ constexpr int BindServiceReq::MsgId_ARRAYSIZE;
 bool BindServiceResp_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 6:
+    case 103:
       return true;
     default:
       return false;
@@ -460,13 +460,13 @@ static const char BindServiceResp_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry BindServiceResp_MsgId_entries[] = {
-  { {BindServiceResp_MsgId_names + 0, 2}, 6 },
+  { {BindServiceResp_MsgId_names + 0, 2}, 103 },
   { {BindServiceResp_MsgId_names + 2, 4}, 0 },
 };
 
 static const int BindServiceResp_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 6 -> Id
+  0, // 103 -> Id
 };
 
 const std::string& BindServiceResp_MsgId_Name(
@@ -504,7 +504,7 @@ constexpr int BindServiceResp::MsgId_ARRAYSIZE;
 bool UnbindServiceReq_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 7:
+    case 104:
       return true;
     default:
       return false;
@@ -518,13 +518,13 @@ static const char UnbindServiceReq_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry UnbindServiceReq_MsgId_entries[] = {
-  { {UnbindServiceReq_MsgId_names + 0, 2}, 7 },
+  { {UnbindServiceReq_MsgId_names + 0, 2}, 104 },
   { {UnbindServiceReq_MsgId_names + 2, 4}, 0 },
 };
 
 static const int UnbindServiceReq_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 7 -> Id
+  0, // 104 -> Id
 };
 
 const std::string& UnbindServiceReq_MsgId_Name(
@@ -562,7 +562,7 @@ constexpr int UnbindServiceReq::MsgId_ARRAYSIZE;
 bool UnbindServiceResp_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 8:
+    case 105:
       return true;
     default:
       return false;
@@ -576,13 +576,13 @@ static const char UnbindServiceResp_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry UnbindServiceResp_MsgId_entries[] = {
-  { {UnbindServiceResp_MsgId_names + 0, 2}, 8 },
+  { {UnbindServiceResp_MsgId_names + 0, 2}, 105 },
   { {UnbindServiceResp_MsgId_names + 2, 4}, 0 },
 };
 
 static const int UnbindServiceResp_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 8 -> Id
+  0, // 105 -> Id
 };
 
 const std::string& UnbindServiceResp_MsgId_Name(
@@ -620,7 +620,7 @@ constexpr int UnbindServiceResp::MsgId_ARRAYSIZE;
 bool KickSessionReq_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 9:
+    case 106:
       return true;
     default:
       return false;
@@ -634,13 +634,13 @@ static const char KickSessionReq_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry KickSessionReq_MsgId_entries[] = {
-  { {KickSessionReq_MsgId_names + 0, 2}, 9 },
+  { {KickSessionReq_MsgId_names + 0, 2}, 106 },
   { {KickSessionReq_MsgId_names + 2, 4}, 0 },
 };
 
 static const int KickSessionReq_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 9 -> Id
+  0, // 106 -> Id
 };
 
 const std::string& KickSessionReq_MsgId_Name(
@@ -678,7 +678,7 @@ constexpr int KickSessionReq::MsgId_ARRAYSIZE;
 bool KickSessionRsp_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 10:
+    case 107:
       return true;
     default:
       return false;
@@ -692,13 +692,13 @@ static const char KickSessionRsp_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry KickSessionRsp_MsgId_entries[] = {
-  { {KickSessionRsp_MsgId_names + 0, 2}, 10 },
+  { {KickSessionRsp_MsgId_names + 0, 2}, 107 },
   { {KickSessionRsp_MsgId_names + 2, 4}, 0 },
 };
 
 static const int KickSessionRsp_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 10 -> Id
+  0, // 107 -> Id
 };
 
 const std::string& KickSessionRsp_MsgId_Name(
@@ -736,7 +736,7 @@ constexpr int KickSessionRsp::MsgId_ARRAYSIZE;
 bool SessionOnlinePush_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 11:
+    case 108:
       return true;
     default:
       return false;
@@ -750,13 +750,13 @@ static const char SessionOnlinePush_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry SessionOnlinePush_MsgId_entries[] = {
-  { {SessionOnlinePush_MsgId_names + 0, 2}, 11 },
+  { {SessionOnlinePush_MsgId_names + 0, 2}, 108 },
   { {SessionOnlinePush_MsgId_names + 2, 4}, 0 },
 };
 
 static const int SessionOnlinePush_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 11 -> Id
+  0, // 108 -> Id
 };
 
 const std::string& SessionOnlinePush_MsgId_Name(
@@ -794,7 +794,7 @@ constexpr int SessionOnlinePush::MsgId_ARRAYSIZE;
 bool SessionOfflinePush_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 12:
+    case 109:
       return true;
     default:
       return false;
@@ -808,13 +808,13 @@ static const char SessionOfflinePush_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry SessionOfflinePush_MsgId_entries[] = {
-  { {SessionOfflinePush_MsgId_names + 0, 2}, 12 },
+  { {SessionOfflinePush_MsgId_names + 0, 2}, 109 },
   { {SessionOfflinePush_MsgId_names + 2, 4}, 0 },
 };
 
 static const int SessionOfflinePush_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 12 -> Id
+  0, // 109 -> Id
 };
 
 const std::string& SessionOfflinePush_MsgId_Name(
@@ -852,7 +852,7 @@ constexpr int SessionOfflinePush::MsgId_ARRAYSIZE;
 bool ServerOnlinePush_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 13:
+    case 110:
       return true;
     default:
       return false;
@@ -866,13 +866,13 @@ static const char ServerOnlinePush_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry ServerOnlinePush_MsgId_entries[] = {
-  { {ServerOnlinePush_MsgId_names + 0, 2}, 13 },
+  { {ServerOnlinePush_MsgId_names + 0, 2}, 110 },
   { {ServerOnlinePush_MsgId_names + 2, 4}, 0 },
 };
 
 static const int ServerOnlinePush_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 13 -> Id
+  0, // 110 -> Id
 };
 
 const std::string& ServerOnlinePush_MsgId_Name(
@@ -910,7 +910,7 @@ constexpr int ServerOnlinePush::MsgId_ARRAYSIZE;
 bool ServerOfflinePush_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 14:
+    case 111:
       return true;
     default:
       return false;
@@ -924,13 +924,13 @@ static const char ServerOfflinePush_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry ServerOfflinePush_MsgId_entries[] = {
-  { {ServerOfflinePush_MsgId_names + 0, 2}, 14 },
+  { {ServerOfflinePush_MsgId_names + 0, 2}, 111 },
   { {ServerOfflinePush_MsgId_names + 2, 4}, 0 },
 };
 
 static const int ServerOfflinePush_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 14 -> Id
+  0, // 111 -> Id
 };
 
 const std::string& ServerOfflinePush_MsgId_Name(
@@ -968,7 +968,7 @@ constexpr int ServerOfflinePush::MsgId_ARRAYSIZE;
 bool ForwardToServerReq_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 15:
+    case 112:
       return true;
     default:
       return false;
@@ -982,13 +982,13 @@ static const char ForwardToServerReq_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry ForwardToServerReq_MsgId_entries[] = {
-  { {ForwardToServerReq_MsgId_names + 0, 2}, 15 },
+  { {ForwardToServerReq_MsgId_names + 0, 2}, 112 },
   { {ForwardToServerReq_MsgId_names + 2, 4}, 0 },
 };
 
 static const int ForwardToServerReq_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 15 -> Id
+  0, // 112 -> Id
 };
 
 const std::string& ForwardToServerReq_MsgId_Name(
@@ -1026,7 +1026,7 @@ constexpr int ForwardToServerReq::MsgId_ARRAYSIZE;
 bool ServiceLoadReportPush_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 16:
+    case 113:
       return true;
     default:
       return false;
@@ -1040,13 +1040,13 @@ static const char ServiceLoadReportPush_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry ServiceLoadReportPush_MsgId_entries[] = {
-  { {ServiceLoadReportPush_MsgId_names + 0, 2}, 16 },
+  { {ServiceLoadReportPush_MsgId_names + 0, 2}, 113 },
   { {ServiceLoadReportPush_MsgId_names + 2, 4}, 0 },
 };
 
 static const int ServiceLoadReportPush_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 16 -> Id
+  0, // 113 -> Id
 };
 
 const std::string& ServiceLoadReportPush_MsgId_Name(
@@ -1084,7 +1084,7 @@ constexpr int ServiceLoadReportPush::MsgId_ARRAYSIZE;
 bool ServerPingReq_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 17:
+    case 114:
       return true;
     default:
       return false;
@@ -1098,13 +1098,13 @@ static const char ServerPingReq_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry ServerPingReq_MsgId_entries[] = {
-  { {ServerPingReq_MsgId_names + 0, 2}, 17 },
+  { {ServerPingReq_MsgId_names + 0, 2}, 114 },
   { {ServerPingReq_MsgId_names + 2, 4}, 0 },
 };
 
 static const int ServerPingReq_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 17 -> Id
+  0, // 114 -> Id
 };
 
 const std::string& ServerPingReq_MsgId_Name(
@@ -1142,7 +1142,7 @@ constexpr int ServerPingReq::MsgId_ARRAYSIZE;
 bool ServerPongResp_MsgId_IsValid(int value) {
   switch (value) {
     case 0:
-    case 18:
+    case 115:
       return true;
     default:
       return false;
@@ -1156,13 +1156,13 @@ static const char ServerPongResp_MsgId_names[] =
   "None";
 
 static const ::PROTOBUF_NAMESPACE_ID::internal::EnumEntry ServerPongResp_MsgId_entries[] = {
-  { {ServerPongResp_MsgId_names + 0, 2}, 18 },
+  { {ServerPongResp_MsgId_names + 0, 2}, 115 },
   { {ServerPongResp_MsgId_names + 2, 4}, 0 },
 };
 
 static const int ServerPongResp_MsgId_entries_by_number[] = {
   1, // 0 -> None
-  0, // 18 -> Id
+  0, // 115 -> Id
 };
 
 const std::string& ServerPongResp_MsgId_Name(

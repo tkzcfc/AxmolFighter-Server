@@ -71,16 +71,19 @@ impl Router {
         self.bindings.insert((session_id, service_id), instance_id);
     }
 
-    pub fn unbind_service(&self, session_id: u32, service_id: u8) {
-        self.bindings.remove(&(session_id, service_id));
+    pub fn unbind_service(&self, session_id: u32, service_id: u8) -> Option<u32> {
+        self.bindings
+            .remove(&(session_id, service_id))
+            .map(|(_, instance_id)| instance_id)
     }
 
-    pub fn unbind_all_by_instance(&self, service_id: u8, instance_id: u32) {
+    pub fn unbind_all_by_instance(&self, service_id: u8, instance_id: u32) -> Vec<u32> {
+        let affected_sessions = self.sessions_bound_to_instance(service_id, instance_id);
         self.bindings
-            .retain(|(sid, bound_service_id), bound_instance_id| {
-                let _ = sid;
+            .retain(|(_, bound_service_id), bound_instance_id| {
                 !(*bound_service_id == service_id && *bound_instance_id == instance_id)
             });
+        affected_sessions
     }
 
     pub fn cleanup_session(&self, session_id: u32) {
@@ -92,5 +95,25 @@ impl Router {
             .iter()
             .filter(|entry| entry.key().1 == service_id && *entry.value() == instance_id)
             .count()
+    }
+
+    pub fn service_has_unbound_route(&self, service_id: u8) -> bool {
+        self.rules
+            .iter()
+            .any(|rule| rule.service_id == service_id && !rule.require_binding)
+    }
+
+    pub fn bound_instance(&self, session_id: u32, service_id: u8) -> Option<u32> {
+        self.bindings
+            .get(&(session_id, service_id))
+            .map(|instance_id| *instance_id)
+    }
+
+    pub fn sessions_bound_to_instance(&self, service_id: u8, instance_id: u32) -> Vec<u32> {
+        self.bindings
+            .iter()
+            .filter(|entry| entry.key().1 == service_id && *entry.value() == instance_id)
+            .map(|entry| entry.key().0)
+            .collect()
     }
 }

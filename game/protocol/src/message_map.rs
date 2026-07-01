@@ -25,6 +25,9 @@ pub enum MessageType {
     GameBattleInputPush(super::game::BattleInputPush),
     GameBattleSnapshotPush(super::game::BattleSnapshotPush),
     GameAccountKickedPush(super::game::AccountKickedPush),
+    GameBattleServerOfflinePush(super::game::BattleServerOfflinePush),
+    GameTownServerOfflinePush(super::game::TownServerOfflinePush),
+    GatewayClientServerStatusReq(super::gateway_client::ServerStatusReq),
     GatewayClientServerStatusPush(super::gateway_client::ServerStatusPush),
     GatewayClientGatewayErrorResp(super::gateway_client::GatewayErrorResp),
     GatewayInternalServerRegReq(super::gateway_internal::ServerRegReq),
@@ -156,6 +159,21 @@ impl From<super::game::AccountKickedPush> for MessageType {
         MessageType::GameAccountKickedPush(v)
     }
 }
+impl From<super::game::BattleServerOfflinePush> for MessageType {
+    fn from(v: super::game::BattleServerOfflinePush) -> Self {
+        MessageType::GameBattleServerOfflinePush(v)
+    }
+}
+impl From<super::game::TownServerOfflinePush> for MessageType {
+    fn from(v: super::game::TownServerOfflinePush) -> Self {
+        MessageType::GameTownServerOfflinePush(v)
+    }
+}
+impl From<super::gateway_client::ServerStatusReq> for MessageType {
+    fn from(v: super::gateway_client::ServerStatusReq) -> Self {
+        MessageType::GatewayClientServerStatusReq(v)
+    }
+}
 impl From<super::gateway_client::ServerStatusPush> for MessageType {
     fn from(v: super::gateway_client::ServerStatusPush) -> Self {
         MessageType::GatewayClientServerStatusPush(v)
@@ -270,24 +288,27 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
         MessageType::GameBattleInputPush(_) => Some(20012u32),
         MessageType::GameBattleSnapshotPush(_) => Some(20013u32),
         MessageType::GameAccountKickedPush(_) => Some(20016u32),
-        MessageType::GatewayClientServerStatusPush(_) => Some(1u32),
-        MessageType::GatewayClientGatewayErrorResp(_) => Some(2u32),
-        MessageType::GatewayInternalServerRegReq(_) => Some(3u32),
-        MessageType::GatewayInternalServerRegResp(_) => Some(4u32),
-        MessageType::GatewayInternalBindServiceReq(_) => Some(5u32),
-        MessageType::GatewayInternalBindServiceResp(_) => Some(6u32),
-        MessageType::GatewayInternalUnbindServiceReq(_) => Some(7u32),
-        MessageType::GatewayInternalUnbindServiceResp(_) => Some(8u32),
-        MessageType::GatewayInternalKickSessionReq(_) => Some(9u32),
-        MessageType::GatewayInternalKickSessionRsp(_) => Some(10u32),
-        MessageType::GatewayInternalSessionOnlinePush(_) => Some(11u32),
-        MessageType::GatewayInternalSessionOfflinePush(_) => Some(12u32),
-        MessageType::GatewayInternalServerOnlinePush(_) => Some(13u32),
-        MessageType::GatewayInternalServerOfflinePush(_) => Some(14u32),
-        MessageType::GatewayInternalForwardToServerReq(_) => Some(15u32),
-        MessageType::GatewayInternalServiceLoadReportPush(_) => Some(16u32),
-        MessageType::GatewayInternalServerPingReq(_) => Some(17u32),
-        MessageType::GatewayInternalServerPongResp(_) => Some(18u32),
+        MessageType::GameBattleServerOfflinePush(_) => Some(20017u32),
+        MessageType::GameTownServerOfflinePush(_) => Some(20018u32),
+        MessageType::GatewayClientServerStatusReq(_) => Some(1u32),
+        MessageType::GatewayClientServerStatusPush(_) => Some(2u32),
+        MessageType::GatewayClientGatewayErrorResp(_) => Some(3u32),
+        MessageType::GatewayInternalServerRegReq(_) => Some(100u32),
+        MessageType::GatewayInternalServerRegResp(_) => Some(101u32),
+        MessageType::GatewayInternalBindServiceReq(_) => Some(102u32),
+        MessageType::GatewayInternalBindServiceResp(_) => Some(103u32),
+        MessageType::GatewayInternalUnbindServiceReq(_) => Some(104u32),
+        MessageType::GatewayInternalUnbindServiceResp(_) => Some(105u32),
+        MessageType::GatewayInternalKickSessionReq(_) => Some(106u32),
+        MessageType::GatewayInternalKickSessionRsp(_) => Some(107u32),
+        MessageType::GatewayInternalSessionOnlinePush(_) => Some(108u32),
+        MessageType::GatewayInternalSessionOfflinePush(_) => Some(109u32),
+        MessageType::GatewayInternalServerOnlinePush(_) => Some(110u32),
+        MessageType::GatewayInternalServerOfflinePush(_) => Some(111u32),
+        MessageType::GatewayInternalForwardToServerReq(_) => Some(112u32),
+        MessageType::GatewayInternalServiceLoadReportPush(_) => Some(113u32),
+        MessageType::GatewayInternalServerPingReq(_) => Some(114u32),
+        MessageType::GatewayInternalServerPongResp(_) => Some(115u32),
         _ => None,
     }
 }
@@ -378,75 +399,87 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
             Ok(message) => Ok(MessageType::GameAccountKickedPush(message)),
             Err(err) => Err(err),
         },
-        1u32 => match super::gateway_client::ServerStatusPush::decode(bytes) {
+        20017u32 => match super::game::BattleServerOfflinePush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameBattleServerOfflinePush(message)),
+            Err(err) => Err(err),
+        },
+        20018u32 => match super::game::TownServerOfflinePush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameTownServerOfflinePush(message)),
+            Err(err) => Err(err),
+        },
+        1u32 => match super::gateway_client::ServerStatusReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GatewayClientServerStatusReq(message)),
+            Err(err) => Err(err),
+        },
+        2u32 => match super::gateway_client::ServerStatusPush::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayClientServerStatusPush(message)),
             Err(err) => Err(err),
         },
-        2u32 => match super::gateway_client::GatewayErrorResp::decode(bytes) {
+        3u32 => match super::gateway_client::GatewayErrorResp::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayClientGatewayErrorResp(message)),
             Err(err) => Err(err),
         },
-        3u32 => match super::gateway_internal::ServerRegReq::decode(bytes) {
+        100u32 => match super::gateway_internal::ServerRegReq::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalServerRegReq(message)),
             Err(err) => Err(err),
         },
-        4u32 => match super::gateway_internal::ServerRegResp::decode(bytes) {
+        101u32 => match super::gateway_internal::ServerRegResp::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalServerRegResp(message)),
             Err(err) => Err(err),
         },
-        5u32 => match super::gateway_internal::BindServiceReq::decode(bytes) {
+        102u32 => match super::gateway_internal::BindServiceReq::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalBindServiceReq(message)),
             Err(err) => Err(err),
         },
-        6u32 => match super::gateway_internal::BindServiceResp::decode(bytes) {
+        103u32 => match super::gateway_internal::BindServiceResp::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalBindServiceResp(message)),
             Err(err) => Err(err),
         },
-        7u32 => match super::gateway_internal::UnbindServiceReq::decode(bytes) {
+        104u32 => match super::gateway_internal::UnbindServiceReq::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalUnbindServiceReq(message)),
             Err(err) => Err(err),
         },
-        8u32 => match super::gateway_internal::UnbindServiceResp::decode(bytes) {
+        105u32 => match super::gateway_internal::UnbindServiceResp::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalUnbindServiceResp(message)),
             Err(err) => Err(err),
         },
-        9u32 => match super::gateway_internal::KickSessionReq::decode(bytes) {
+        106u32 => match super::gateway_internal::KickSessionReq::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalKickSessionReq(message)),
             Err(err) => Err(err),
         },
-        10u32 => match super::gateway_internal::KickSessionRsp::decode(bytes) {
+        107u32 => match super::gateway_internal::KickSessionRsp::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalKickSessionRsp(message)),
             Err(err) => Err(err),
         },
-        11u32 => match super::gateway_internal::SessionOnlinePush::decode(bytes) {
+        108u32 => match super::gateway_internal::SessionOnlinePush::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalSessionOnlinePush(message)),
             Err(err) => Err(err),
         },
-        12u32 => match super::gateway_internal::SessionOfflinePush::decode(bytes) {
+        109u32 => match super::gateway_internal::SessionOfflinePush::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalSessionOfflinePush(message)),
             Err(err) => Err(err),
         },
-        13u32 => match super::gateway_internal::ServerOnlinePush::decode(bytes) {
+        110u32 => match super::gateway_internal::ServerOnlinePush::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalServerOnlinePush(message)),
             Err(err) => Err(err),
         },
-        14u32 => match super::gateway_internal::ServerOfflinePush::decode(bytes) {
+        111u32 => match super::gateway_internal::ServerOfflinePush::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalServerOfflinePush(message)),
             Err(err) => Err(err),
         },
-        15u32 => match super::gateway_internal::ForwardToServerReq::decode(bytes) {
+        112u32 => match super::gateway_internal::ForwardToServerReq::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalForwardToServerReq(message)),
             Err(err) => Err(err),
         },
-        16u32 => match super::gateway_internal::ServiceLoadReportPush::decode(bytes) {
+        113u32 => match super::gateway_internal::ServiceLoadReportPush::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalServiceLoadReportPush(message)),
             Err(err) => Err(err),
         },
-        17u32 => match super::gateway_internal::ServerPingReq::decode(bytes) {
+        114u32 => match super::gateway_internal::ServerPingReq::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalServerPingReq(message)),
             Err(err) => Err(err),
         },
-        18u32 => match super::gateway_internal::ServerPongResp::decode(bytes) {
+        115u32 => match super::gateway_internal::ServerPongResp::decode(bytes) {
             Ok(message) => Ok(MessageType::GatewayInternalServerPongResp(message)),
             Err(err) => Err(err),
         },
@@ -477,24 +510,27 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
         MessageType::GameBattleInputPush(msg) => Some((20012u32, msg.encode_to_vec())),
         MessageType::GameBattleSnapshotPush(msg) => Some((20013u32, msg.encode_to_vec())),
         MessageType::GameAccountKickedPush(msg) => Some((20016u32, msg.encode_to_vec())),
-        MessageType::GatewayClientServerStatusPush(msg) => Some((1u32, msg.encode_to_vec())),
-        MessageType::GatewayClientGatewayErrorResp(msg) => Some((2u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalServerRegReq(msg) => Some((3u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalServerRegResp(msg) => Some((4u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalBindServiceReq(msg) => Some((5u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalBindServiceResp(msg) => Some((6u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalUnbindServiceReq(msg) => Some((7u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalUnbindServiceResp(msg) => Some((8u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalKickSessionReq(msg) => Some((9u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalKickSessionRsp(msg) => Some((10u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalSessionOnlinePush(msg) => Some((11u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalSessionOfflinePush(msg) => Some((12u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalServerOnlinePush(msg) => Some((13u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalServerOfflinePush(msg) => Some((14u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalForwardToServerReq(msg) => Some((15u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalServiceLoadReportPush(msg) => Some((16u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalServerPingReq(msg) => Some((17u32, msg.encode_to_vec())),
-        MessageType::GatewayInternalServerPongResp(msg) => Some((18u32, msg.encode_to_vec())),
+        MessageType::GameBattleServerOfflinePush(msg) => Some((20017u32, msg.encode_to_vec())),
+        MessageType::GameTownServerOfflinePush(msg) => Some((20018u32, msg.encode_to_vec())),
+        MessageType::GatewayClientServerStatusReq(msg) => Some((1u32, msg.encode_to_vec())),
+        MessageType::GatewayClientServerStatusPush(msg) => Some((2u32, msg.encode_to_vec())),
+        MessageType::GatewayClientGatewayErrorResp(msg) => Some((3u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalServerRegReq(msg) => Some((100u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalServerRegResp(msg) => Some((101u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalBindServiceReq(msg) => Some((102u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalBindServiceResp(msg) => Some((103u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalUnbindServiceReq(msg) => Some((104u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalUnbindServiceResp(msg) => Some((105u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalKickSessionReq(msg) => Some((106u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalKickSessionRsp(msg) => Some((107u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalSessionOnlinePush(msg) => Some((108u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalSessionOfflinePush(msg) => Some((109u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalServerOnlinePush(msg) => Some((110u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalServerOfflinePush(msg) => Some((111u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalForwardToServerReq(msg) => Some((112u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalServiceLoadReportPush(msg) => Some((113u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalServerPingReq(msg) => Some((114u32, msg.encode_to_vec())),
+        MessageType::GatewayInternalServerPongResp(msg) => Some((115u32, msg.encode_to_vec())),
         _ => None,
     }
 }
@@ -522,6 +558,9 @@ pub fn get_message_size(message: &MessageType) -> usize {
         MessageType::GameBattleInputPush(msg) => msg.encoded_len(),
         MessageType::GameBattleSnapshotPush(msg) => msg.encoded_len(),
         MessageType::GameAccountKickedPush(msg) => msg.encoded_len(),
+        MessageType::GameBattleServerOfflinePush(msg) => msg.encoded_len(),
+        MessageType::GameTownServerOfflinePush(msg) => msg.encoded_len(),
+        MessageType::GatewayClientServerStatusReq(msg) => msg.encoded_len(),
         MessageType::GatewayClientServerStatusPush(msg) => msg.encoded_len(),
         MessageType::GatewayClientGatewayErrorResp(msg) => msg.encoded_len(),
         MessageType::GatewayInternalServerRegReq(msg) => msg.encoded_len(),
@@ -567,6 +606,9 @@ pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
         MessageType::GameBattleInputPush(msg) => msg.encode_raw(buf),
         MessageType::GameBattleSnapshotPush(msg) => msg.encode_raw(buf),
         MessageType::GameAccountKickedPush(msg) => msg.encode_raw(buf),
+        MessageType::GameBattleServerOfflinePush(msg) => msg.encode_raw(buf),
+        MessageType::GameTownServerOfflinePush(msg) => msg.encode_raw(buf),
+        MessageType::GatewayClientServerStatusReq(msg) => msg.encode_raw(buf),
         MessageType::GatewayClientServerStatusPush(msg) => msg.encode_raw(buf),
         MessageType::GatewayClientGatewayErrorResp(msg) => msg.encode_raw(buf),
         MessageType::GatewayInternalServerRegReq(msg) => msg.encode_raw(buf),
@@ -613,6 +655,9 @@ pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {
         MessageType::GameBattleInputPush(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleSnapshotPush(msg) => serde_json::to_string(&msg),
         MessageType::GameAccountKickedPush(msg) => serde_json::to_string(&msg),
+        MessageType::GameBattleServerOfflinePush(msg) => serde_json::to_string(&msg),
+        MessageType::GameTownServerOfflinePush(msg) => serde_json::to_string(&msg),
+        MessageType::GatewayClientServerStatusReq(msg) => serde_json::to_string(&msg),
         MessageType::GatewayClientServerStatusPush(msg) => serde_json::to_string(&msg),
         MessageType::GatewayClientGatewayErrorResp(msg) => serde_json::to_string(&msg),
         MessageType::GatewayInternalServerRegReq(msg) => serde_json::to_string(&msg),

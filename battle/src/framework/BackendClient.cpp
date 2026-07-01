@@ -405,9 +405,13 @@ void BackendClient::handleControlFrame(const BackendFrame& frame)
     {
         PB::GatewayInternal::ServerOnlinePush push;
         if (parsePayload(push, frame.payload))
+        {
             spdlog::info("Backend service online service_id={} instance_id={}",
                          push.service_id(),
                          push.instance_id());
+            if (m_delegate)
+                m_delegate->onServerOnline(*this, push.service_id(), push.instance_id());
+        }
         return;
     }
 
@@ -415,9 +419,13 @@ void BackendClient::handleControlFrame(const BackendFrame& frame)
     {
         PB::GatewayInternal::ServerOfflinePush push;
         if (parsePayload(push, frame.payload))
+        {
             spdlog::info("Backend service offline service_id={} instance_id={}",
                          push.service_id(),
                          push.instance_id());
+            if (m_delegate)
+                m_delegate->onServerOffline(*this, push.service_id(), push.instance_id());
+        }
         return;
     }
 

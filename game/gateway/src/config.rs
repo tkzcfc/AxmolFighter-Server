@@ -1,6 +1,10 @@
 use serde::Deserialize;
 use std::path::Path;
 
+fn default_client_auth_timeout_secs() -> u64 {
+    30
+}
+
 #[derive(Debug, Deserialize)]
 pub struct GatewayConfig {
     pub gateway: GatewaySection,
@@ -12,6 +16,8 @@ pub struct GatewayConfig {
 pub struct GatewaySection {
     pub client_listen: String,
     pub internal_listen: String,
+    #[serde(default = "default_client_auth_timeout_secs")]
+    pub client_auth_timeout_secs: u64,
 }
 
 #[derive(Debug, Deserialize)]

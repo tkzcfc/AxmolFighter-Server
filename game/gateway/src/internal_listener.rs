@@ -98,27 +98,50 @@ impl InternalDelegate {
         }
     }
 
-    fn build_status(&self) -> ServerStatusPush {
-        ServerStatusPush {
-            services: self
+    fn service_visible_to_session(
+        &self,
+        session_id: u32,
+        service_id: u8,
+        instance_id: u32,
+    ) -> bool {
+        self.ctx.router.service_has_unbound_route(service_id)
+            || self
                 .ctx
-                .registry
-                .service_statuses()
-                .into_iter()
-                .map(|(service_id, instance_id)| GatewayServiceStatus {
-                    service_id: service_id as u32,
-                    instance_id,
-                    online: true,
-                })
-                .collect(),
-        }
+                .router
+                .bound_instance(session_id, service_id)
+                .is_some_and(|bound_instance_id| bound_instance_id == instance_id)
     }
 
-    fn broadcast_status_to_clients(&self) {
+    fn send_service_status_to_session(
+        &self,
+        session_id: u32,
+        service_id: u8,
+        instance_id: u32,
+        online: bool,
+    ) {
+        if !self.ctx.sessions.is_authenticated(session_id) {
+            return;
+        }
+
+        let push = ServerStatusPush {
+            services: vec![GatewayServiceStatus {
+                service_id: service_id as u32,
+                instance_id,
+                online,
+            }],
+        };
         let (msg_id, payload) =
-            encode_message(&MessageType::GatewayClientServerStatusPush(self.build_status())).unwrap();
-        let client_data = encode_client_frame(CMD_GATEWAY_NOTICE, msg_id as u16, 0, &payload);
-        self.ctx.sessions.broadcast_to_clients(client_data);
+            encode_message(&MessageType::GatewayClientServerStatusPush(push)).unwrap();
+        let client_data = encode_client_frame(CMD_GATEWAY_MESSAGE, msg_id as u16, 0, &payload);
+        self.ctx.sessions.send_to_client(session_id, client_data);
+    }
+
+    fn push_service_status(&self, service_id: u8, instance_id: u32, online: bool) {
+        for session_id in self.ctx.sessions.authenticated_sessions() {
+            if self.service_visible_to_session(session_id, service_id, instance_id) {
+                self.send_service_status_to_session(session_id, service_id, instance_id, online);
+            }
+        }
     }
 
     fn encode_control_frame(&self, message: MessageType, serial: i32, session_id: u32) -> Bytes {
@@ -188,8 +211,7 @@ impl InternalDelegate {
                     warn!("failed to encode ServerPingReq");
                     continue;
                 };
-                let data =
-                    encode_backend_frame(BACKEND_CMD_CONTROL, msg_id as u16, 0, 0, &payload);
+                let data = encode_backend_frame(BACKEND_CMD_CONTROL, msg_id as u16, 0, 0, &payload);
 
                 {
                     let mut state = heartbeat.lock().await;
@@ -231,17 +253,18 @@ impl SessionDelegate for InternalDelegate {
                 service_id, instance_id
             );
 
-            self.ctx
-                .router
-                .unbind_all_by_instance(service_id, instance_id);
-
             let notify = MessageType::GatewayInternalServerOfflinePush(ServerOfflinePush {
                 service_id: service_id as u32,
                 instance_id,
             });
             let data = self.encode_control_frame(notify, 0, 0);
             self.ctx.registry.broadcast_except(self.session_id, data);
-            self.broadcast_status_to_clients();
+
+            // 先通知相关客户端，再清理绑定关系。
+            self.push_service_status(service_id, instance_id, false);
+            self.ctx
+                .router
+                .unbind_all_by_instance(service_id, instance_id);
         }
 
         Ok(())
@@ -276,7 +299,7 @@ impl SessionDelegate for InternalDelegate {
         let session_id = u32::from_be_bytes([frame[7], frame[8], frame[9], frame[10]]);
         let payload = frame.slice(11..);
 
-            // 后端回客户端的业务包，网关只按 session 转回去。
+        // 后端回客户端的业务包，网关只按 session 转回去。
         if cmd == BACKEND_CMD_BUSINESS {
             let client_data = encode_client_frame(CMD_BUSINESS, msg_id, serial, &payload);
             if !self.ctx.sessions.send_to_client(session_id, client_data) {
@@ -416,8 +439,11 @@ impl InternalDelegate {
                         })
                         .collect(),
                 };
-                let data =
-                    self.encode_control_frame(MessageType::GatewayInternalServerRegResp(resp), serial, 0);
+                let data = self.encode_control_frame(
+                    MessageType::GatewayInternalServerRegResp(resp),
+                    serial,
+                    0,
+                );
                 let _ = tx.send(WriterMessage::Send(data, true));
 
                 if !should_broadcast_online {
@@ -433,9 +459,9 @@ impl InternalDelegate {
                     .registry
                     .broadcast_except(self.session_id, broadcast_data);
 
-                self.broadcast_status_to_clients();
+                self.push_service_status(service_id, req.instance_id, true);
 
-                for sid in self.ctx.sessions.online_sessions() {
+                for sid in self.ctx.sessions.authenticated_sessions() {
                     let online = MessageType::GatewayInternalSessionOnlinePush(SessionOnlinePush {
                         session_id: sid,
                     });
@@ -473,9 +499,13 @@ impl InternalDelegate {
                     return Ok(());
                 };
 
-                self.ctx
-                    .binds
-                    .start(&self.ctx, BindRequester { serial, tx }, req);
+                if let Some((session_id, service_id, instance_id)) =
+                    self.ctx
+                        .binds
+                        .start(&self.ctx, BindRequester { serial, tx }, req)
+                {
+                    self.send_service_status_to_session(session_id, service_id, instance_id, true);
+                }
             }
 
             MessageType::GatewayInternalServiceLoadReportPush(report) => {
@@ -532,11 +562,19 @@ impl InternalDelegate {
             MessageType::GatewayInternalUnbindServiceReq(req) => {
                 let session_id = req.session_id;
                 let service_id = req.service_id;
-                self.ctx.router.unbind_service(session_id, service_id as u8);
+                let instance_id = self.ctx.router.unbind_service(session_id, service_id as u8);
                 debug!(
                     "unbound session {} from service_id={}",
                     session_id, service_id
                 );
+                if let Some(instance_id) = instance_id {
+                    self.send_service_status_to_session(
+                        session_id,
+                        service_id as u8,
+                        instance_id,
+                        false,
+                    );
+                }
                 if serial < 0 {
                     let resp = MessageType::GatewayInternalUnbindServiceResp(
                         protocol::gateway_internal::UnbindServiceResp {
@@ -558,11 +596,12 @@ impl InternalDelegate {
                 self.ctx.router.cleanup_session(req.session_id);
                 debug!("kicked session {}", req.session_id);
                 if serial < 0 {
-                    let resp =
-                        MessageType::GatewayInternalKickSessionRsp(protocol::gateway_internal::KickSessionRsp {
+                    let resp = MessageType::GatewayInternalKickSessionRsp(
+                        protocol::gateway_internal::KickSessionRsp {
                             session_id: req.session_id,
                             code: 0,
-                        });
+                        },
+                    );
                     let data = self.encode_control_frame(resp, -serial, 0);
                     if let Some(tx) = &self.tx {
                         let _ = tx.send(WriterMessage::Send(data, true));
@@ -707,6 +746,7 @@ mod tests {
             gateway: GatewaySection {
                 client_listen: "127.0.0.1:0".to_string(),
                 internal_listen: "127.0.0.1:0".to_string(),
+                client_auth_timeout_secs: 30,
             },
             route: vec![],
         });
@@ -717,12 +757,13 @@ mod tests {
         delegate.session_id = 9001;
         delegate.tx = Some(tx);
 
-        let (msg_id, payload) =
-            encode_message(&MessageType::GatewayInternalUnbindServiceReq(UnbindServiceReq {
+        let (msg_id, payload) = encode_message(&MessageType::GatewayInternalUnbindServiceReq(
+            UnbindServiceReq {
                 session_id: 42,
                 service_id: 1,
-            }))
-            .unwrap();
+            },
+        ))
+        .unwrap();
 
         delegate
             .handle_internal(

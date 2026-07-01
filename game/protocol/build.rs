@@ -36,11 +36,7 @@ fn main() -> io::Result<()> {
     }
 
     // 需要导出的协议文件列表
-    let proto_file_list = [
-        "pb/game.proto",
-        "pb/gateway_client.proto",
-        "pb/gateway_internal.proto",
-    ];
+    let proto_file_list = ["pb/game.proto", "pb/gateway_client.proto", "pb/gateway_internal.proto"];
     let include_list = [dunce::canonicalize("pb").unwrap()];
     let out_dir = Path::new("src");
 
@@ -296,6 +292,8 @@ fn build(proto_file_list: &[impl AsRef<Path>], include_list: &[impl AsRef<Path>]
         let mut msg_name = String::new();
         // 当前消息id
         let mut msg_id = 0u32;
+        let mut in_msg_id_enum = false;
+        let mut msg_id_recorded = false;
 
         let mut lines = Vec::new();
 
@@ -314,6 +312,36 @@ fn build(proto_file_list: &[impl AsRef<Path>], include_list: &[impl AsRef<Path>]
             } else if line.starts_with("message ") {
                 for msg_cap in msg_re.captures_iter(line) {
                     msg_name = msg_cap.get(1).map_or("", |m| m.as_str()).to_string();
+                }
+            } else if line.starts_with("enum") && id_match_re.captures(line).is_some() {
+                in_msg_id_enum = true;
+                msg_id_recorded = false;
+                for id_cap in id_re.captures_iter(line) {
+                    msg_id = id_cap.get(1).map_or("", |m| m.as_str()).parse().expect("message id not a number");
+                    messages.push(MessageInfo {
+                        name: msg_name.clone(),
+                        package: package_name.clone(),
+                        id: msg_id,
+                    });
+                    msg_id_recorded = true;
+                }
+                if line.contains('}') {
+                    in_msg_id_enum = false;
+                }
+            } else if in_msg_id_enum {
+                for id_cap in id_re.captures_iter(line) {
+                    if !msg_id_recorded {
+                        msg_id = id_cap.get(1).map_or("", |m| m.as_str()).parse().expect("message id not a number");
+                        messages.push(MessageInfo {
+                            name: msg_name.clone(),
+                            package: package_name.clone(),
+                            id: msg_id,
+                        });
+                        msg_id_recorded = true;
+                    }
+                }
+                if line.contains('}') {
+                    in_msg_id_enum = false;
                 }
             } else if (line.starts_with(ANNOTATION_PREFIX) || line.starts_with("enum")) && id_match_re.captures(line).is_some() {
                 let mut has_id = false;

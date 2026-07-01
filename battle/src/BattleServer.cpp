@@ -70,10 +70,11 @@ void BattleServer::onConnected(battle::BackendClient& client)
 void BattleServer::onDisconnected(battle::BackendClient& client)
 {
     (void)client;
-    spdlog::warn("BattleServer gateway disconnected, clearing battle state");
+    spdlog::warn("BattleServer gateway disconnected, shutting down");
     m_battles.clear();
     m_sessionToBattle.clear();
     m_sessionToActor.clear();
+    shutdown();
 }
 
 battle::SerializedMessagePtr BattleServer::onServerRequest(battle::BackendClient& client,
@@ -102,6 +103,27 @@ void BattleServer::onServerPush(battle::BackendClient& client,
                   source.serviceId,
                   source.instanceId,
                   frame.msgId);
+}
+
+void BattleServer::onServerOnline(battle::BackendClient& client,
+                                  std::uint32_t serviceId,
+                                  std::uint32_t instanceId)
+{
+    (void)client;
+    spdlog::info("Backend service online service_id={} instance_id={}", serviceId, instanceId);
+}
+
+void BattleServer::onServerOffline(battle::BackendClient& client,
+                                   std::uint32_t serviceId,
+                                   std::uint32_t instanceId)
+{
+    (void)client;
+    spdlog::warn("Backend service offline service_id={} instance_id={}", serviceId, instanceId);
+    if (serviceId == battle::kServiceIdGame)
+    {
+        spdlog::warn("Game server offline, shutting down BattleServer");
+        shutdown();
+    }
 }
 
 void BattleServer::onShutdown(battle::BackendClient& client)

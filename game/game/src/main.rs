@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
             gateway_addr: config.gateway.addr.clone(),
             reconnect_interval: Duration::from_secs(config.gateway.reconnect_interval),
         },
-        move |session| GameShared::new(pool, session),
+        move |session, _shutdown| GameShared::new(pool, session),
     );
 
     info!("game server started");

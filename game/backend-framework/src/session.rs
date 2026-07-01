@@ -421,18 +421,26 @@ impl BackendSession {
                     "server online: type={} instance={}",
                     push.service_id, push.instance_id
                 );
+                if let Some(delegate) = self.delegate() {
+                    delegate.on_server_online(push.service_id, push.instance_id);
+                }
             }
             MessageType::GatewayInternalServerOfflinePush(push) => {
                 debug!(
                     "server offline: type={} instance={}",
                     push.service_id, push.instance_id
                 );
+                if let Some(delegate) = self.delegate() {
+                    delegate.on_server_offline(push.service_id, push.instance_id);
+                }
             }
             MessageType::GatewayInternalForwardToServerReq(req) => {
                 self.route_forwarded_frame(req);
             }
             MessageType::GatewayInternalServerPingReq(ping) => {
-                let msg = MessageType::GatewayInternalServerPongResp(ServerPongResp { nonce: ping.nonce });
+                let msg = MessageType::GatewayInternalServerPongResp(ServerPongResp {
+                    nonce: ping.nonce,
+                });
                 if let Err(err) =
                     self.try_send_frame_msg(BACKEND_CMD_CONTROL, &msg, 0, frame.session_id)
                 {

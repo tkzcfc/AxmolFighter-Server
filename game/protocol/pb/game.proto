@@ -1,220 +1,416 @@
 syntax = "proto3";
 
+// 游戏业务协议。
+// 900 段是通用响应，1000 段是账号和角色，20000 段是战斗相关消息。
 package PB.Game;
 
 option optimize_for = LITE_RUNTIME;
 
+// 通用成功响应。
 message CommonSuccessResp {
     enum MsgId { None = 0; Id = 900; }
+
+    // 结果码，0 表示成功。
     int32 code = 1;
+    // 结果说明。
     string message = 2;
 }
 
+// 通用错误响应。
 message CommonErrorResp {
     enum MsgId { None = 0; Id = 901; }
+
+    // 错误码。
     int32 code = 1;
+    // 错误说明。
     string message = 2;
 }
 
-// 登录。
+// 登录请求。
 message LoginReq {
     enum MsgId { None = 0; Id = 1000; }
+
+    // 账号名。
     string account = 1;
+    // 密码。
     string password = 2;
 }
 
+// 登录响应。
 message LoginResp {
     enum MsgId { None = 0; Id = 1001; }
+
+    // 登录结果，0 表示成功。
     int32 code = 1;
+    // 结果说明。
     string message = 2;
+    // 玩家 id。
     int64 player_id = 3;
+    // 玩家昵称。
     string nickname = 4;
+    // 登录后下发的服务器配置。
     ServerConfig server_config = 5;
+    // 登录账号信息。
     AccountInfo account_info = 6;
 }
 
-// 注册。
+// 注册请求。
 message RegisterReq {
     enum MsgId { None = 0; Id = 1002; }
+
+    // 账号名。
     string account = 1;
+    // 密码。
     string password = 2;
+    // 昵称。
     string nickname = 3;
 }
 
+// 注册响应。
 message RegisterResp {
     enum MsgId { None = 0; Id = 1003; }
+
+    // 注册结果，0 表示成功。
     int32 code = 1;
+    // 结果说明。
     string message = 2;
+    // 新建玩家 id。
     int64 player_id = 3;
 }
 
 // 登录后下发的服务器配置。
 message ServerConfig {
+    // 最大角色数量。
     int32 max_character_count = 1;
 }
 
+// 登录账号信息。
 message AccountInfo {
+    // 玩家 id。
     int64 player_id = 1;
+    // 账号名。
     string account = 2;
+    // 昵称。
     string nickname = 3;
 }
 
+// 装备上的一条附魔属性。
 message EnchantProp {
+    // 属性配置 id。
     int32 attr_id = 1;
+    // 属性值。
     int32 value = 2;
 }
 
+// 装备信息。
 message EquipmentInfo {
+    // 装备实例 id。
     int64 id = 1;
+    // 装备配置 id。
     int64 config_id = 2;
+    // 强化等级。
     int32 enhance_level = 3;
+    // 精炼等级。
     int32 refine_level = 4;
+    // 附魔属性列表。
     repeated EnchantProp enchant_props = 5;
+    // 装备槽位。
     int32 slot = 6;
 }
 
+// 普通道具信息。
 message ItemInfo {
+    // 道具实例 id。
     int64 id = 1;
+    // 道具配置 id。
     int64 config_id = 2;
+    // 数量。
     int32 count = 3;
 }
 
+// 背包信息。
 message InventoryInfo {
+    // 普通道具列表。
     repeated ItemInfo items = 1;
+    // 装备列表。
     repeated EquipmentInfo equipments = 2;
 }
 
+// 角色信息。
 message CharacterInfo {
+    // 角色 id。
     int64 character_id = 1;
+    // 角色名。
     string name = 2;
+    // 职业 id。
     int32 class_id = 3;
+    // 性别。
     int32 gender = 4;
+    // 等级。
     int32 level = 5;
+    // 经验。
     int64 exp = 6;
+    // 金币。
     int64 gold = 7;
 }
 
+// 玩家基础信息。
 message PlayerInfo {
     enum MsgId { None = 0; Id = 1100; }
+
+    // 玩家 id。
     int64 player_id = 1;
+    // 昵称。
     string nickname = 2;
+    // 等级。
     int32 level = 3;
+    // 经验。
     int64 exp = 4;
 }
 
-// 创建角色。
+// 创建角色请求。
 message CreateCharacterReq {
     enum MsgId { None = 0; Id = 1200; }
+
+    // 角色名。
     string name = 1;
+    // 职业 id。
     int32 class_id = 2;
+    // 性别。
     int32 gender = 3;
 }
 
+// 创建角色响应。
 message CreateCharacterResp {
     enum MsgId { None = 0; Id = 1201; }
+
+    // 创建结果，0 表示成功。
     int32 code = 1;
+    // 结果说明。
     string message = 2;
+    // 创建成功后的角色信息。
     CharacterInfo character = 3;
 }
 
-// 拉取角色列表。
+// 拉取角色列表请求。
 message FetchCharacterListReq {
     enum MsgId { None = 0; Id = 1202; }
 }
 
+// 拉取角色列表响应。
 message FetchCharacterListResp {
     enum MsgId { None = 0; Id = 1203; }
+
+    // 拉取结果，0 表示成功。
     int32 code = 1;
+    // 结果说明。
     string message = 2;
+    // 角色列表。
     repeated CharacterInfo characters = 3;
 }
 
-// 选择角色进入游戏。
+// 选择角色请求。
 message SelectCharacterReq {
     enum MsgId { None = 0; Id = 1204; }
+
+    // 要进入游戏的角色 id。
     int64 character_id = 1;
 }
 
+// 选择角色响应。
 message SelectCharacterResp {
     enum MsgId { None = 0; Id = 1205; }
+
+    // 选择结果，0 表示成功。
     int32 code = 1;
+    // 结果说明。
     string message = 2;
+    // 当前角色信息。
     CharacterInfo character = 3;
+    // 当前角色背包。
     InventoryInfo inventory = 4;
 }
 
 // 帧同步里用到的玩家状态。
 message PlayerState {
     enum MsgId { None = 0; Id = 20000; }
+
+    // 玩家 id。
     int64 player_id = 1;
+    // x 坐标。
     float pos_x = 2;
+    // y 坐标。
     float pos_y = 3;
+    // 当前血量。
     int32 hp = 4;
+    // 当前状态。
     string state = 5;
 }
 
-// 客户端请求进入副本战斗。
+// 客户端请求进入战斗。
 message BattleJoinReq {
     enum MsgId { None = 0; Id = 1300; }
+
+    // 玩家 id。
     int64 player_id = 1;
+    // 地图 id。
     int32 map_id = 2;
 }
 
+// 进入战斗响应。
 message BattleJoinResp {
     enum MsgId { None = 0; Id = 1301; }
+
+    // 进入结果，0 表示成功。
     int32 code = 1;
+    // 结果说明。
     string message = 2;
+    // 战斗 id。
     uint32 battle_id = 3;
+    // 当前服务器帧。
     uint32 server_frame = 4;
+    // 战斗世界快照。
     bytes world_dump = 5;
 }
 
+// 创建战斗时传给战斗服的玩家信息。
 message BattlePlayerSpec {
+    // 客户端 session id。
     uint32 session_id = 1;
+    // 玩家 id。
     int64 player_id = 2;
 }
 
-// Game 发给 Battle，要求创建一场战斗。
+// Game 发给 Battle，请求创建一场战斗。
 message BattleCreateReq {
     enum MsgId { None = 0; Id = 20014; }
+
+    // 战斗 id。
     uint32 battle_id = 1;
+    // 地图 id。
     int32 map_id = 2;
+    // 参战玩家。
     repeated BattlePlayerSpec players = 3;
     // 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
     uint32 requester_service_id = 4;
+    // 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
     uint32 requester_instance_id = 5;
 }
 
+// Battle 返回创建战斗结果。
 message BattleCreateResp {
-    enum MsgId { None = 0; Id = 20015; }
+    // 创建战斗响应的消息号。
+    enum MsgId {
+        // 无效消息号。
+        None = 0;
+        // 创建战斗响应。
+        Id = 20015;
+    }
+
+    // 创建结果，0 表示成功。
     int32 code = 1;
+    // 结果说明。
     string message = 2;
+    // 战斗 id。
     uint32 battle_id = 3;
+    // 承载这场战斗的 battle 实例 id。
     uint32 battle_instance_id = 4;
+    // 当前服务器帧。
     uint32 server_frame = 5;
+    // 战斗世界快照。
     bytes world_dump = 6;
 }
 
+// 客户端战斗输入。
 message BattleInputPush {
-    enum MsgId { None = 0; Id = 20012; }
+    // 战斗输入的消息号。
+    enum MsgId {
+        // 无效消息号。
+        None = 0;
+        // 战斗输入。
+        Id = 20012;
+    }
+
+    // 战斗 id。
     uint32 battle_id = 1;
+    // 客户端帧号。
     uint32 client_frame = 2;
+    // 输入按键位。
     uint32 input_mask = 3;
+    // 客户端时间戳，毫秒。
     uint64 client_time_ms = 4;
 }
 
+// 战斗服下发的战斗快照。
 message BattleSnapshotPush {
-    enum MsgId { None = 0; Id = 20013; }
+    // 战斗快照的消息号。
+    enum MsgId {
+        // 无效消息号。
+        None = 0;
+        // 战斗快照。
+        Id = 20013;
+    }
+
+    // 战斗 id。
     uint32 battle_id = 1;
+    // 服务器帧号。
     uint32 server_frame = 2;
+    // 服务器时间戳，毫秒。
     uint64 server_time_ms = 3;
+    // 战斗世界快照。
     bytes world_dump = 4;
 }
 
-// 账号在别处登录，服务器主动踢下线通知（Push）。
+// 账号在别处登录，服务器主动通知当前客户端下线。
 message AccountKickedPush {
-    enum MsgId { None = 0; Id = 20016; }
-    // 原因码: 1=在其他地方登录
+    // 账号踢下线通知的消息号。
+    enum MsgId {
+        // 无效消息号。
+        None = 0;
+        // 账号踢下线通知。
+        Id = 20016;
+    }
+
+    // 原因码，1 表示账号在别处登录。
     int32 reason = 1;
+    // 下线说明。
     string message = 2;
+}
+
+// 玩家所在战斗服下线时由 game 服推给客户端。
+message BattleServerOfflinePush {
+    // 战斗服下线通知的消息号。
+    enum MsgId {
+        // 无效消息号。
+        None = 0;
+        // 战斗服下线通知。
+        Id = 20017;
+    }
+
+    // 受影响的战斗 id。
+    uint32 battle_id = 1;
+    // 下线的 battle 实例 id。
+    uint32 battle_instance_id = 2;
+    // 原因码，1 表示后端服务下线。
+    int32 reason = 3;
+    // 下线说明。
+    string message = 4;
+}
+
+// 玩家所在城镇服下线时由 game 服推给客户端。
+message TownServerOfflinePush {
+    // 城镇服下线通知的消息号。
+    enum MsgId {
+        // 无效消息号。
+        None = 0;
+        // 城镇服下线通知。
+        Id = 20018;
+    }
+
+    // 下线的 town 实例 id。
+    uint32 town_instance_id = 1;
+    // 原因码，1 表示后端服务下线。
+    int32 reason = 2;
+    // 下线说明。
+    string message = 3;
 }

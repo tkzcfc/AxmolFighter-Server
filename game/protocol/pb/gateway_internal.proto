@@ -1,114 +1,191 @@
 syntax = "proto3";
 
+// 网关和后端服务之间的内部协议。
+// 内部连接用 BACKEND_CMD_BUSINESS 转发业务，用 BACKEND_CMD_CONTROL 发送控制消息。
 package PB.GatewayInternal;
 
 option optimize_for = LITE_RUNTIME;
 
+// 一个已经注册到网关的服务实例。
 message ServiceEndpoint {
+    // 服务类型。
     uint32 service_id = 1;
+    // 服务实例 id。
     uint32 instance_id = 2;
 }
 
+// 后端服务注册到网关。
 message ServerRegReq {
-    enum MsgId { None = 0; Id = 3; }
+    enum MsgId { None = 0; Id = 100; }
+
+    // 服务类型。
     uint32 service_id = 1;
+    // 服务实例 id。
     uint32 instance_id = 2;
+    // 当前负载，0 最空闲，100 视为满载。
     uint32 load_score = 3;
+    // 是否接受新的绑定。
     bool accepting_bindings = 4;
+    // 负载或健康状态说明。
     string load_message = 5;
 }
 
+// 网关返回服务注册结果。
 message ServerRegResp {
-    enum MsgId { None = 0; Id = 4; }
+    enum MsgId { None = 0; Id = 101; }
+
+    // 注册结果，0 表示成功。
     uint32 code = 1;
+    // 网关当前已知的其他服务实例。
     repeated ServiceEndpoint servers = 2;
 }
 
+// 请求网关把客户端绑定到某类服务。
 message BindServiceReq {
-    enum MsgId { None = 0; Id = 5; }
+    enum MsgId { None = 0; Id = 102; }
+
+    // 客户端 session id。
     uint32 session_id = 1;
+    // 要绑定的服务类型。
     uint32 service_id = 2;
+    // 指定实例 id；负数表示由网关自动选择。
     int32 target_instance_id = 3;
 }
 
+// 网关返回绑定结果。
 message BindServiceResp {
-    enum MsgId { None = 0; Id = 6; }
+    enum MsgId { None = 0; Id = 103; }
+
+    // 客户端 session id。
     uint32 session_id = 1;
+    // 服务类型。
     uint32 service_id = 2;
+    // 实际绑定的服务实例 id。
     uint32 instance_id = 3;
+    // 绑定结果，0 表示成功。
     uint32 code = 4;
+    // 结果说明。
     string message = 5;
 }
 
+// 请求网关解除客户端和某类服务的绑定。
 message UnbindServiceReq {
-    enum MsgId { None = 0; Id = 7; }
+    enum MsgId { None = 0; Id = 104; }
+
+    // 客户端 session id。
     uint32 session_id = 1;
+    // 要解绑的服务类型。
     uint32 service_id = 2;
 }
 
+// 网关返回解绑结果。
 message UnbindServiceResp {
-    enum MsgId { None = 0; Id = 8; }
+    enum MsgId { None = 0; Id = 105; }
+
+    // 客户端 session id。
     uint32 session_id = 1;
+    // 服务类型。
     uint32 service_id = 2;
+    // 解绑结果，0 表示成功。
     uint32 code = 3;
+    // 结果说明。
     string message = 4;
 }
 
+// 请求网关踢掉一个客户端。
 message KickSessionReq {
-    enum MsgId { None = 0; Id = 9; }
+    enum MsgId { None = 0; Id = 106; }
+
+    // 要关闭的客户端 session id。
     uint32 session_id = 1;
 }
 
+// 网关返回踢下线结果。
 message KickSessionRsp {
-    enum MsgId { None = 0; Id = 10; }
+    enum MsgId { None = 0; Id = 107; }
+
+    // 处理结果，0 表示已接受。
     uint32 code = 1;
+    // 客户端 session id。
     uint32 session_id = 2;
 }
 
+// 网关通知后端：客户端已经上线。
 message SessionOnlinePush {
-    enum MsgId { None = 0; Id = 11; }
+    enum MsgId { None = 0; Id = 108; }
+
+    // 客户端 session id。
     uint32 session_id = 1;
 }
 
+// 网关通知后端：客户端已经下线。
 message SessionOfflinePush {
-    enum MsgId { None = 0; Id = 12; }
+    enum MsgId { None = 0; Id = 109; }
+
+    // 客户端 session id。
     uint32 session_id = 1;
 }
 
+// 网关通知后端：某个服务实例上线。
 message ServerOnlinePush {
-    enum MsgId { None = 0; Id = 13; }
+    enum MsgId { None = 0; Id = 110; }
+
+    // 服务类型。
     uint32 service_id = 1;
+    // 服务实例 id。
     uint32 instance_id = 2;
 }
 
+// 网关通知后端：某个服务实例下线。
 message ServerOfflinePush {
-    enum MsgId { None = 0; Id = 14; }
+    enum MsgId { None = 0; Id = 111; }
+
+    // 服务类型。
     uint32 service_id = 1;
+    // 服务实例 id。
     uint32 instance_id = 2;
 }
 
+// 请求网关把一段内部帧转发给其他后端服务。
 message ForwardToServerReq {
-    enum MsgId { None = 0; Id = 15; }
+    enum MsgId { None = 0; Id = 112; }
+
+    // 目标服务类型。
     uint32 target_service_id = 1;
+    // 目标实例 id；负数表示由网关自动选择。
     int32 target_instance_id = 2;
+    // 要转发的内部帧。
     bytes payload = 3;
+    // 来源服务类型，由网关校准。
     uint32 source_service_id = 4;
+    // 来源服务实例 id，由网关校准。
     uint32 source_instance_id = 5;
 }
 
+// 后端上报自己的负载。
 message ServiceLoadReportPush {
-    enum MsgId { None = 0; Id = 16; }
+    enum MsgId { None = 0; Id = 113; }
+
+    // 当前负载，0 最空闲，100 视为满载。
     uint32 load_score = 1;
+    // 是否接受新的绑定。
     bool accepting_bindings = 2;
+    // 负载或健康状态说明。
     string message = 3;
 }
 
+// 网关发给后端的心跳。
 message ServerPingReq {
-    enum MsgId { None = 0; Id = 17; }
+    enum MsgId { None = 0; Id = 114; }
+
+    // 心跳随机数。
     uint64 nonce = 1;
 }
 
+// 后端回复网关的心跳。
 message ServerPongResp {
-    enum MsgId { None = 0; Id = 18; }
+    enum MsgId { None = 0; Id = 115; }
+
+    // 从 ServerPingReq 原样带回的随机数。
     uint64 nonce = 1;
 }

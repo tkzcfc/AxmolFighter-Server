@@ -121,7 +121,7 @@ namespace GatewayInternal {
 
 enum ServerRegReq_MsgId : int {
   ServerRegReq_MsgId_None = 0,
-  ServerRegReq_MsgId_Id = 3,
+  ServerRegReq_MsgId_Id = 100,
   ServerRegReq_MsgId_ServerRegReq_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   ServerRegReq_MsgId_ServerRegReq_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -142,7 +142,7 @@ bool ServerRegReq_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ServerRegReq_MsgId* value);
 enum ServerRegResp_MsgId : int {
   ServerRegResp_MsgId_None = 0,
-  ServerRegResp_MsgId_Id = 4,
+  ServerRegResp_MsgId_Id = 101,
   ServerRegResp_MsgId_ServerRegResp_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   ServerRegResp_MsgId_ServerRegResp_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -163,7 +163,7 @@ bool ServerRegResp_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ServerRegResp_MsgId* value);
 enum BindServiceReq_MsgId : int {
   BindServiceReq_MsgId_None = 0,
-  BindServiceReq_MsgId_Id = 5,
+  BindServiceReq_MsgId_Id = 102,
   BindServiceReq_MsgId_BindServiceReq_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   BindServiceReq_MsgId_BindServiceReq_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -184,7 +184,7 @@ bool BindServiceReq_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, BindServiceReq_MsgId* value);
 enum BindServiceResp_MsgId : int {
   BindServiceResp_MsgId_None = 0,
-  BindServiceResp_MsgId_Id = 6,
+  BindServiceResp_MsgId_Id = 103,
   BindServiceResp_MsgId_BindServiceResp_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   BindServiceResp_MsgId_BindServiceResp_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -205,7 +205,7 @@ bool BindServiceResp_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, BindServiceResp_MsgId* value);
 enum UnbindServiceReq_MsgId : int {
   UnbindServiceReq_MsgId_None = 0,
-  UnbindServiceReq_MsgId_Id = 7,
+  UnbindServiceReq_MsgId_Id = 104,
   UnbindServiceReq_MsgId_UnbindServiceReq_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   UnbindServiceReq_MsgId_UnbindServiceReq_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -226,7 +226,7 @@ bool UnbindServiceReq_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, UnbindServiceReq_MsgId* value);
 enum UnbindServiceResp_MsgId : int {
   UnbindServiceResp_MsgId_None = 0,
-  UnbindServiceResp_MsgId_Id = 8,
+  UnbindServiceResp_MsgId_Id = 105,
   UnbindServiceResp_MsgId_UnbindServiceResp_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   UnbindServiceResp_MsgId_UnbindServiceResp_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -247,7 +247,7 @@ bool UnbindServiceResp_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, UnbindServiceResp_MsgId* value);
 enum KickSessionReq_MsgId : int {
   KickSessionReq_MsgId_None = 0,
-  KickSessionReq_MsgId_Id = 9,
+  KickSessionReq_MsgId_Id = 106,
   KickSessionReq_MsgId_KickSessionReq_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   KickSessionReq_MsgId_KickSessionReq_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -268,7 +268,7 @@ bool KickSessionReq_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, KickSessionReq_MsgId* value);
 enum KickSessionRsp_MsgId : int {
   KickSessionRsp_MsgId_None = 0,
-  KickSessionRsp_MsgId_Id = 10,
+  KickSessionRsp_MsgId_Id = 107,
   KickSessionRsp_MsgId_KickSessionRsp_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   KickSessionRsp_MsgId_KickSessionRsp_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -289,7 +289,7 @@ bool KickSessionRsp_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, KickSessionRsp_MsgId* value);
 enum SessionOnlinePush_MsgId : int {
   SessionOnlinePush_MsgId_None = 0,
-  SessionOnlinePush_MsgId_Id = 11,
+  SessionOnlinePush_MsgId_Id = 108,
   SessionOnlinePush_MsgId_SessionOnlinePush_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   SessionOnlinePush_MsgId_SessionOnlinePush_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -310,7 +310,7 @@ bool SessionOnlinePush_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, SessionOnlinePush_MsgId* value);
 enum SessionOfflinePush_MsgId : int {
   SessionOfflinePush_MsgId_None = 0,
-  SessionOfflinePush_MsgId_Id = 12,
+  SessionOfflinePush_MsgId_Id = 109,
   SessionOfflinePush_MsgId_SessionOfflinePush_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   SessionOfflinePush_MsgId_SessionOfflinePush_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -331,7 +331,7 @@ bool SessionOfflinePush_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, SessionOfflinePush_MsgId* value);
 enum ServerOnlinePush_MsgId : int {
   ServerOnlinePush_MsgId_None = 0,
-  ServerOnlinePush_MsgId_Id = 13,
+  ServerOnlinePush_MsgId_Id = 110,
   ServerOnlinePush_MsgId_ServerOnlinePush_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   ServerOnlinePush_MsgId_ServerOnlinePush_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -352,7 +352,7 @@ bool ServerOnlinePush_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ServerOnlinePush_MsgId* value);
 enum ServerOfflinePush_MsgId : int {
   ServerOfflinePush_MsgId_None = 0,
-  ServerOfflinePush_MsgId_Id = 14,
+  ServerOfflinePush_MsgId_Id = 111,
   ServerOfflinePush_MsgId_ServerOfflinePush_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   ServerOfflinePush_MsgId_ServerOfflinePush_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -373,7 +373,7 @@ bool ServerOfflinePush_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ServerOfflinePush_MsgId* value);
 enum ForwardToServerReq_MsgId : int {
   ForwardToServerReq_MsgId_None = 0,
-  ForwardToServerReq_MsgId_Id = 15,
+  ForwardToServerReq_MsgId_Id = 112,
   ForwardToServerReq_MsgId_ForwardToServerReq_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   ForwardToServerReq_MsgId_ForwardToServerReq_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -394,7 +394,7 @@ bool ForwardToServerReq_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ForwardToServerReq_MsgId* value);
 enum ServiceLoadReportPush_MsgId : int {
   ServiceLoadReportPush_MsgId_None = 0,
-  ServiceLoadReportPush_MsgId_Id = 16,
+  ServiceLoadReportPush_MsgId_Id = 113,
   ServiceLoadReportPush_MsgId_ServiceLoadReportPush_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   ServiceLoadReportPush_MsgId_ServiceLoadReportPush_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -415,7 +415,7 @@ bool ServiceLoadReportPush_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ServiceLoadReportPush_MsgId* value);
 enum ServerPingReq_MsgId : int {
   ServerPingReq_MsgId_None = 0,
-  ServerPingReq_MsgId_Id = 17,
+  ServerPingReq_MsgId_Id = 114,
   ServerPingReq_MsgId_ServerPingReq_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   ServerPingReq_MsgId_ServerPingReq_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };
@@ -436,7 +436,7 @@ bool ServerPingReq_MsgId_Parse(
     ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ServerPingReq_MsgId* value);
 enum ServerPongResp_MsgId : int {
   ServerPongResp_MsgId_None = 0,
-  ServerPongResp_MsgId_Id = 18,
+  ServerPongResp_MsgId_Id = 115,
   ServerPongResp_MsgId_ServerPongResp_MsgId_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
   ServerPongResp_MsgId_ServerPongResp_MsgId_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
 };

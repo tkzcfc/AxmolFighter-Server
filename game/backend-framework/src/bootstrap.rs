@@ -25,7 +25,27 @@ pub struct BackendRuntime {
     shutdown: CancellationToken,
 }
 
+/// 业务层可请求后端运行时退出的轻量句柄。
+#[derive(Clone)]
+pub struct ShutdownHandle {
+    shutdown: CancellationToken,
+}
+
+impl ShutdownHandle {
+    pub fn new(shutdown: CancellationToken) -> Self {
+        Self { shutdown }
+    }
+
+    pub fn request_shutdown(&self) {
+        self.shutdown.cancel();
+    }
+}
+
 impl BackendRuntime {
+    pub fn shutdown_token(&self) -> CancellationToken {
+        self.shutdown.clone()
+    }
+
     /// 优雅关闭:先等所有 session 退出 + delegate.on_shutdown,再取消网关和分发任务。
     pub async fn shutdown(self) {
         self.session.shutdown().await;
@@ -37,11 +57,11 @@ impl BackendRuntime {
 
 pub fn spawn_backend<F>(config: BackendConfig, delegate_factory: F) -> BackendRuntime
 where
-    F: FnOnce(Arc<BackendSession>) -> Arc<dyn BackendDelegate>,
+    F: FnOnce(Arc<BackendSession>, ShutdownHandle) -> Arc<dyn BackendDelegate>,
 {
     let shutdown = CancellationToken::new();
     let session = BackendSession::new(config.service_id, config.instance_id);
-    let delegate = delegate_factory(session.clone());
+    let delegate = delegate_factory(session.clone(), ShutdownHandle::new(shutdown.clone()));
     session.set_delegate(delegate);
 
     // 服务间消息分发(对标 net_session::run)

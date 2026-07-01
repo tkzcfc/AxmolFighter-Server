@@ -1,22 +1,41 @@
 syntax = "proto3";
 
+// 客户端和网关之间的协议。
+// 客户端用 CMD_BUSINESS 发请求，网关用 CMD_GATEWAY_NOTICE 下发通知。
+// 客户端和网关之间的网关消息统一使用 CMD_GATEWAY_MESSAGE。
 package PB.GatewayClient;
 
 option optimize_for = LITE_RUNTIME;
 
+// 客户端请求当前可见的服务器状态。
+message ServerStatusReq {
+    enum MsgId { None = 0; Id = 1; }
+}
+
+// 一个服务实例的在线状态。
 message ServiceStatus {
+    // 服务类型，比如 game、battle、town。
     uint32 service_id = 1;
+    // 服务实例 id。
     uint32 instance_id = 2;
+    // 是否在线。
     bool online = 3;
 }
 
+// 网关下发服务器状态。
 message ServerStatusPush {
-    enum MsgId { None = 0; Id = 1; }
+    enum MsgId { None = 0; Id = 2; }
+
+    // 本次下发的服务状态列表。
     repeated ServiceStatus services = 1;
 }
 
+// 网关返回给客户端的错误。
 message GatewayErrorResp {
-    enum MsgId { None = 0; Id = 2; }
+    enum MsgId { None = 0; Id = 3; }
+
+    // 错误码。
     uint32 code = 1;
+    // 错误说明。
     string message = 2;
 }

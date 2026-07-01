@@ -110,6 +110,22 @@ public:
         (void)source;
         (void)frame;
     }
+    virtual void onServerOnline(BackendClient& client,
+                                std::uint32_t serviceId,
+                                std::uint32_t instanceId)
+    {
+        (void)client;
+        (void)serviceId;
+        (void)instanceId;
+    }
+    virtual void onServerOffline(BackendClient& client,
+                                 std::uint32_t serviceId,
+                                 std::uint32_t instanceId)
+    {
+        (void)client;
+        (void)serviceId;
+        (void)instanceId;
+    }
     virtual void onShutdown(BackendClient& client) { (void)client; }
 };
 

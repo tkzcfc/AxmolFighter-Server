@@ -21,17 +21,6 @@ std::string stripQuotes(const std::string& s)
     return s;
 }
 
-bool parseBool(const std::string& s, bool defaultValue)
-{
-    const auto value = stripQuotes(trim(s));
-    if (value == "true")
-        return true;
-    if (value == "false")
-        return false;
-
-    spdlog::warn("Invalid bool value '{}', using default {}", value, defaultValue);
-    return defaultValue;
-}
 }
 
 BattleServerConfig loadBattleServerConfig(const std::string& path)
@@ -77,9 +66,6 @@ BattleServerConfig loadBattleServerConfig(const std::string& path)
                 config.maxSessions = static_cast<std::uint32_t>(std::stoul(value));
             else if (key == "load_report_interval")
                 config.loadReportInterval = std::stof(value);
-            else if (key == "restart_on_gateway_disconnect")
-                config.restartOnGatewayDisconnect =
-                    parseBool(value, config.restartOnGatewayDisconnect);
         }
         else if (section == "gateway")
         {
