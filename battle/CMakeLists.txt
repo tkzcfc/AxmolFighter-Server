@@ -93,6 +93,7 @@ file(GLOB_RECURSE BATTLE_SOURCES CONFIGURE_DEPENDS
 add_executable(${PROJECT_NAME} ${BATTLE_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/protocol"
     "${YASIO_DIR}"
     "${CLIENT_SOURCE_DIR}"
     "${CLIENT_SOURCE_DIR}/net"
@@ -100,7 +101,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 target_sources(${PROJECT_NAME} PRIVATE
     "${CLIENT_SOURCE_DIR}/net/game.pb.cc"
-    "${CLIENT_SOURCE_DIR}/net/gateway.pb.cc"
+    "${CLIENT_SOURCE_DIR}/net/gateway_client.pb.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/gateway_internal.pb.cc"
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
     yasio

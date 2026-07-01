@@ -1,9 +1,9 @@
 use std::net::SocketAddr;
 
-use ::protocol::gateway::{
-    GatewayErrorResp, ServerStatusPush, ServiceStatus as GatewayServiceStatus, SessionOfflinePush,
-    SessionOnlinePush,
+use ::protocol::gateway_client::{
+    GatewayErrorResp, ServerStatusPush, ServiceStatus as GatewayServiceStatus,
 };
+use ::protocol::gateway_internal::{SessionOfflinePush, SessionOnlinePush};
 use ::protocol::message_map::{MessageType, encode_message};
 use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
@@ -14,7 +14,9 @@ use base::net::{WriterMessage, session_delegate::SessionDelegate};
 
 use crate::codec::{encode_backend_frame, encode_client_frame, try_extract_client_frame};
 use crate::context::GatewayContext;
-use crate::frame_cmd::{CMD_BUSINESS, CMD_GATEWAY_CONTROL};
+use crate::frame_cmd::{
+    BACKEND_CMD_BUSINESS, BACKEND_CMD_CONTROL, CMD_BUSINESS, CMD_GATEWAY_NOTICE,
+};
 use crate::router::RouteTarget;
 
 // 客户端不能直接发网关控制帧。
@@ -80,9 +82,9 @@ impl ClientDelegate {
                 message: message.to_string(),
             };
             let (gateway_msg_id, payload) =
-                encode_message(&MessageType::GatewayGatewayErrorResp(resp)).unwrap();
+                encode_message(&MessageType::GatewayClientGatewayErrorResp(resp)).unwrap();
             let data = encode_client_frame(
-                CMD_GATEWAY_CONTROL,
+                CMD_GATEWAY_NOTICE,
                 gateway_msg_id as u16,
                 -serial,
                 &payload,
@@ -107,16 +109,16 @@ impl SessionDelegate for ClientDelegate {
         debug!("client session {} connected", session_id);
 
         // 通知后端：这个客户端已经上线。
-        let notify = MessageType::GatewaySessionOnlinePush(SessionOnlinePush { session_id });
+        let notify = MessageType::GatewayInternalSessionOnlinePush(SessionOnlinePush { session_id });
         let (msg_id, payload) = encode_message(&notify).unwrap();
         let data =
-            encode_backend_frame(CMD_GATEWAY_CONTROL, msg_id as u16, 0, session_id, &payload);
+            encode_backend_frame(BACKEND_CMD_CONTROL, msg_id as u16, 0, session_id, &payload);
         self.ctx.registry.broadcast(data);
 
-        let status = MessageType::GatewayServerStatusPush(self.build_status());
+        let status = MessageType::GatewayClientServerStatusPush(self.build_status());
         let (status_msg_id, status_payload) = encode_message(&status).unwrap();
         let status_frame = encode_client_frame(
-            CMD_GATEWAY_CONTROL,
+            CMD_GATEWAY_NOTICE,
             status_msg_id as u16,
             0,
             &status_payload,
@@ -133,12 +135,12 @@ impl SessionDelegate for ClientDelegate {
         self.ctx.router.cleanup_session(self.session_id);
 
         // 下线时清理绑定，并同步通知所有后端。
-        let notify = MessageType::GatewaySessionOfflinePush(SessionOfflinePush {
+        let notify = MessageType::GatewayInternalSessionOfflinePush(SessionOfflinePush {
             session_id: self.session_id,
         });
         let (msg_id, payload) = encode_message(&notify).unwrap();
         let data = encode_backend_frame(
-            CMD_GATEWAY_CONTROL,
+            BACKEND_CMD_CONTROL,
             msg_id as u16,
             0,
             self.session_id,
@@ -195,7 +197,7 @@ impl SessionDelegate for ClientDelegate {
                 // 不要求绑定的消息，转给任意一个同类服务。
                 if let Some(tx) = self.ctx.registry.find_by_service(service_id) {
                     let data = encode_backend_frame(
-                        CMD_BUSINESS,
+                        BACKEND_CMD_BUSINESS,
                         msg_id,
                         serial,
                         self.session_id,
@@ -222,7 +224,7 @@ impl SessionDelegate for ClientDelegate {
                 // 要求绑定的消息，只能发到已经确认过的实例。
                 if let Some(tx) = self.ctx.registry.find_by_instance(service_id, instance_id) {
                     let data = encode_backend_frame(
-                        CMD_BUSINESS,
+                        BACKEND_CMD_BUSINESS,
                         msg_id,
                         serial,
                         self.session_id,

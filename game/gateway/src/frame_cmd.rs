@@ -1,4 +1,5 @@
-// 普通业务消息，msg_id 对应业务协议。
 pub const CMD_BUSINESS: u8 = 1;
-// 网关控制消息，由 msg_id 区分具体协议。
-pub const CMD_GATEWAY_CONTROL: u8 = 2;
+pub const CMD_GATEWAY_NOTICE: u8 = 2;
+
+pub const BACKEND_CMD_BUSINESS: u8 = 101;
+pub const BACKEND_CMD_CONTROL: u8 = 102;

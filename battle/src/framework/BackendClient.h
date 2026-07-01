@@ -4,7 +4,8 @@
 #include "framework/RpcManager.h"
 
 #include "game.pb.h"
-#include "gateway.pb.h"
+#include "gateway_client.pb.h"
+#include "gateway_internal.pb.h"
 #include "yasio/yasio.hpp"
 
 #include <chrono>
@@ -135,7 +136,7 @@ public:
     template <typename PbMessage>
     bool sendToClient(std::uint32_t sessionId, std::int32_t serial, const PbMessage& message)
     {
-        return sendMessage(kCmdBusiness, sessionId, serial, message);
+        return sendMessage(kBackendCmdBusiness, sessionId, serial, message);
     }
 
     template <typename PbMessage>
@@ -150,7 +151,7 @@ public:
                                 float timeoutSeconds = kDefaultRpcTimeoutSeconds)
     {
         return requestFrame<PbRequest, PbResponse>(
-            kCmdGatewayControl, 0, message, std::move(callback), timeoutSeconds);
+            kBackendCmdControl, 0, message, std::move(callback), timeoutSeconds);
     }
 
     template <typename PbRequest, typename PbResponse>
@@ -235,9 +236,9 @@ private:
             if (frame->msgId != PbResponse::Id)
             {
                 std::string message = "unexpected rpc response msg_id=" + std::to_string(frame->msgId);
-                if (frame->msgId == PB::Gateway::GatewayErrorResp::Id)
+                if (frame->msgId == PB::GatewayClient::GatewayErrorResp::Id)
                 {
-                    PB::Gateway::GatewayErrorResp gatewayError;
+                    PB::GatewayClient::GatewayErrorResp gatewayError;
                     if (parsePayload(gatewayError, frame->payload))
                     {
                         message = "gateway error " + std::to_string(gatewayError.code()) +
@@ -320,7 +321,7 @@ private:
     void onGatewayFrame(const BackendFrame& frame);
     void handleControlFrame(const BackendFrame& frame);
     void handleBusinessFrame(const BackendFrame& frame);
-    void routeForwardToServer(const PB::Gateway::ForwardToServerReq& req);
+    void routeForwardToServer(const PB::GatewayInternal::ForwardToServerReq& req);
     void spawnSession(std::uint32_t sessionId);
     void stopSession(std::uint32_t sessionId);
     void stopAllSessions();

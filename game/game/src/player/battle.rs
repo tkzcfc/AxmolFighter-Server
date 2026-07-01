@@ -1,5 +1,5 @@
 use protocol::game::*;
-use protocol::gateway::BindServiceReq;
+use protocol::gateway_internal::BindServiceReq;
 use protocol::message_map::MessageType;
 use tracing::warn;
 
@@ -74,14 +74,14 @@ impl PlayerSessionDelegate {
 
         let bind_resp = match self
             .shared
-            .request_gateway(MessageType::GatewayBindServiceReq(BindServiceReq {
+            .request_gateway(MessageType::GatewayInternalBindServiceReq(BindServiceReq {
                 session_id: self.session_id,
                 service_id: SERVICE_ID_BATTLE,
                 target_instance_id: create_resp.battle_instance_id as i32,
             }))
             .await
         {
-            Ok(MessageType::GatewayBindServiceResp(resp)) => resp,
+            Ok(MessageType::GatewayInternalBindServiceResp(resp)) => resp,
             Ok(_) => {
                 warn!("unexpected bind service response type");
                 return Self::battle_join_error(-1, "invalid bind service response");

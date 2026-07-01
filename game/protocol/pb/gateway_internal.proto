@@ -1,68 +1,41 @@
 syntax = "proto3";
 
-package PB.Gateway;
+package PB.GatewayInternal;
 
 option optimize_for = LITE_RUNTIME;
-
-// 后端服务在线状态。
-message ServiceStatus {
-    uint32 service_id = 1;
-    uint32 instance_id = 2;
-    bool online = 3;
-}
-
-// 当前可见的后端服务列表。
-message ServerStatusPush {
-    enum MsgId { None = 0; Id = 1; }
-    repeated ServiceStatus services = 1;
-}
-
-// 网关给客户端的错误响应。
-message GatewayErrorResp {
-    enum MsgId { None = 0; Id = 2; }
-    uint32 code = 1;
-    string message = 2;
-}
 
 message ServiceEndpoint {
     uint32 service_id = 1;
     uint32 instance_id = 2;
 }
 
-// 后端连上网关后的注册消息。
 message ServerRegReq {
     enum MsgId { None = 0; Id = 3; }
     uint32 service_id = 1;
     uint32 instance_id = 2;
-    // 注册时带上初始负载，避免首次选择缺数据。
     uint32 load_score = 3;
     bool accepting_bindings = 4;
     string load_message = 5;
 }
 
-// 网关返回注册结果。
 message ServerRegResp {
     enum MsgId { None = 0; Id = 4; }
     uint32 code = 1;
     repeated ServiceEndpoint servers = 2;
 }
 
-// 把客户端会话绑定到某类后端服务。
 message BindServiceReq {
     enum MsgId { None = 0; Id = 5; }
     uint32 session_id = 1;
     uint32 service_id = 2;
-    // 小于 0 时由网关选择最低负载实例。
     int32 target_instance_id = 3;
 }
 
-// 网关返回服务绑定结果。
 message BindServiceResp {
     enum MsgId { None = 0; Id = 6; }
     uint32 session_id = 1;
     uint32 service_id = 2;
     uint32 instance_id = 3;
-    // 0=OK,1=NO_AVAILABLE_SERVICE,2=TARGET_SERVICE_UNREACHABLE。
     uint32 code = 4;
     string message = 5;
 }
@@ -77,7 +50,6 @@ message UnbindServiceResp {
     enum MsgId { None = 0; Id = 8; }
     uint32 session_id = 1;
     uint32 service_id = 2;
-    // 0=OK.
     uint32 code = 3;
     string message = 4;
 }
@@ -115,36 +87,27 @@ message ServerOfflinePush {
     uint32 instance_id = 2;
 }
 
-// 后端服务之间转发完整后端帧。
 message ForwardToServerReq {
     enum MsgId { None = 0; Id = 15; }
     uint32 target_service_id = 1;
-    // 小于 0 时由网关选择最低负载实例。
     int32 target_instance_id = 2;
-    // 完整后端帧数据。
     bytes payload = 3;
-    // 来源由网关根据连接注册信息覆盖。
     uint32 source_service_id = 4;
     uint32 source_instance_id = 5;
 }
 
-// 后端定期上报自己的负载。
 message ServiceLoadReportPush {
     enum MsgId { None = 0; Id = 16; }
-    // 0 最空闲，100 视为满载。
     uint32 load_score = 1;
-    // 是否接收绑定
     bool accepting_bindings = 2;
     string message = 3;
 }
 
-// 网关定时发给后端服务的心跳请求。
 message ServerPingReq {
     enum MsgId { None = 0; Id = 17; }
     uint64 nonce = 1;
 }
 
-// 后端服务回复网关心跳，nonce 必须原样返回。
 message ServerPongResp {
     enum MsgId { None = 0; Id = 18; }
     uint64 nonce = 1;

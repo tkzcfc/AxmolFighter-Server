@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, OnceLock, Weak};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use protocol::gateway::KickSessionReq;
+use protocol::gateway_internal::KickSessionReq;
 use protocol::message_map::MessageType;
 use sqlx::PgPool;
 use tracing::{debug, info, warn};
@@ -113,12 +113,12 @@ impl GameShared {
             // 先向旧客户端发送被踢下线的 Push 通知（原因：在其他地方登录）
             let push_msg = MessageType::GameAccountKickedPush(protocol::game::AccountKickedPush {
                 reason: 1,
-                message: "您的账号在其他地方登录，您已被强制下线。".to_string(),
+                message: "Your account logged in elsewhere.".to_string(),
             });
             self.send_msg(&push_msg, 0, old_session_id);
 
             // 再通知网关踢掉旧会话
-            let msg = MessageType::GatewayKickSessionReq(KickSessionReq {
+            let msg = MessageType::GatewayInternalKickSessionReq(KickSessionReq {
                 session_id: old_session_id,
             });
             if let Err(err) = self.session.send_control_msg(&msg, 0) {

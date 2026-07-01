@@ -2,12 +2,12 @@ use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
 use base::net::WriterMessage;
-use protocol::gateway::{BindServiceReq, BindServiceResp};
+use protocol::gateway_internal::{BindServiceReq, BindServiceResp};
 use protocol::message_map::{MessageType, encode_message};
 
 use crate::codec::encode_backend_frame;
 use crate::context::GatewayContext;
-use crate::frame_cmd::CMD_GATEWAY_CONTROL;
+use crate::frame_cmd::BACKEND_CMD_CONTROL;
 
 const BIND_OK: u32 = 0;
 // 没有可用服务实例。
@@ -116,9 +116,10 @@ impl BindManager {
             message: message.to_string(),
         };
         let response_serial = if serial < 0 { -serial } else { serial };
-        let (msg_id, payload) = encode_message(&MessageType::GatewayBindServiceResp(resp)).unwrap();
+        let (msg_id, payload) =
+            encode_message(&MessageType::GatewayInternalBindServiceResp(resp)).unwrap();
         let data = encode_backend_frame(
-            CMD_GATEWAY_CONTROL,
+            BACKEND_CMD_CONTROL,
             msg_id as u16,
             response_serial,
             req.session_id,
@@ -132,7 +133,7 @@ impl BindManager {
 mod tests {
     use super::*;
     use bytes::{Bytes, BytesMut};
-    use protocol::gateway::BindServiceReq;
+    use protocol::gateway_internal::BindServiceReq;
 
     use crate::codec::try_extract_backend_frame;
     use crate::config::{GatewayConfig, GatewaySection};

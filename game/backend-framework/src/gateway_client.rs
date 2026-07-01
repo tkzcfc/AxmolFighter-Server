@@ -1,8 +1,8 @@
-use std::sync::Arc;
+﻿use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::{Bytes, BytesMut};
-use protocol::gateway::ServerRegReq;
+use protocol::gateway_internal::ServerRegReq;
 use protocol::message_map::{MessageType, decode_message, encode_message};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -13,7 +13,7 @@ use tracing::{debug, error, info, warn};
 
 use crate::codec::{BackendFrame, encode_frame, try_extract_frame};
 use crate::handler::MessageHandler;
-use crate::wire::{CMD_BUSINESS, CMD_GATEWAY_CONTROL};
+use crate::wire::{BACKEND_CMD_BUSINESS, BACKEND_CMD_CONTROL};
 
 const REGISTER_SERIAL: i32 = -1;
 const REGISTER_TIMEOUT: Duration = Duration::from_secs(5);
@@ -164,7 +164,7 @@ impl GatewayClient {
 
     /// 向网关注册，返回残留的未完成字节缓冲（注册成功后立即退出，后续帧仍在 buf 中）。
     async fn register_stream(&self, stream: &mut TcpStream) -> anyhow::Result<BytesMut> {
-        let reg_msg = MessageType::GatewayServerRegReq(ServerRegReq {
+        let reg_msg = MessageType::GatewayInternalServerRegReq(ServerRegReq {
             service_id: self.service_id,
             instance_id: self.instance_id,
             load_score: 0,
@@ -175,7 +175,7 @@ impl GatewayClient {
             .ok_or_else(|| anyhow::anyhow!("failed to encode register message"))?;
         let reg_msg_id = reg_msg_id as u16;
         let reg_frame = encode_frame(
-            CMD_GATEWAY_CONTROL,
+            BACKEND_CMD_CONTROL,
             reg_msg_id,
             REGISTER_SERIAL,
             0,
@@ -197,13 +197,13 @@ impl GatewayClient {
                 }
 
                 while let Some(frame) = try_extract_frame(&mut buf)? {
-                    if frame.cmd != CMD_GATEWAY_CONTROL {
+                    if frame.cmd != BACKEND_CMD_CONTROL {
                         warn!("ignored frame before registration cmd={}", frame.cmd);
                         continue;
                     }
 
                     match decode_message(frame.msg_id as u32, &frame.payload)? {
-                        MessageType::GatewayServerRegResp(resp) => {
+                        MessageType::GatewayInternalServerRegResp(resp) => {
                             if resp.code == 0 {
                                 return Ok(());
                             }
@@ -229,8 +229,8 @@ impl GatewayClient {
         handler: &Arc<dyn MessageHandler>,
     ) {
         match frame.cmd {
-            CMD_GATEWAY_CONTROL => handler.on_gateway_control_frame(frame),
-            CMD_BUSINESS => handler.on_business_frame(frame),
+            BACKEND_CMD_CONTROL => handler.on_gateway_control_frame(frame),
+            BACKEND_CMD_BUSINESS => handler.on_business_frame(frame),
             _ => {
                 debug!("unhandled gateway cmd={}", frame.cmd);
             }

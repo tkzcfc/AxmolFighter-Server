@@ -1,4 +1,4 @@
-#include "framework/BackendClient.h"
+﻿#include "framework/BackendClient.h"
 
 #include "framework/Logger.h"
 #include <spdlog/spdlog.h>
@@ -85,37 +85,37 @@ bool BackendClient::bindService(std::uint32_t sessionId,
                                 std::uint32_t serviceId,
                                 std::int32_t targetInstanceId)
 {
-    PB::Gateway::BindServiceReq req;
+    PB::GatewayInternal::BindServiceReq req;
     req.set_session_id(sessionId);
     req.set_service_id(serviceId);
     req.set_target_instance_id(targetInstanceId);
-    return sendMessage(kCmdGatewayControl, 0, 0, req);
+    return sendMessage(kBackendCmdControl, 0, 0, req);
 }
 
 bool BackendClient::unbindService(std::uint32_t sessionId, std::uint32_t serviceId)
 {
-    PB::Gateway::UnbindServiceReq req;
+    PB::GatewayInternal::UnbindServiceReq req;
     req.set_session_id(sessionId);
     req.set_service_id(serviceId);
-    return sendMessage(kCmdGatewayControl, 0, 0, req);
+    return sendMessage(kBackendCmdControl, 0, 0, req);
 }
 
 bool BackendClient::kickSession(std::uint32_t sessionId)
 {
-    PB::Gateway::KickSessionReq req;
+    PB::GatewayInternal::KickSessionReq req;
     req.set_session_id(sessionId);
-    return sendMessage(kCmdGatewayControl, 0, 0, req);
+    return sendMessage(kBackendCmdControl, 0, 0, req);
 }
 
 bool BackendClient::reportLoad(std::uint32_t loadScore,
                                bool acceptingBindings,
                                const std::string& message)
 {
-    PB::Gateway::ServiceLoadReportPush push;
+    PB::GatewayInternal::ServiceLoadReportPush push;
     push.set_load_score(loadScore > 100 ? 100 : loadScore);
     push.set_accepting_bindings(acceptingBindings);
     push.set_message(message);
-    return sendMessage(kCmdGatewayControl, 0, 0, push);
+    return sendMessage(kBackendCmdControl, 0, 0, push);
 }
 
 std::int32_t BackendClient::requestServerPayload(ServerSource target,
@@ -142,9 +142,9 @@ bool BackendClient::sendServerPayload(ServerSource target,
                                       const char* payload,
                                       std::size_t payloadLen)
 {
-    auto inner = encodeBackendFrame(kCmdBusiness, msgId, serial, sessionId, payload, payloadLen);
+    auto inner = encodeBackendFrame(kBackendCmdBusiness, msgId, serial, sessionId, payload, payloadLen);
 
-    PB::Gateway::ForwardToServerReq req;
+    PB::GatewayInternal::ForwardToServerReq req;
     req.set_target_service_id(target.serviceId);
     req.set_target_instance_id(target.instanceId);
     req.set_payload(inner.data(), inner.size());
@@ -155,8 +155,8 @@ bool BackendClient::sendServerPayload(ServerSource target,
     if (!req.SerializeToString(&forwardPayload))
         return false;
 
-    return sendFrame(kCmdGatewayControl,
-                     static_cast<std::uint16_t>(PB::Gateway::ForwardToServerReq::Id),
+    return sendFrame(kBackendCmdControl,
+                     static_cast<std::uint16_t>(PB::GatewayInternal::ForwardToServerReq::Id),
                      serial,
                      0,
                      forwardPayload.data(),
@@ -240,7 +240,7 @@ void BackendClient::processFrame(const BackendFrame& frame)
 {
     if (m_state != State::Registered)
     {
-        if (frame.cmd != kCmdGatewayControl || frame.msgId != PB::Gateway::ServerRegResp::Id)
+        if (frame.cmd != kBackendCmdControl || frame.msgId != PB::GatewayInternal::ServerRegResp::Id)
         {
             spdlog::warn("BackendClient ignored pre-registration frame cmd={} msg_id={}",
                          frame.cmd,
@@ -248,7 +248,7 @@ void BackendClient::processFrame(const BackendFrame& frame)
             return;
         }
 
-        PB::Gateway::ServerRegResp resp;
+        PB::GatewayInternal::ServerRegResp resp;
         if (!parsePayload(resp, frame.payload))
         {
             spdlog::error("BackendClient failed to decode ServerRegResp");
@@ -280,7 +280,7 @@ void BackendClient::processFrame(const BackendFrame& frame)
 
 void BackendClient::sendRegisterReq()
 {
-    PB::Gateway::ServerRegReq req;
+    PB::GatewayInternal::ServerRegReq req;
     req.set_service_id(m_config.serviceId);
     req.set_instance_id(m_config.instanceId);
     req.set_load_score(m_config.initialLoadScore > 100 ? 100 : m_config.initialLoadScore);
@@ -294,8 +294,8 @@ void BackendClient::sendRegisterReq()
         return;
     }
 
-    sendFrame(kCmdGatewayControl,
-              static_cast<std::uint16_t>(PB::Gateway::ServerRegReq::Id),
+    sendFrame(kBackendCmdControl,
+              static_cast<std::uint16_t>(PB::GatewayInternal::ServerRegReq::Id),
               kRegisterSerial,
               0,
               payload.data(),
@@ -342,10 +342,10 @@ void BackendClient::onGatewayFrame(const BackendFrame& frame)
 {
     switch (frame.cmd)
     {
-    case kCmdGatewayControl:
+    case kBackendCmdControl:
         handleControlFrame(frame);
         break;
-    case kCmdBusiness:
+    case kBackendCmdBusiness:
         handleBusinessFrame(frame);
         break;
     default:
@@ -359,25 +359,25 @@ void BackendClient::handleControlFrame(const BackendFrame& frame)
     if (frame.serial > 0 && m_rpc.resolve(frame))
         return;
 
-    if (frame.msgId == PB::Gateway::SessionOnlinePush::Id)
+    if (frame.msgId == PB::GatewayInternal::SessionOnlinePush::Id)
     {
-        PB::Gateway::SessionOnlinePush push;
+        PB::GatewayInternal::SessionOnlinePush push;
         if (parsePayload(push, frame.payload))
             spawnSession(push.session_id());
         return;
     }
 
-    if (frame.msgId == PB::Gateway::SessionOfflinePush::Id)
+    if (frame.msgId == PB::GatewayInternal::SessionOfflinePush::Id)
     {
-        PB::Gateway::SessionOfflinePush push;
+        PB::GatewayInternal::SessionOfflinePush push;
         if (parsePayload(push, frame.payload))
             stopSession(push.session_id());
         return;
     }
 
-    if (frame.msgId == PB::Gateway::ForwardToServerReq::Id)
+    if (frame.msgId == PB::GatewayInternal::ForwardToServerReq::Id)
     {
-        PB::Gateway::ForwardToServerReq req;
+        PB::GatewayInternal::ForwardToServerReq req;
         if (parsePayload(req, frame.payload))
             routeForwardToServer(req);
         else
@@ -385,25 +385,25 @@ void BackendClient::handleControlFrame(const BackendFrame& frame)
         return;
     }
 
-    if (frame.msgId == PB::Gateway::ServerPingReq::Id)
+    if (frame.msgId == PB::GatewayInternal::ServerPingReq::Id)
     {
-        PB::Gateway::ServerPingReq ping;
+        PB::GatewayInternal::ServerPingReq ping;
         if (!parsePayload(ping, frame.payload))
         {
             spdlog::warn("Failed to decode ServerPingReq");
             return;
         }
 
-        PB::Gateway::ServerPongResp pong;
+        PB::GatewayInternal::ServerPongResp pong;
         pong.set_nonce(ping.nonce());
-        if (!sendMessage(kCmdGatewayControl, frame.sessionId, 0, pong))
+        if (!sendMessage(kBackendCmdControl, frame.sessionId, 0, pong))
             spdlog::warn("Gateway heartbeat pong failed nonce={}", ping.nonce());
         return;
     }
 
-    if (frame.msgId == PB::Gateway::ServerOnlinePush::Id)
+    if (frame.msgId == PB::GatewayInternal::ServerOnlinePush::Id)
     {
-        PB::Gateway::ServerOnlinePush push;
+        PB::GatewayInternal::ServerOnlinePush push;
         if (parsePayload(push, frame.payload))
             spdlog::info("Backend service online service_id={} instance_id={}",
                          push.service_id(),
@@ -411,9 +411,9 @@ void BackendClient::handleControlFrame(const BackendFrame& frame)
         return;
     }
 
-    if (frame.msgId == PB::Gateway::ServerOfflinePush::Id)
+    if (frame.msgId == PB::GatewayInternal::ServerOfflinePush::Id)
     {
-        PB::Gateway::ServerOfflinePush push;
+        PB::GatewayInternal::ServerOfflinePush push;
         if (parsePayload(push, frame.payload))
             spdlog::info("Backend service offline service_id={} instance_id={}",
                          push.service_id(),
@@ -437,7 +437,7 @@ void BackendClient::handleBusinessFrame(const BackendFrame& frame)
             auto response = commonError("unknown session");
             if (response)
             {
-                sendFrame(kCmdBusiness,
+                sendFrame(kBackendCmdBusiness,
                           response->msgId,
                           -frame.serial,
                           frame.sessionId,
@@ -451,7 +451,7 @@ void BackendClient::handleBusinessFrame(const BackendFrame& frame)
     processClientFrame(frame);
 }
 
-void BackendClient::routeForwardToServer(const PB::Gateway::ForwardToServerReq& req)
+void BackendClient::routeForwardToServer(const PB::GatewayInternal::ForwardToServerReq& req)
 {
     BackendFrame inner;
     std::string error;
@@ -516,7 +516,7 @@ void BackendClient::processClientFrame(const BackendFrame& frame)
             auto response = commonError("no backend delegate");
             if (response)
             {
-                sendFrame(kCmdBusiness,
+                sendFrame(kBackendCmdBusiness,
                           response->msgId,
                           -frame.serial,
                           frame.sessionId,
@@ -543,7 +543,7 @@ void BackendClient::processClientFrame(const BackendFrame& frame)
         return;
     }
 
-    sendFrame(kCmdBusiness,
+    sendFrame(kBackendCmdBusiness,
               response->msgId,
               -frame.serial,
               frame.sessionId,

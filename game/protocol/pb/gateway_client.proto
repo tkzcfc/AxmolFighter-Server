@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package PB.GatewayClient;
+
+option optimize_for = LITE_RUNTIME;
+
+message ServiceStatus {
+    uint32 service_id = 1;
+    uint32 instance_id = 2;
+    bool online = 3;
+}
+
+message ServerStatusPush {
+    enum MsgId { None = 0; Id = 1; }
+    repeated ServiceStatus services = 1;
+}
+
+message GatewayErrorResp {
+    enum MsgId { None = 0; Id = 2; }
+    uint32 code = 1;
+    string message = 2;
+}

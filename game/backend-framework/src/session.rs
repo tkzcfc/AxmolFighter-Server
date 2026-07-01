@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use bytes::BytesMut;
 use dashmap::DashMap;
-use protocol::gateway::{ForwardToServerReq, ServerPongResp};
+use protocol::gateway_internal::{ForwardToServerReq, ServerPongResp};
 use protocol::message_map::{MessageType, decode_message, encode_message};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
@@ -17,7 +17,7 @@ use crate::handler::MessageHandler;
 use crate::rpc::{PendingResponse, RpcError, RpcManager};
 use crate::server_source::ServerSource;
 use crate::session_delegate::SessionDelegate;
-use crate::wire::{CMD_BUSINESS, CMD_GATEWAY_CONTROL};
+use crate::wire::{BACKEND_CMD_BUSINESS, BACKEND_CMD_CONTROL};
 
 const SESSION_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(15);
 const CLIENT_MAILBOX_SIZE: usize = 256;
@@ -308,13 +308,13 @@ impl BackendSession {
     }
 
     pub fn send_msg(&self, msg: &MessageType, serial: i32, session_id: u32) {
-        if let Err(err) = self.try_send_frame_msg(CMD_BUSINESS, msg, serial, session_id) {
+        if let Err(err) = self.try_send_frame_msg(BACKEND_CMD_BUSINESS, msg, serial, session_id) {
             warn!("failed to send business message: {}", err);
         }
     }
 
     pub fn send_control_msg(&self, msg: &MessageType, serial: i32) -> anyhow::Result<()> {
-        self.try_send_frame_msg(CMD_GATEWAY_CONTROL, msg, serial, 0)
+        self.try_send_frame_msg(BACKEND_CMD_CONTROL, msg, serial, 0)
     }
 
     pub async fn request_gateway_timeout(
@@ -325,7 +325,7 @@ impl BackendSession {
         let request_id = self.rpc.next_request_id();
         let (tx, rx) = oneshot::channel::<PendingResponse>();
         self.rpc.insert_pending(request_id, tx);
-        if let Err(err) = self.try_send_frame_msg(CMD_GATEWAY_CONTROL, &msg, -request_id, 0) {
+        if let Err(err) = self.try_send_frame_msg(BACKEND_CMD_CONTROL, &msg, -request_id, 0) {
             self.rpc.remove_pending(request_id);
             return Err(RpcError::Send(err.to_string()));
         }
@@ -371,15 +371,15 @@ impl BackendSession {
     ) -> anyhow::Result<()> {
         let (msg_id, payload) =
             encode_message(msg).ok_or_else(|| anyhow::anyhow!("failed to encode inner message"))?;
-        let frame = encode_frame(CMD_BUSINESS, msg_id as u16, serial, 0, &payload);
-        let forward = MessageType::GatewayForwardToServerReq(ForwardToServerReq {
+        let frame = encode_frame(BACKEND_CMD_BUSINESS, msg_id as u16, serial, 0, &payload);
+        let forward = MessageType::GatewayInternalForwardToServerReq(ForwardToServerReq {
             target_service_id: target.service_id,
             target_instance_id: target.instance_id,
             payload: frame.to_vec(),
             source_service_id: self.service_id,
             source_instance_id: self.instance_id,
         });
-        self.try_send_frame_msg(CMD_GATEWAY_CONTROL, &forward, serial, 0)
+        self.try_send_frame_msg(BACKEND_CMD_CONTROL, &forward, serial, 0)
     }
 
     // ── 控制帧处理(读循环内联,同步) ────────────────────────
@@ -410,31 +410,31 @@ impl BackendSession {
         };
 
         match msg {
-            MessageType::GatewaySessionOnlinePush(push) => {
+            MessageType::GatewayInternalSessionOnlinePush(push) => {
                 self.spawn_session(push.session_id);
             }
-            MessageType::GatewaySessionOfflinePush(push) => {
+            MessageType::GatewayInternalSessionOfflinePush(push) => {
                 self.stop_session(push.session_id);
             }
-            MessageType::GatewayServerOnlinePush(push) => {
+            MessageType::GatewayInternalServerOnlinePush(push) => {
                 debug!(
                     "server online: type={} instance={}",
                     push.service_id, push.instance_id
                 );
             }
-            MessageType::GatewayServerOfflinePush(push) => {
+            MessageType::GatewayInternalServerOfflinePush(push) => {
                 debug!(
                     "server offline: type={} instance={}",
                     push.service_id, push.instance_id
                 );
             }
-            MessageType::GatewayForwardToServerReq(req) => {
+            MessageType::GatewayInternalForwardToServerReq(req) => {
                 self.route_forwarded_frame(req);
             }
-            MessageType::GatewayServerPingReq(ping) => {
-                let msg = MessageType::GatewayServerPongResp(ServerPongResp { nonce: ping.nonce });
+            MessageType::GatewayInternalServerPingReq(ping) => {
+                let msg = MessageType::GatewayInternalServerPongResp(ServerPongResp { nonce: ping.nonce });
                 if let Err(err) =
-                    self.try_send_frame_msg(CMD_GATEWAY_CONTROL, &msg, 0, frame.session_id)
+                    self.try_send_frame_msg(BACKEND_CMD_CONTROL, &msg, 0, frame.session_id)
                 {
                     warn!("failed to reply gateway ping nonce={}: {}", ping.nonce, err);
                 }
