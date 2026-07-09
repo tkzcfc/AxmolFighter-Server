@@ -1,6 +1,7 @@
 #include "BattleServer.h"
 
 #include "framework/Logger.h"
+#include "game_battle.pb.h"
 #include "mugen/Components.h"
 #include "mugen/GameWord.h"
 #include "mugen/core/serialize/ByteBuffer.h"

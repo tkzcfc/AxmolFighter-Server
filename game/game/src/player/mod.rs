@@ -1,6 +1,7 @@
 mod account;
 mod battle;
 mod character;
+mod town;
 
 use std::sync::{Arc, Mutex};
 
@@ -47,6 +48,7 @@ impl SessionDelegate for PlayerSessionDelegate {
                 self.handle_select_character(req).await.into()
             }
             MessageType::GameBattleJoinReq(req) => self.handle_battle_join(req).await.into(),
+            MessageType::GameEnterSceneReq(req) => self.handle_enter_scene(req).await.into(),
             other => {
                 warn!("no request handler for session={}", self.session_id);
                 drop(other);

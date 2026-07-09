@@ -165,6 +165,10 @@ impl GameShared {
         }
     }
 
+    pub(crate) fn town_instance_for_session(&self, session_id: u32) -> Option<u32> {
+        self.town_sessions.lock().unwrap().get(&session_id).copied()
+    }
+
     pub(crate) fn clear_session_runtime_state(&self, session_id: u32) {
         self.clear_battle_session(session_id);
         self.clear_town_session(session_id);

@@ -1,0 +1,141 @@
+syntax = "proto3";
+
+// 游戏业务通用数据类型。
+// 本文件只保存没有协议 id 的纯数据结构，不直接作为网络消息收发。
+package PB.Game;
+
+option optimize_for = LITE_RUNTIME;
+
+// ============================================================================
+// 账号与登录相关类型
+// ============================================================================
+
+// 登录后下发的服务器配置。
+message ServerConfig {
+	// 最大角色数量。
+	int32 max_character_count = 1;
+}
+
+// 登录账号信息。
+message AccountInfo {
+	// 玩家 id。
+	int64 player_id = 1;
+	// 账号名。
+	string account = 2;
+	// 昵称。
+	string nickname = 3;
+}
+
+// ============================================================================
+// 角色、背包与装备相关类型
+// ============================================================================
+
+// 装备附魔属性。
+message EnchantProp {
+	// 属性配置 id。
+	int32 attr_id = 1;
+	// 属性值。
+	int32 value = 2;
+}
+
+// 装备信息。
+message EquipmentInfo {
+	// 装备实例 id。
+	int64 id = 1;
+	// 装备配置 id。
+	int64 config_id = 2;
+	// 强化等级。
+	int32 enhance_level = 3;
+	// 精炼等级。
+	int32 refine_level = 4;
+	// 附魔属性列表。
+	repeated EnchantProp enchant_props = 5;
+	// 装备槽位。
+	int32 slot = 6;
+}
+
+// 普通道具信息。
+message ItemInfo {
+	// 道具实例 id。
+	int64 id = 1;
+	// 道具配置 id。
+	int64 config_id = 2;
+	// 数量。
+	int32 count = 3;
+}
+
+// 背包信息。
+message InventoryInfo {
+	// 普通道具列表。
+	repeated ItemInfo items = 1;
+	// 装备列表。
+	repeated EquipmentInfo equipments = 2;
+}
+
+// 角色信息。
+message CharacterInfo {
+	// 角色 id。
+	int64 character_id = 1;
+	// 角色名。
+	string name = 2;
+	// 职业 id。
+	int32 class_id = 3;
+	// 性别。
+	int32 gender = 4;
+	// 等级。
+	int32 level = 5;
+	// 经验。
+	int64 exp = 6;
+	// 金币。
+	int64 gold = 7;
+}
+
+// ============================================================================
+// 城镇与场景相关类型
+// ============================================================================
+
+// 城镇场景内玩家状态。
+message PlayerState {
+	// 玩家 id。客户端上报时服务端会使用登录态覆盖该字段。
+	int64 player_id = 1;
+	// x 坐标。
+	float pos_x = 2;
+	// y 坐标。
+	float pos_y = 3;
+	// 当前血量。
+	int32 hp = 4;
+	// 当前状态。
+	string state = 5;
+}
+
+// 城镇场景进入目标类型。
+enum SceneEnterType {
+	// 无效类型。
+	None = 0;
+	// 普通地图。
+	Map = 1;
+	// 玩家家园。
+	Home = 2;
+}
+
+// 下发给客户端的场景公开信息，不包含服务器内部 SceneId。
+message SceneInfo {
+	// 场景目标类型。
+	SceneEnterType type = 1;
+	// 普通地图 id，type 为 Map 时有效。
+	uint32 map_id = 2;
+	// 家园拥有者玩家 id，type 为 Home 时有效。
+	uint64 owner_uid = 3;
+}
+
+// ============================================================================
+// 战斗内部描述类型
+// ============================================================================
+
+// 创建战斗时传给 battle 服的玩家描述。
+message BattlePlayerSpec {
+	// 客户端 session id。
+	uint32 session_id = 1;
+	// 玩家 id。
+	int64 player_id = 2;
+}

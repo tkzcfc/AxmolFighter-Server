@@ -123,6 +123,13 @@ impl PlayerSessionDelegate {
         self.shared
             .bind_battle_session(self.session_id, battle_id, create_resp.battle_instance_id);
 
+        if !self.leave_town_scene().await {
+            warn!(
+                "session {} joined battle {}, but failed to leave town scene cleanly",
+                self.session_id, battle_id
+            );
+        }
+
         BattleJoinResp {
             code: 0,
             message: String::new(),

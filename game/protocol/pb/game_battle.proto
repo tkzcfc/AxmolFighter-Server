@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+// game 服和 battle 服之间的内部通信协议。
+package PB.Game;
+
+import "game_types.proto";
+
+option optimize_for = LITE_RUNTIME;
+
+// ============================================================================
+// game 和 battle 服协议范围：60000-60999
+// ============================================================================
+
+// [创建战斗] 60000-60001
+
+// Game 发给 Battle，请求创建一场战斗。
+message BattleCreateReq {
+    enum MsgId { None = 0; Id = 60000; }
+
+    // 战斗 id。
+    uint32 battle_id = 1;
+    // 地图 id。
+    int32 map_id = 2;
+    // 参战玩家。
+    repeated BattlePlayerSpec players = 3;
+    // 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
+    uint32 requester_service_id = 4;
+    // 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
+    uint32 requester_instance_id = 5;
+}
+
+// Battle 返回创建战斗结果。
+message BattleCreateResp {
+    enum MsgId { None = 0; Id = 60001; }
+
+    // 创建结果，0 表示成功。
+    int32 code = 1;
+    // 结果说明。
+    string message = 2;
+    // 战斗 id。
+    uint32 battle_id = 3;
+    // 承载这场战斗的 battle 实例 id。
+    uint32 battle_instance_id = 4;
+    // 当前服务器帧。
+    uint32 server_frame = 5;
+    // 战斗世界快照。
+    bytes world_dump = 6;
+}

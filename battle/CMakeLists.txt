@@ -11,6 +11,15 @@ set(CLIENT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../client/Source")
 set(PROTOBUF_DIR "${CLIENT_SOURCE_DIR}/3rd/protobuf")
 set(MUGEN_DIR "${CLIENT_SOURCE_DIR}/mugen")
 
+file(GLOB CLIENT_PROTO_SOURCES CONFIGURE_DEPENDS
+    "${CLIENT_SOURCE_DIR}/net/*.pb.cc"
+)
+list(FILTER CLIENT_PROTO_SOURCES EXCLUDE REGEX ".*/game_(battle|town)\\.pb\\.cc$")
+
+file(GLOB BATTLE_PROTO_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/*.pb.cc"
+)
+
 if(NOT EXISTS "${YASIO_DIR}/yasio/yasio.hpp")
     message(FATAL_ERROR "yasio not found at: ${YASIO_DIR}")
 endif()
@@ -100,9 +109,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     "${PROTOBUF_DIR}/src"
 )
 target_sources(${PROJECT_NAME} PRIVATE
-    "${CLIENT_SOURCE_DIR}/net/game.pb.cc"
-    "${CLIENT_SOURCE_DIR}/net/gateway_client.pb.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/gateway_internal.pb.cc"
+    ${CLIENT_PROTO_SOURCES}
+    ${BATTLE_PROTO_SOURCES}
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
     yasio

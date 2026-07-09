@@ -1,4 +1,5 @@
 mod delegate;
+mod scene;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -35,7 +36,9 @@ async fn main() -> anyhow::Result<()> {
             gateway_addr,
             reconnect_interval,
         },
-        move |_, shutdown| Arc::new(TownDelegate::new(shutdown)) as Arc<dyn BackendDelegate>,
+        move |session, shutdown| {
+            Arc::new(TownDelegate::new(session, shutdown, instance_id)) as Arc<dyn BackendDelegate>
+        },
     );
 
     info!("town server started");

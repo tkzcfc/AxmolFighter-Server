@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+// game 服和 town 服之间的内部通信协议。
+package PB.Game;
+
+import "game_types.proto";
+
+option optimize_for = LITE_RUNTIME;
+
+// ============================================================================
+// game 和 town 服协议范围：61000-61999
+// ============================================================================
+
+// [场景切换] 61000-61003
+
+// game 服请求 town 服执行进入场景。
+message TownEnterSceneReq {
+    enum MsgId { None = 0; Id = 61000; }
+
+    // 客户端 session id。
+    uint32 session_id = 1;
+    // 登录态确认后的玩家 id。
+    int64 player_id = 2;
+    // 要进入的目标类型。
+    SceneEnterType type = 3;
+    // 普通地图 id，type 为 Map 时有效。
+    uint32 map_id = 4;
+    // 家园拥有者玩家 id，type 为 Home 时有效。
+    uint64 owner_uid = 5;
+    // 玩家进入场景时的初始状态，player_id 由服务器覆盖。
+    PlayerState state = 6;
+}
+
+// town 服返回给 game 服的进入场景结果。
+message TownEnterSceneResp {
+    enum MsgId { None = 0; Id = 61001; }
+
+    // 结果码，0 表示成功。
+    int32 code = 1;
+    // 结果说明。
+    string message = 2;
+    // 承载该场景的 town 实例 id，用于 gateway 绑定。
+    uint32 town_instance_id = 3;
+    // 当前场景公开信息，不包含 SceneId。
+    SceneInfo scene = 4;
+    // 当前场景内的玩家状态快照，包含自己。
+    repeated PlayerState players = 5;
+}
+
+// game 服请求 town 服执行离开场景。
+message TownLeaveSceneReq {
+    enum MsgId { None = 0; Id = 61002; }
+
+    // 客户端 session id。
+    uint32 session_id = 1;
+    // 登录态确认后的玩家 id。
+    int64 player_id = 2;
+}
+
+// town 服返回给 game 服的离开场景结果。
+message TownLeaveSceneResp {
+    enum MsgId { None = 0; Id = 61003; }
+
+    // 结果码，0 表示成功。
+    int32 code = 1;
+    // 结果说明。
+    string message = 2;
+}

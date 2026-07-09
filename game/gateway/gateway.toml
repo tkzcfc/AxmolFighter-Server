@@ -18,4 +18,4 @@ require_binding = true
 [[route]]
 service_id = 2
 range = [30000, 39999]
-require_binding = false
+require_binding = true
