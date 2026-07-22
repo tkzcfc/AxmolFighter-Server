@@ -104,8 +104,16 @@ message PlayerState {
 	float pos_y = 3;
 	// 当前血量。
 	int32 hp = 4;
-	// 当前状态。
+	// 当前状态（当前播放的 motion 名，如 idle/walk）。
 	string state = 5;
+	// 职业 id，决定远端用哪个角色配置创建 avatar。
+	int32 class_id = 6;
+	// 角色名。
+	string name = 7;
+	// z 坐标（高度）。
+	float pos_z = 8;
+	// 朝向，对应客户端 FacingDirection（0=左，1=右）。
+	int32 facing = 9;
 }
 
 // 城镇场景进入目标类型。

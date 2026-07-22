@@ -130,9 +130,21 @@ pub struct PlayerState {
     /// 当前血量。
     #[prost(int32, tag = "4")]
     pub hp: i32,
-    /// 当前状态。
+    /// 当前状态（当前播放的 motion 名，如 idle/walk）。
     #[prost(string, tag = "5")]
     pub state: ::prost::alloc::string::String,
+    /// 职业 id，决定远端用哪个角色配置创建 avatar。
+    #[prost(int32, tag = "6")]
+    pub class_id: i32,
+    /// 角色名。
+    #[prost(string, tag = "7")]
+    pub name: ::prost::alloc::string::String,
+    /// z 坐标（高度）。
+    #[prost(float, tag = "8")]
+    pub pos_z: f32,
+    /// 朝向，对应客户端 FacingDirection（0=左，1=右）。
+    #[prost(int32, tag = "9")]
+    pub facing: i32,
 }
 /// 下发给客户端的场景公开信息，不包含服务器内部 SceneId。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
