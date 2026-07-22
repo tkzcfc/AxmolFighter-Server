@@ -28,13 +28,14 @@ int main(int argc, char* argv[])
 
     const auto config = loadBattleServerConfig(configPath);
 
-    spdlog::info("Battle Server starting instance_id={} gateway={}:{} tick_rate={} max_battles={} max_sessions={}",
+    spdlog::info("Battle Server starting instance_id={} gateway={}:{} tick_rate={} max_battles={} max_sessions={} content_root={}",
                  config.instanceId,
                  config.gatewayHost,
                  config.gatewayPort,
                  config.tickRate,
                  config.maxBattles,
-                 config.maxSessions);
+                 config.maxSessions,
+                 config.contentRoot);
 
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);

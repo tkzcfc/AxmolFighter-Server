@@ -382,6 +382,7 @@ mod tests {
             pos_y: 2.0,
             hp: 100,
             state: "idle".to_string(),
+            ..Default::default()
         }
     }
 

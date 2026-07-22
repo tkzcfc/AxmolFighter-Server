@@ -4,6 +4,8 @@ tick_rate = 30
 max_battles = 100
 max_sessions = 200
 load_report_interval = 5.0
+# Content 根目录（内含 mugen/config/**）。相对路径相对 battle 可执行文件工作目录。
+content_root = "../../client/Content"
 
 [gateway]
 host = "127.0.0.1"

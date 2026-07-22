@@ -25,6 +25,8 @@ struct BattleServerConfig
     std::uint32_t maxBattles = 100;
     std::uint32_t maxSessions = 200;
     float loadReportInterval = 5.0f;
+    /** Content 根目录，内含 mugen/config/**（服务器不部署 PNG/.ani） */
+    std::string contentRoot = "../../client/Content";
 };
 
 struct BattleInstance

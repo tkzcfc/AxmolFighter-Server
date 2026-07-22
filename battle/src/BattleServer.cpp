@@ -4,6 +4,8 @@
 #include "game_battle.pb.h"
 #include "mugen/Components.h"
 #include "mugen/GameWord.h"
+#include "mugen/conf/Config.h"
+#include "mugen/core/io/FileUtils.h"
 #include "mugen/core/serialize/ByteBuffer.h"
 
 #include <chrono>
@@ -21,6 +23,18 @@ BattleServer::~BattleServer()
 bool BattleServer::init(const BattleServerConfig& config)
 {
     m_config = config;
+
+    if (!m_config.contentRoot.empty())
+    {
+        mugen::io::clearSearchPaths();
+        mugen::io::addSearchPath(m_config.contentRoot, true);
+        if (!mugen::Config::getInstance()->loadConfig("mugen/config/config.bin"))
+        {
+            spdlog::error("Failed to load config.bin from content_root={}", m_config.contentRoot);
+            return false;
+        }
+        spdlog::info("BattleServer content_root={}", m_config.contentRoot);
+    }
 
     battle::BackendConfig backendConfig;
     backendConfig.serviceId = battle::kServiceIdBattle;

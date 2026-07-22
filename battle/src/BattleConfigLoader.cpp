@@ -66,6 +66,8 @@ BattleServerConfig loadBattleServerConfig(const std::string& path)
                 config.maxSessions = static_cast<std::uint32_t>(std::stoul(value));
             else if (key == "load_report_interval")
                 config.loadReportInterval = std::stof(value);
+            else if (key == "content_root")
+                config.contentRoot = stripQuotes(value);
         }
         else if (section == "gateway")
         {
