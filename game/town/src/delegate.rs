@@ -50,7 +50,7 @@ impl SessionDelegate for TownSessionDelegate {
 
     async fn on_client_push(&self, msg: MessageType) -> anyhow::Result<()> {
         match msg {
-            MessageType::GameTownPlayerStatePush(push) => {
+            MessageType::TownTownPlayerStatePush(push) => {
                 self.shared.update_state(self.session_id, push);
             }
             other => {
@@ -111,8 +111,8 @@ impl BackendDelegate for TownDelegate {
         }
 
         let resp = match msg {
-            MessageType::GameTownEnterSceneReq(req) => self.shared.enter_scene(req).into(),
-            MessageType::GameTownLeaveSceneReq(req) => self.shared.leave_scene(req).into(),
+            MessageType::TownInternalTownEnterSceneReq(req) => self.shared.enter_scene(req).into(),
+            MessageType::TownInternalTownLeaveSceneReq(req) => self.shared.leave_scene(req).into(),
             other => {
                 warn!("unhandled town server request source={}", source);
                 drop(other);

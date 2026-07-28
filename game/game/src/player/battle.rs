@@ -1,6 +1,8 @@
+use protocol::battle_internal::BattleCreateReq;
 use protocol::game::*;
 use protocol::gateway_internal::BindServiceReq;
 use protocol::message_map::MessageType;
+use protocol::types::BattlePlayerSpec;
 use tracing::warn;
 
 use crate::player::PlayerSessionDelegate;
@@ -17,16 +19,31 @@ impl PlayerSessionDelegate {
                 battle_id: 0,
                 server_frame: 0,
                 world_dump: vec![],
+                actor_entity_id: 0,
+            };
+        };
+
+        let Some(character) = self.selected_character() else {
+            return BattleJoinResp {
+                code: 402,
+                message: "please select character first".to_string(),
+                battle_id: 0,
+                server_frame: 0,
+                world_dump: vec![],
+                actor_entity_id: 0,
             };
         };
 
         let battle_id = self.shared.next_battle_id();
-        let create_req = MessageType::GameBattleCreateReq(BattleCreateReq {
+        let create_req = MessageType::BattleInternalBattleCreateReq(BattleCreateReq {
             battle_id,
             map_id: if req.map_id <= 0 { 1 } else { req.map_id },
             players: vec![BattlePlayerSpec {
                 session_id: self.session_id,
                 player_id: account_id,
+                class_id: character.class_id,
+                name: character.name.clone(),
+                character_id: character.character_id,
             }],
             requester_service_id: 0,
             requester_instance_id: 0,
@@ -37,7 +54,7 @@ impl PlayerSessionDelegate {
             .request_server(ServerSource::any_instance(SERVICE_ID_BATTLE), create_req)
             .await
         {
-            Ok(MessageType::GameBattleCreateResp(resp)) => resp,
+            Ok(MessageType::BattleInternalBattleCreateResp(resp)) => resp,
             Ok(_) => {
                 warn!("unexpected battle create response type");
                 return Self::battle_join_error(-1, "invalid battle create response");
@@ -69,6 +86,7 @@ impl PlayerSessionDelegate {
                 battle_id: 0,
                 server_frame: 0,
                 world_dump: vec![],
+                actor_entity_id: 0,
             };
         }
 
@@ -117,6 +135,7 @@ impl PlayerSessionDelegate {
                 battle_id: 0,
                 server_frame: 0,
                 world_dump: vec![],
+                actor_entity_id: 0,
             };
         }
 
@@ -136,6 +155,7 @@ impl PlayerSessionDelegate {
             battle_id,
             server_frame: create_resp.server_frame,
             world_dump: create_resp.world_dump,
+            actor_entity_id: create_resp.actor_entity_id,
         }
     }
 
@@ -146,6 +166,7 @@ impl PlayerSessionDelegate {
             battle_id: 0,
             server_frame: 0,
             world_dump: vec![],
+            actor_entity_id: 0,
         }
     }
 }

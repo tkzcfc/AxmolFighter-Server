@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+// 客户端和城镇服业务通信协议。
+package PB.Town;
+
+import "game_types.proto";
+
+option optimize_for = LITE_RUNTIME;
+
+// ============================================================================
+// 客户端和城镇服协议范围：30000-39999
+// ============================================================================
+
+// [城镇同步] 30000-30003
+// 客户端向已绑定 town 服推送自身状态，town 服向同场景客户端广播玩家变化。
+
+// 客户端向已绑定 town 服推送自身状态。
+message TownPlayerStatePush {
+    enum MsgId { None = 0; Id = 30000; }
+
+    // 客户端当前上报的玩家状态，player_id 由 town 服记录覆盖。
+    PB.Types.PlayerState state = 1;
+}
+
+// town 服通知客户端：同场景有玩家进入。
+message ScenePlayerEnterPush {
+    enum MsgId { None = 0; Id = 30001; }
+
+    // 新进入玩家的状态。
+    PB.Types.PlayerState state = 1;
+}
+
+// town 服通知客户端：同场景有玩家离开。
+message ScenePlayerLeavePush {
+    enum MsgId { None = 0; Id = 30002; }
+
+    // 离开场景的玩家 id。
+    int64 player_id = 1;
+}
+
+// town 服通知客户端：同场景玩家状态更新。
+message ScenePlayerStatePush {
+    enum MsgId { None = 0; Id = 30003; }
+
+    // 更新后的玩家状态。
+    PB.Types.PlayerState state = 1;
+}

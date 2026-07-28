@@ -1,4 +1,5 @@
 use protocol::game::*;
+use protocol::types::*;
 use tracing::{info, warn};
 
 use crate::player::PlayerSessionDelegate;
@@ -21,6 +22,7 @@ impl PlayerSessionDelegate {
             Ok(Some((player_id, stored_password, nickname))) => {
                 if stored_password == req.password {
                     *self.account_id.lock().unwrap() = Some(player_id);
+                    *self.selected_character.lock().unwrap() = None;
                     self.shared.bind_account(self.session_id, player_id).await;
 
                     let max_character_count = self.shared.query_max_character_count().await;

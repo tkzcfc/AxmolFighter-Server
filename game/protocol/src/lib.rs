@@ -1,4 +1,9 @@
+pub mod battle;
+pub mod battle_internal;
 pub mod game;
 pub mod gateway_client;
 pub mod gateway_internal;
 pub mod message_map;
+pub mod town;
+pub mod town_internal;
+pub mod types;

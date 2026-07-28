@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 // game 服和 town 服之间的内部通信协议。
-package PB.Game;
+package PB.TownInternal;
 
 import "game_types.proto";
 
@@ -22,13 +22,13 @@ message TownEnterSceneReq {
     // 登录态确认后的玩家 id。
     int64 player_id = 2;
     // 要进入的目标类型。
-    SceneEnterType type = 3;
+    PB.Types.SceneEnterType type = 3;
     // 普通地图 id，type 为 Map 时有效。
     uint32 map_id = 4;
     // 家园拥有者玩家 id，type 为 Home 时有效。
     uint64 owner_uid = 5;
     // 玩家进入场景时的初始状态，player_id 由服务器覆盖。
-    PlayerState state = 6;
+    PB.Types.PlayerState state = 6;
 }
 
 // town 服返回给 game 服的进入场景结果。
@@ -42,9 +42,9 @@ message TownEnterSceneResp {
     // 承载该场景的 town 实例 id，用于 gateway 绑定。
     uint32 town_instance_id = 3;
     // 当前场景公开信息，不包含 SceneId。
-    SceneInfo scene = 4;
+    PB.Types.SceneInfo scene = 4;
     // 当前场景内的玩家状态快照，包含自己。
-    repeated PlayerState players = 5;
+    repeated PB.Types.PlayerState players = 5;
 }
 
 // game 服请求 town 服执行离开场景。

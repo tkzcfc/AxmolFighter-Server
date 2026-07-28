@@ -8,6 +8,7 @@ include(FetchContent)
 
 set(YASIO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../client/axmol/3rdparty/yasio")
 set(CLIENT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../client/Source")
+set(AXMOL_3RDPARTY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../client/axmol/3rdparty")
 set(PROTOBUF_DIR "${CLIENT_SOURCE_DIR}/3rd/protobuf")
 set(MUGEN_DIR "${CLIENT_SOURCE_DIR}/mugen")
 
@@ -65,8 +66,8 @@ if(TARGET spdlog)
     target_compile_definitions(spdlog PUBLIC FMT_USE_CONSTEVAL=0 FMT_CONSTEVAL=)
 endif()
 
-# ========== mugen headless ==========
-file(GLOB_RECURSE MUGEN_SOURCES
+# ========== mugen headless（新链路）==========
+file(GLOB_RECURSE MUGEN_SOURCES CONFIGURE_DEPENDS
     "${MUGEN_DIR}/*.cpp"
     "${MUGEN_DIR}/*.h"
 )
@@ -77,8 +78,8 @@ list(FILTER MUGEN_SOURCES EXCLUDE REGEX ".*/resource/ResourceManager\\.(cpp|h)$"
 list(FILTER MUGEN_SOURCES EXCLUDE REGEX ".*/resource/RenderObjectPool\\.(cpp|h)$")
 list(FILTER MUGEN_SOURCES EXCLUDE REGEX ".*/system/AvatarRenderSystem\\.(cpp|h)$")
 list(FILTER MUGEN_SOURCES EXCLUDE REGEX ".*/system/GameMapRenderSystem\\.(cpp|h)$")
-list(FILTER MUGEN_SOURCES EXCLUDE REGEX ".*/avatar/Avatar\\.(cpp|h)$")
-list(FILTER MUGEN_SOURCES EXCLUDE REGEX ".*/avatar/AnimationPlayer\\.(cpp|h)$")
+# 客户端专用 debug，不进服务器
+list(FILTER MUGEN_SOURCES EXCLUDE REGEX ".*/avatar/debug/.*")
 
 add_library(mugen_headless STATIC ${MUGEN_SOURCES})
 target_sources(mugen_headless PRIVATE
@@ -88,6 +89,7 @@ target_compile_definitions(mugen_headless PUBLIC RUNTIME_IN_AXMOL=0)
 target_include_directories(mugen_headless PUBLIC
     "${CLIENT_SOURCE_DIR}"
     "${CLIENT_SOURCE_DIR}/3rd/tinyexpr"
+    "${AXMOL_3RDPARTY_DIR}"
 )
 if(MSVC)
     target_compile_options(mugen_headless PRIVATE /utf-8)
@@ -127,7 +129,21 @@ if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)
 endif()
 
-# 输出到 bin 目录
 set_target_properties(${PROJECT_NAME} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
+)
+
+# ========== 最小战斗验证（无网关）==========
+add_executable(battle_min_fight
+    "${CMAKE_CURRENT_SOURCE_DIR}/tests/MinFightMain.cpp"
+)
+target_include_directories(battle_min_fight PRIVATE
+    "${CLIENT_SOURCE_DIR}"
+)
+target_link_libraries(battle_min_fight PRIVATE mugen_headless)
+if(MSVC)
+    target_compile_options(battle_min_fight PRIVATE /utf-8)
+endif()
+set_target_properties(battle_min_fight PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
 )

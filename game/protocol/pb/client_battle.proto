@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+// 客户端和战斗服业务通信协议。
+package PB.Battle;
+
+option optimize_for = LITE_RUNTIME;
+
+// ============================================================================
+// 客户端和战斗服协议范围：20000-29999
+// ============================================================================
+
+// [战斗同步] 20012-20013
+// 客户端向 battle 服推送输入，battle 服向客户端下发战斗快照。
+
+// 客户端战斗输入。
+message BattleInputPush {
+    enum MsgId { None = 0; Id = 20012; }
+
+    // 战斗 id。
+    uint32 battle_id = 1;
+    // 客户端帧号。
+    uint32 client_frame = 2;
+    // 输入按键位。
+    uint32 input_mask = 3;
+    // 客户端时间戳，毫秒。
+    uint64 client_time_ms = 4;
+}
+
+// 战斗服下发的战斗快照。
+message BattleSnapshotPush {
+    enum MsgId { None = 0; Id = 20013; }
+
+    // 战斗 id。
+    uint32 battle_id = 1;
+    // 服务器帧号。
+    uint32 server_frame = 2;
+    // 服务器时间戳，毫秒。
+    uint64 server_time_ms = 3;
+    // 战斗世界快照。
+    bytes world_dump = 4;
+}

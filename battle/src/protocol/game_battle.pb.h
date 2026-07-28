@@ -44,21 +44,21 @@ struct TableStruct_game_5fbattle_2eproto {
   static const uint32_t offsets[];
 };
 namespace PB {
-namespace Game {
+namespace BattleInternal {
 class BattleCreateReq;
 struct BattleCreateReqDefaultTypeInternal;
 extern BattleCreateReqDefaultTypeInternal _BattleCreateReq_default_instance_;
 class BattleCreateResp;
 struct BattleCreateRespDefaultTypeInternal;
 extern BattleCreateRespDefaultTypeInternal _BattleCreateResp_default_instance_;
-}  // namespace Game
+}  // namespace BattleInternal
 }  // namespace PB
 PROTOBUF_NAMESPACE_OPEN
-template<> ::PB::Game::BattleCreateReq* Arena::CreateMaybeMessage<::PB::Game::BattleCreateReq>(Arena*);
-template<> ::PB::Game::BattleCreateResp* Arena::CreateMaybeMessage<::PB::Game::BattleCreateResp>(Arena*);
+template<> ::PB::BattleInternal::BattleCreateReq* Arena::CreateMaybeMessage<::PB::BattleInternal::BattleCreateReq>(Arena*);
+template<> ::PB::BattleInternal::BattleCreateResp* Arena::CreateMaybeMessage<::PB::BattleInternal::BattleCreateResp>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 namespace PB {
-namespace Game {
+namespace BattleInternal {
 
 enum BattleCreateReq_MsgId : int {
   BattleCreateReq_MsgId_None = 0,
@@ -105,7 +105,7 @@ bool BattleCreateResp_MsgId_Parse(
 // ===================================================================
 
 class BattleCreateReq final :
-    public ::PROTOBUF_NAMESPACE_ID::MessageLite /* @@protoc_insertion_point(class_definition:PB.Game.BattleCreateReq) */ {
+    public ::PROTOBUF_NAMESPACE_ID::MessageLite /* @@protoc_insertion_point(class_definition:PB.BattleInternal.BattleCreateReq) */ {
  public:
   inline BattleCreateReq() : BattleCreateReq(nullptr) {}
   ~BattleCreateReq() override;
@@ -193,7 +193,7 @@ class BattleCreateReq final :
   private:
   friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
   static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
-    return "PB.Game.BattleCreateReq";
+    return "PB.BattleInternal.BattleCreateReq";
   }
   protected:
   explicit BattleCreateReq(::PROTOBUF_NAMESPACE_ID::Arena* arena,
@@ -239,22 +239,22 @@ class BattleCreateReq final :
     kRequesterServiceIdFieldNumber = 4,
     kRequesterInstanceIdFieldNumber = 5,
   };
-  // repeated .PB.Game.BattlePlayerSpec players = 3;
+  // repeated .PB.Types.BattlePlayerSpec players = 3;
   int players_size() const;
   private:
   int _internal_players_size() const;
   public:
   void clear_players();
-  ::PB::Game::BattlePlayerSpec* mutable_players(int index);
-  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Game::BattlePlayerSpec >*
+  ::PB::Types::BattlePlayerSpec* mutable_players(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Types::BattlePlayerSpec >*
       mutable_players();
   private:
-  const ::PB::Game::BattlePlayerSpec& _internal_players(int index) const;
-  ::PB::Game::BattlePlayerSpec* _internal_add_players();
+  const ::PB::Types::BattlePlayerSpec& _internal_players(int index) const;
+  ::PB::Types::BattlePlayerSpec* _internal_add_players();
   public:
-  const ::PB::Game::BattlePlayerSpec& players(int index) const;
-  ::PB::Game::BattlePlayerSpec* add_players();
-  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Game::BattlePlayerSpec >&
+  const ::PB::Types::BattlePlayerSpec& players(int index) const;
+  ::PB::Types::BattlePlayerSpec* add_players();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Types::BattlePlayerSpec >&
       players() const;
 
   // uint32 battle_id = 1;
@@ -293,7 +293,7 @@ class BattleCreateReq final :
   void _internal_set_requester_instance_id(uint32_t value);
   public:
 
-  // @@protoc_insertion_point(class_scope:PB.Game.BattleCreateReq)
+  // @@protoc_insertion_point(class_scope:PB.BattleInternal.BattleCreateReq)
  private:
   class _Internal;
 
@@ -301,7 +301,7 @@ class BattleCreateReq final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   struct Impl_ {
-    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Game::BattlePlayerSpec > players_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Types::BattlePlayerSpec > players_;
     uint32_t battle_id_;
     int32_t map_id_;
     uint32_t requester_service_id_;
@@ -314,7 +314,7 @@ class BattleCreateReq final :
 // -------------------------------------------------------------------
 
 class BattleCreateResp final :
-    public ::PROTOBUF_NAMESPACE_ID::MessageLite /* @@protoc_insertion_point(class_definition:PB.Game.BattleCreateResp) */ {
+    public ::PROTOBUF_NAMESPACE_ID::MessageLite /* @@protoc_insertion_point(class_definition:PB.BattleInternal.BattleCreateResp) */ {
  public:
   inline BattleCreateResp() : BattleCreateResp(nullptr) {}
   ~BattleCreateResp() override;
@@ -402,7 +402,7 @@ class BattleCreateResp final :
   private:
   friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
   static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
-    return "PB.Game.BattleCreateResp";
+    return "PB.BattleInternal.BattleCreateResp";
   }
   protected:
   explicit BattleCreateResp(::PROTOBUF_NAMESPACE_ID::Arena* arena,
@@ -448,6 +448,7 @@ class BattleCreateResp final :
     kBattleIdFieldNumber = 3,
     kBattleInstanceIdFieldNumber = 4,
     kServerFrameFieldNumber = 5,
+    kActorEntityIdFieldNumber = 7,
   };
   // string message = 2;
   void clear_message();
@@ -513,7 +514,16 @@ class BattleCreateResp final :
   void _internal_set_server_frame(uint32_t value);
   public:
 
-  // @@protoc_insertion_point(class_scope:PB.Game.BattleCreateResp)
+  // uint32 actor_entity_id = 7;
+  void clear_actor_entity_id();
+  uint32_t actor_entity_id() const;
+  void set_actor_entity_id(uint32_t value);
+  private:
+  uint32_t _internal_actor_entity_id() const;
+  void _internal_set_actor_entity_id(uint32_t value);
+  public:
+
+  // @@protoc_insertion_point(class_scope:PB.BattleInternal.BattleCreateResp)
  private:
   class _Internal;
 
@@ -527,6 +537,7 @@ class BattleCreateResp final :
     uint32_t battle_id_;
     uint32_t battle_instance_id_;
     uint32_t server_frame_;
+    uint32_t actor_entity_id_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -551,7 +562,7 @@ inline uint32_t BattleCreateReq::_internal_battle_id() const {
   return _impl_.battle_id_;
 }
 inline uint32_t BattleCreateReq::battle_id() const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateReq.battle_id)
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateReq.battle_id)
   return _internal_battle_id();
 }
 inline void BattleCreateReq::_internal_set_battle_id(uint32_t value) {
@@ -560,7 +571,7 @@ inline void BattleCreateReq::_internal_set_battle_id(uint32_t value) {
 }
 inline void BattleCreateReq::set_battle_id(uint32_t value) {
   _internal_set_battle_id(value);
-  // @@protoc_insertion_point(field_set:PB.Game.BattleCreateReq.battle_id)
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateReq.battle_id)
 }
 
 // int32 map_id = 2;
@@ -571,7 +582,7 @@ inline int32_t BattleCreateReq::_internal_map_id() const {
   return _impl_.map_id_;
 }
 inline int32_t BattleCreateReq::map_id() const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateReq.map_id)
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateReq.map_id)
   return _internal_map_id();
 }
 inline void BattleCreateReq::_internal_set_map_id(int32_t value) {
@@ -580,43 +591,43 @@ inline void BattleCreateReq::_internal_set_map_id(int32_t value) {
 }
 inline void BattleCreateReq::set_map_id(int32_t value) {
   _internal_set_map_id(value);
-  // @@protoc_insertion_point(field_set:PB.Game.BattleCreateReq.map_id)
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateReq.map_id)
 }
 
-// repeated .PB.Game.BattlePlayerSpec players = 3;
+// repeated .PB.Types.BattlePlayerSpec players = 3;
 inline int BattleCreateReq::_internal_players_size() const {
   return _impl_.players_.size();
 }
 inline int BattleCreateReq::players_size() const {
   return _internal_players_size();
 }
-inline ::PB::Game::BattlePlayerSpec* BattleCreateReq::mutable_players(int index) {
-  // @@protoc_insertion_point(field_mutable:PB.Game.BattleCreateReq.players)
+inline ::PB::Types::BattlePlayerSpec* BattleCreateReq::mutable_players(int index) {
+  // @@protoc_insertion_point(field_mutable:PB.BattleInternal.BattleCreateReq.players)
   return _impl_.players_.Mutable(index);
 }
-inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Game::BattlePlayerSpec >*
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Types::BattlePlayerSpec >*
 BattleCreateReq::mutable_players() {
-  // @@protoc_insertion_point(field_mutable_list:PB.Game.BattleCreateReq.players)
+  // @@protoc_insertion_point(field_mutable_list:PB.BattleInternal.BattleCreateReq.players)
   return &_impl_.players_;
 }
-inline const ::PB::Game::BattlePlayerSpec& BattleCreateReq::_internal_players(int index) const {
+inline const ::PB::Types::BattlePlayerSpec& BattleCreateReq::_internal_players(int index) const {
   return _impl_.players_.Get(index);
 }
-inline const ::PB::Game::BattlePlayerSpec& BattleCreateReq::players(int index) const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateReq.players)
+inline const ::PB::Types::BattlePlayerSpec& BattleCreateReq::players(int index) const {
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateReq.players)
   return _internal_players(index);
 }
-inline ::PB::Game::BattlePlayerSpec* BattleCreateReq::_internal_add_players() {
+inline ::PB::Types::BattlePlayerSpec* BattleCreateReq::_internal_add_players() {
   return _impl_.players_.Add();
 }
-inline ::PB::Game::BattlePlayerSpec* BattleCreateReq::add_players() {
-  ::PB::Game::BattlePlayerSpec* _add = _internal_add_players();
-  // @@protoc_insertion_point(field_add:PB.Game.BattleCreateReq.players)
+inline ::PB::Types::BattlePlayerSpec* BattleCreateReq::add_players() {
+  ::PB::Types::BattlePlayerSpec* _add = _internal_add_players();
+  // @@protoc_insertion_point(field_add:PB.BattleInternal.BattleCreateReq.players)
   return _add;
 }
-inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Game::BattlePlayerSpec >&
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::PB::Types::BattlePlayerSpec >&
 BattleCreateReq::players() const {
-  // @@protoc_insertion_point(field_list:PB.Game.BattleCreateReq.players)
+  // @@protoc_insertion_point(field_list:PB.BattleInternal.BattleCreateReq.players)
   return _impl_.players_;
 }
 
@@ -628,7 +639,7 @@ inline uint32_t BattleCreateReq::_internal_requester_service_id() const {
   return _impl_.requester_service_id_;
 }
 inline uint32_t BattleCreateReq::requester_service_id() const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateReq.requester_service_id)
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateReq.requester_service_id)
   return _internal_requester_service_id();
 }
 inline void BattleCreateReq::_internal_set_requester_service_id(uint32_t value) {
@@ -637,7 +648,7 @@ inline void BattleCreateReq::_internal_set_requester_service_id(uint32_t value) 
 }
 inline void BattleCreateReq::set_requester_service_id(uint32_t value) {
   _internal_set_requester_service_id(value);
-  // @@protoc_insertion_point(field_set:PB.Game.BattleCreateReq.requester_service_id)
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateReq.requester_service_id)
 }
 
 // uint32 requester_instance_id = 5;
@@ -648,7 +659,7 @@ inline uint32_t BattleCreateReq::_internal_requester_instance_id() const {
   return _impl_.requester_instance_id_;
 }
 inline uint32_t BattleCreateReq::requester_instance_id() const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateReq.requester_instance_id)
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateReq.requester_instance_id)
   return _internal_requester_instance_id();
 }
 inline void BattleCreateReq::_internal_set_requester_instance_id(uint32_t value) {
@@ -657,7 +668,7 @@ inline void BattleCreateReq::_internal_set_requester_instance_id(uint32_t value)
 }
 inline void BattleCreateReq::set_requester_instance_id(uint32_t value) {
   _internal_set_requester_instance_id(value);
-  // @@protoc_insertion_point(field_set:PB.Game.BattleCreateReq.requester_instance_id)
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateReq.requester_instance_id)
 }
 
 // -------------------------------------------------------------------
@@ -672,7 +683,7 @@ inline int32_t BattleCreateResp::_internal_code() const {
   return _impl_.code_;
 }
 inline int32_t BattleCreateResp::code() const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateResp.code)
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateResp.code)
   return _internal_code();
 }
 inline void BattleCreateResp::_internal_set_code(int32_t value) {
@@ -681,7 +692,7 @@ inline void BattleCreateResp::_internal_set_code(int32_t value) {
 }
 inline void BattleCreateResp::set_code(int32_t value) {
   _internal_set_code(value);
-  // @@protoc_insertion_point(field_set:PB.Game.BattleCreateResp.code)
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateResp.code)
 }
 
 // string message = 2;
@@ -689,7 +700,7 @@ inline void BattleCreateResp::clear_message() {
   _impl_.message_.ClearToEmpty();
 }
 inline const std::string& BattleCreateResp::message() const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateResp.message)
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateResp.message)
   return _internal_message();
 }
 template <typename ArgT0, typename... ArgT>
@@ -697,11 +708,11 @@ inline PROTOBUF_ALWAYS_INLINE
 void BattleCreateResp::set_message(ArgT0&& arg0, ArgT... args) {
  
  _impl_.message_.Set(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
-  // @@protoc_insertion_point(field_set:PB.Game.BattleCreateResp.message)
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateResp.message)
 }
 inline std::string* BattleCreateResp::mutable_message() {
   std::string* _s = _internal_mutable_message();
-  // @@protoc_insertion_point(field_mutable:PB.Game.BattleCreateResp.message)
+  // @@protoc_insertion_point(field_mutable:PB.BattleInternal.BattleCreateResp.message)
   return _s;
 }
 inline const std::string& BattleCreateResp::_internal_message() const {
@@ -716,7 +727,7 @@ inline std::string* BattleCreateResp::_internal_mutable_message() {
   return _impl_.message_.Mutable(GetArenaForAllocation());
 }
 inline std::string* BattleCreateResp::release_message() {
-  // @@protoc_insertion_point(field_release:PB.Game.BattleCreateResp.message)
+  // @@protoc_insertion_point(field_release:PB.BattleInternal.BattleCreateResp.message)
   return _impl_.message_.Release();
 }
 inline void BattleCreateResp::set_allocated_message(std::string* message) {
@@ -731,7 +742,7 @@ inline void BattleCreateResp::set_allocated_message(std::string* message) {
     _impl_.message_.Set("", GetArenaForAllocation());
   }
 #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  // @@protoc_insertion_point(field_set_allocated:PB.Game.BattleCreateResp.message)
+  // @@protoc_insertion_point(field_set_allocated:PB.BattleInternal.BattleCreateResp.message)
 }
 
 // uint32 battle_id = 3;
@@ -742,7 +753,7 @@ inline uint32_t BattleCreateResp::_internal_battle_id() const {
   return _impl_.battle_id_;
 }
 inline uint32_t BattleCreateResp::battle_id() const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateResp.battle_id)
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateResp.battle_id)
   return _internal_battle_id();
 }
 inline void BattleCreateResp::_internal_set_battle_id(uint32_t value) {
@@ -751,7 +762,7 @@ inline void BattleCreateResp::_internal_set_battle_id(uint32_t value) {
 }
 inline void BattleCreateResp::set_battle_id(uint32_t value) {
   _internal_set_battle_id(value);
-  // @@protoc_insertion_point(field_set:PB.Game.BattleCreateResp.battle_id)
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateResp.battle_id)
 }
 
 // uint32 battle_instance_id = 4;
@@ -762,7 +773,7 @@ inline uint32_t BattleCreateResp::_internal_battle_instance_id() const {
   return _impl_.battle_instance_id_;
 }
 inline uint32_t BattleCreateResp::battle_instance_id() const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateResp.battle_instance_id)
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateResp.battle_instance_id)
   return _internal_battle_instance_id();
 }
 inline void BattleCreateResp::_internal_set_battle_instance_id(uint32_t value) {
@@ -771,7 +782,7 @@ inline void BattleCreateResp::_internal_set_battle_instance_id(uint32_t value) {
 }
 inline void BattleCreateResp::set_battle_instance_id(uint32_t value) {
   _internal_set_battle_instance_id(value);
-  // @@protoc_insertion_point(field_set:PB.Game.BattleCreateResp.battle_instance_id)
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateResp.battle_instance_id)
 }
 
 // uint32 server_frame = 5;
@@ -782,7 +793,7 @@ inline uint32_t BattleCreateResp::_internal_server_frame() const {
   return _impl_.server_frame_;
 }
 inline uint32_t BattleCreateResp::server_frame() const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateResp.server_frame)
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateResp.server_frame)
   return _internal_server_frame();
 }
 inline void BattleCreateResp::_internal_set_server_frame(uint32_t value) {
@@ -791,7 +802,7 @@ inline void BattleCreateResp::_internal_set_server_frame(uint32_t value) {
 }
 inline void BattleCreateResp::set_server_frame(uint32_t value) {
   _internal_set_server_frame(value);
-  // @@protoc_insertion_point(field_set:PB.Game.BattleCreateResp.server_frame)
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateResp.server_frame)
 }
 
 // bytes world_dump = 6;
@@ -799,7 +810,7 @@ inline void BattleCreateResp::clear_world_dump() {
   _impl_.world_dump_.ClearToEmpty();
 }
 inline const std::string& BattleCreateResp::world_dump() const {
-  // @@protoc_insertion_point(field_get:PB.Game.BattleCreateResp.world_dump)
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateResp.world_dump)
   return _internal_world_dump();
 }
 template <typename ArgT0, typename... ArgT>
@@ -807,11 +818,11 @@ inline PROTOBUF_ALWAYS_INLINE
 void BattleCreateResp::set_world_dump(ArgT0&& arg0, ArgT... args) {
  
  _impl_.world_dump_.SetBytes(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
-  // @@protoc_insertion_point(field_set:PB.Game.BattleCreateResp.world_dump)
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateResp.world_dump)
 }
 inline std::string* BattleCreateResp::mutable_world_dump() {
   std::string* _s = _internal_mutable_world_dump();
-  // @@protoc_insertion_point(field_mutable:PB.Game.BattleCreateResp.world_dump)
+  // @@protoc_insertion_point(field_mutable:PB.BattleInternal.BattleCreateResp.world_dump)
   return _s;
 }
 inline const std::string& BattleCreateResp::_internal_world_dump() const {
@@ -826,7 +837,7 @@ inline std::string* BattleCreateResp::_internal_mutable_world_dump() {
   return _impl_.world_dump_.Mutable(GetArenaForAllocation());
 }
 inline std::string* BattleCreateResp::release_world_dump() {
-  // @@protoc_insertion_point(field_release:PB.Game.BattleCreateResp.world_dump)
+  // @@protoc_insertion_point(field_release:PB.BattleInternal.BattleCreateResp.world_dump)
   return _impl_.world_dump_.Release();
 }
 inline void BattleCreateResp::set_allocated_world_dump(std::string* world_dump) {
@@ -841,7 +852,27 @@ inline void BattleCreateResp::set_allocated_world_dump(std::string* world_dump) 
     _impl_.world_dump_.Set("", GetArenaForAllocation());
   }
 #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  // @@protoc_insertion_point(field_set_allocated:PB.Game.BattleCreateResp.world_dump)
+  // @@protoc_insertion_point(field_set_allocated:PB.BattleInternal.BattleCreateResp.world_dump)
+}
+
+// uint32 actor_entity_id = 7;
+inline void BattleCreateResp::clear_actor_entity_id() {
+  _impl_.actor_entity_id_ = 0u;
+}
+inline uint32_t BattleCreateResp::_internal_actor_entity_id() const {
+  return _impl_.actor_entity_id_;
+}
+inline uint32_t BattleCreateResp::actor_entity_id() const {
+  // @@protoc_insertion_point(field_get:PB.BattleInternal.BattleCreateResp.actor_entity_id)
+  return _internal_actor_entity_id();
+}
+inline void BattleCreateResp::_internal_set_actor_entity_id(uint32_t value) {
+  
+  _impl_.actor_entity_id_ = value;
+}
+inline void BattleCreateResp::set_actor_entity_id(uint32_t value) {
+  _internal_set_actor_entity_id(value);
+  // @@protoc_insertion_point(field_set:PB.BattleInternal.BattleCreateResp.actor_entity_id)
 }
 
 #ifdef __GNUC__
@@ -852,13 +883,13 @@ inline void BattleCreateResp::set_allocated_world_dump(std::string* world_dump) 
 
 // @@protoc_insertion_point(namespace_scope)
 
-}  // namespace Game
+}  // namespace BattleInternal
 }  // namespace PB
 
 PROTOBUF_NAMESPACE_OPEN
 
-template <> struct is_proto_enum< ::PB::Game::BattleCreateReq_MsgId> : ::std::true_type {};
-template <> struct is_proto_enum< ::PB::Game::BattleCreateResp_MsgId> : ::std::true_type {};
+template <> struct is_proto_enum< ::PB::BattleInternal::BattleCreateReq_MsgId> : ::std::true_type {};
+template <> struct is_proto_enum< ::PB::BattleInternal::BattleCreateResp_MsgId> : ::std::true_type {};
 
 PROTOBUF_NAMESPACE_CLOSE
 

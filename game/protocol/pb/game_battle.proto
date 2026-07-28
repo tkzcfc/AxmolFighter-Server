@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 // game 服和 battle 服之间的内部通信协议。
-package PB.Game;
+package PB.BattleInternal;
 
 import "game_types.proto";
 
@@ -22,7 +22,7 @@ message BattleCreateReq {
     // 地图 id。
     int32 map_id = 2;
     // 参战玩家。
-    repeated BattlePlayerSpec players = 3;
+    repeated PB.Types.BattlePlayerSpec players = 3;
     // 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
     uint32 requester_service_id = 4;
     // 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
@@ -45,4 +45,6 @@ message BattleCreateResp {
     uint32 server_frame = 5;
     // 战斗世界快照。
     bytes world_dump = 6;
+    // 请求方 session 对应的 actor 实体 id，便于客户端绑定 localPlayer。
+    uint32 actor_entity_id = 7;
 }

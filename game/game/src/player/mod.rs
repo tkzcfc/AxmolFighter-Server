@@ -15,6 +15,7 @@ use crate::game_shared::GameShared;
 pub(crate) struct PlayerSessionDelegate {
     pub(crate) session_id: u32,
     pub(crate) account_id: Mutex<Option<i64>>,
+    pub(crate) selected_character: Mutex<Option<protocol::types::CharacterInfo>>,
     pub(crate) shared: Arc<GameShared>,
 }
 
@@ -23,12 +24,17 @@ impl PlayerSessionDelegate {
         Self {
             session_id,
             account_id: Mutex::new(None),
+            selected_character: Mutex::new(None),
             shared,
         }
     }
 
     pub(crate) fn account_id(&self) -> Option<i64> {
         *self.account_id.lock().unwrap()
+    }
+
+    pub(crate) fn selected_character(&self) -> Option<protocol::types::CharacterInfo> {
+        self.selected_character.lock().unwrap().clone()
     }
 }
 

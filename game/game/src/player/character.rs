@@ -1,4 +1,5 @@
 use protocol::game::*;
+use protocol::types::*;
 use tracing::warn;
 
 use crate::game_shared::GameShared;
@@ -208,12 +209,15 @@ impl PlayerSessionDelegate {
             });
         }
 
+        let character = GameShared::db_character_to_proto(
+            id, name, class_id, gender, level, exp, gold,
+        );
+        *self.selected_character.lock().unwrap() = Some(character.clone());
+
         SelectCharacterResp {
             code: 0,
             message: String::new(),
-            character: Some(GameShared::db_character_to_proto(
-                id, name, class_id, gender, level, exp, gold,
-            )),
+            character: Some(character),
             inventory: Some(InventoryInfo { items, equipments }),
         }
     }

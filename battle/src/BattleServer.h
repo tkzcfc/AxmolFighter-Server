@@ -1,7 +1,9 @@
 #pragma once
 
 #include "framework/BackendClient.h"
-#include "game.pb.h"
+#include "client_battle.pb.h"
+#include "client_game.pb.h"
+#include "game_types.pb.h"
 #include "mugen/core/ecs/Types.h"
 
 #include <cstdint>
@@ -9,6 +11,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 namespace mugen
 {
@@ -78,13 +81,16 @@ private:
     void onBattleInput(std::uint32_t sessionId, const battle::BackendFrame& frame);
 
     BattleInstance* createBattle(std::uint32_t battleId, std::int32_t mapId);
-    bool addPlayerToBattle(BattleInstance& battle, std::uint32_t sessionId);
+    bool addPlayerToBattle(BattleInstance& battle, const PB::Types::BattlePlayerSpec& player);
     void removePlayer(std::uint32_t sessionId);
+
+    std::pair<std::int32_t, std::int32_t> resolveSpawnPoint(const BattleInstance& battle, std::size_t slotIndex) const;
 
     std::string serializeWorld(const BattleInstance& battle) const;
     battle::SerializedMessagePtr makeBattleCreateResp(std::int32_t code,
                                                       const std::string& message,
-                                                      const BattleInstance* battle) const;
+                                                      const BattleInstance* battle,
+                                                      std::uint32_t actorEntityId = 0) const;
     void sendSnapshot(const BattleInstance& battle);
     void sendLoadReport();
     std::uint32_t activeSessionCount() const;

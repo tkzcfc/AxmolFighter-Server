@@ -3,7 +3,7 @@
 #include "framework/BackendCodec.h"
 #include "framework/RpcManager.h"
 
-#include "game.pb.h"
+#include "client_game.pb.h"
 #include "gateway_client.pb.h"
 #include "gateway_internal.pb.h"
 #include "yasio/yasio.hpp"

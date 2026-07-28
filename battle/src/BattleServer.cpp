@@ -2,9 +2,11 @@
 
 #include "framework/Logger.h"
 #include "game_battle.pb.h"
+#include "mugen/ActorSpawner.h"
 #include "mugen/Components.h"
 #include "mugen/GameWord.h"
 #include "mugen/conf/Config.h"
+#include "mugen/conf/GameDef.h"
 #include "mugen/core/io/FileUtils.h"
 #include "mugen/core/serialize/ByteBuffer.h"
 
@@ -103,7 +105,7 @@ battle::SerializedMessagePtr BattleServer::onServerRequest(battle::BackendClient
                   frame.msgId,
                   frame.serial);
 
-    if (frame.msgId == PB::Game::BattleCreateReq::Id)
+    if (frame.msgId == PB::BattleInternal::BattleCreateReq::Id)
         return onBattleCreate(frame);
 
     return nullptr;
@@ -176,7 +178,7 @@ void BattleServer::onClientPush(battle::BackendClient& client,
                                 const battle::BackendFrame& frame)
 {
     (void)client;
-    if (frame.msgId == PB::Game::BattleInputPush::Id)
+    if (frame.msgId == PB::Battle::BattleInputPush::Id)
     {
         onBattleInput(sessionId, frame);
         return;
@@ -187,16 +189,24 @@ void BattleServer::onClientPush(battle::BackendClient& client,
 
 battle::SerializedMessagePtr BattleServer::onBattleCreate(const battle::BackendFrame& frame)
 {
-    PB::Game::BattleCreateReq req;
+    PB::BattleInternal::BattleCreateReq req;
     if (!battle::parsePayload(req, frame.payload))
         return makeBattleCreateResp(1, "invalid BattleCreateReq", nullptr);
 
     if (auto it = m_sessionToBattle.find(frame.sessionId); it != m_sessionToBattle.end())
     {
         auto battleIt = m_battles.find(it->second);
+        std::uint32_t actorId = 0;
+        if (battleIt != m_battles.end())
+        {
+            auto actorIt = m_sessionToActor.find(frame.sessionId);
+            if (actorIt != m_sessionToActor.end())
+                actorId = actorIt->second;
+        }
         return makeBattleCreateResp(battleIt != m_battles.end() ? 0 : 2,
                                     battleIt != m_battles.end() ? "" : "battle not found",
-                                    battleIt != m_battles.end() ? battleIt->second.get() : nullptr);
+                                    battleIt != m_battles.end() ? battleIt->second.get() : nullptr,
+                                    actorId);
     }
 
     BattleInstance* battle = createBattle(req.battle_id(), req.map_id());
@@ -204,23 +214,32 @@ battle::SerializedMessagePtr BattleServer::onBattleCreate(const battle::BackendF
         return makeBattleCreateResp(3, "create battle failed", nullptr);
 
     bool joined = false;
+    std::uint32_t requesterActorId = 0;
     for (const auto& player : req.players())
     {
-        const bool ok = addPlayerToBattle(*battle, player.session_id());
+        const bool ok = addPlayerToBattle(*battle, player);
+        if (!ok)
+            continue;
+
         if (player.session_id() == frame.sessionId || frame.sessionId == 0)
-            joined = joined || ok;
+        {
+            joined = true;
+            auto actorIt = m_sessionToActor.find(player.session_id());
+            if (actorIt != m_sessionToActor.end())
+                requesterActorId = actorIt->second;
+        }
     }
 
     if (!joined && req.players_size() > 0)
-        return makeBattleCreateResp(4, "battle is full", nullptr);
+        return makeBattleCreateResp(4, "battle is full or spawn failed", nullptr);
 
     sendSnapshot(*battle);
-    return makeBattleCreateResp(0, "", battle);
+    return makeBattleCreateResp(0, "", battle, requesterActorId);
 }
 
 void BattleServer::onBattleInput(std::uint32_t sessionId, const battle::BackendFrame& frame)
 {
-    PB::Game::BattleInputPush input;
+    PB::Battle::BattleInputPush input;
     if (!battle::parsePayload(input, frame.payload))
         return;
 
@@ -275,29 +294,71 @@ BattleInstance* BattleServer::createBattle(std::uint32_t battleId, std::int32_t 
     return m_battles[createdBattleId].get();
 }
 
-bool BattleServer::addPlayerToBattle(BattleInstance& battle, std::uint32_t sessionId)
+bool BattleServer::addPlayerToBattle(BattleInstance& battle, const PB::Types::BattlePlayerSpec& player)
 {
+    const std::uint32_t sessionId = player.session_id();
     if (activeSessionCount() >= m_config.maxSessions &&
         m_sessionToBattle.find(sessionId) == m_sessionToBattle.end())
     {
         return false;
     }
 
+    if (m_sessionToBattle.find(sessionId) != m_sessionToBattle.end())
+        return true;
+
     if (battle.players.size() >= 2)
         return false;
 
-    auto directorComp = MG_GET_COMPONENT(battle.world->getDirector(), DirectorComponent);
-    const bool primary = battle.players.empty();
-    const mugen::EntityId actorId = primary ? directorComp->primaryActorEntityId
-                                            : directorComp->secondaryActorEntityId;
-    if (actorId == mugen::INVALID_ENTITY_ID)
+    auto job      = static_cast<JobType>(player.class_id());
+    auto actorCfg = Config::getInstance()->getActorConfigByJob(job);
+    if (!actorCfg)
+    {
+        spdlog::error("Battle {}: actor config not found for class_id={}", battle.battleId, player.class_id());
         return false;
+    }
 
+    const auto slotIndex = battle.players.size();
+    const auto [spawnX, spawnY] = resolveSpawnPoint(battle, slotIndex);
+
+    actor_spawner::PlayerSpawnParams params;
+    params.playerId = player.player_id();
+    params.name     = player.name();
+
+    auto* actor = actor_spawner::spawnPlayerActor(&battle.world->ecsManager, actorCfg, spawnX, spawnY, params);
+    if (!actor)
+    {
+        spdlog::error("Battle {}: failed to spawn player session={}", battle.battleId, sessionId);
+        return false;
+    }
+    actor->notifyEntityReady();
+
+    const EntityId actorId = actor->getId();
     battle.players.insert(sessionId);
     m_sessionToBattle[sessionId] = battle.battleId;
-    m_sessionToActor[sessionId] = actorId;
-    spdlog::info("Session {} joined battle {} actor={}", sessionId, battle.battleId, actorId);
+    m_sessionToActor[sessionId]  = actorId;
+    spdlog::info("Session {} joined battle {} actor={} class_id={} pos=({},{})",
+                 sessionId, battle.battleId, actorId, player.class_id(), spawnX, spawnY);
     return true;
+}
+
+std::pair<std::int32_t, std::int32_t> BattleServer::resolveSpawnPoint(const BattleInstance& battle,
+                                                                     std::size_t slotIndex) const
+{
+    auto mapConfig = Config::getInstance()->getMapConfigById(battle.mapId);
+    if (mapConfig)
+    {
+        if (slotIndex < mapConfig->actorSpawns.size())
+        {
+            const auto& spawn = mapConfig->actorSpawns[slotIndex];
+            return {spawn.x, spawn.y};
+        }
+
+        const auto& scope = mapConfig->scope;
+        if (slotIndex == 0)
+            return {scope.x + scope.width / 4, scope.y + scope.height / 2};
+        return {scope.x + (scope.width * 3) / 4, scope.y + scope.height / 2};
+    }
+    return {0, 0};
 }
 
 void BattleServer::removePlayer(std::uint32_t sessionId)
@@ -332,9 +393,10 @@ std::string BattleServer::serializeWorld(const BattleInstance& battle) const
 
 battle::SerializedMessagePtr BattleServer::makeBattleCreateResp(std::int32_t code,
                                                                 const std::string& message,
-                                                                const BattleInstance* battle) const
+                                                                const BattleInstance* battle,
+                                                                std::uint32_t actorEntityId) const
 {
-    PB::Game::BattleCreateResp resp;
+    PB::BattleInternal::BattleCreateResp resp;
     resp.set_code(code);
     resp.set_message(message);
     if (battle)
@@ -343,13 +405,14 @@ battle::SerializedMessagePtr BattleServer::makeBattleCreateResp(std::int32_t cod
         resp.set_battle_instance_id(m_config.instanceId);
         resp.set_server_frame(battle->serverFrame);
         resp.set_world_dump(serializeWorld(*battle));
+        resp.set_actor_entity_id(actorEntityId);
     }
     return battle::makeSerializedMessage(resp);
 }
 
 void BattleServer::sendSnapshot(const BattleInstance& battle)
 {
-    PB::Game::BattleSnapshotPush push;
+    PB::Battle::BattleSnapshotPush push;
     push.set_battle_id(battle.battleId);
     push.set_server_frame(battle.serverFrame);
     push.set_server_time_ms(static_cast<std::uint64_t>(battle.elapsed * 1000.0f));

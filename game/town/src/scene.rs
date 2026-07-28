@@ -2,12 +2,14 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use backend_framework::session::BackendSession;
-use protocol::game::{
-    PlayerState, SceneEnterType, SceneInfo, ScenePlayerEnterPush, ScenePlayerLeavePush,
-    ScenePlayerStatePush, TownEnterSceneReq, TownEnterSceneResp, TownLeaveSceneReq,
-    TownLeaveSceneResp, TownPlayerStatePush,
-};
 use protocol::message_map::MessageType;
+use protocol::town::{
+    ScenePlayerEnterPush, ScenePlayerLeavePush, ScenePlayerStatePush, TownPlayerStatePush,
+};
+use protocol::town_internal::{
+    TownEnterSceneReq, TownEnterSceneResp, TownLeaveSceneReq, TownLeaveSceneResp,
+};
+use protocol::types::{PlayerState, SceneEnterType, SceneInfo};
 use tracing::warn;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -349,21 +351,21 @@ impl TownShared {
     fn send_pushes(&self, pushes: PushBatch) {
         for (session_id, state) in pushes.player_enter {
             self.session.send_msg(
-                &MessageType::GameScenePlayerEnterPush(ScenePlayerEnterPush { state: Some(state) }),
+                &MessageType::TownScenePlayerEnterPush(ScenePlayerEnterPush { state: Some(state) }),
                 0,
                 session_id,
             );
         }
         for (session_id, player_id) in pushes.player_leave {
             self.session.send_msg(
-                &MessageType::GameScenePlayerLeavePush(ScenePlayerLeavePush { player_id }),
+                &MessageType::TownScenePlayerLeavePush(ScenePlayerLeavePush { player_id }),
                 0,
                 session_id,
             );
         }
         for (session_id, state) in pushes.player_state {
             self.session.send_msg(
-                &MessageType::GameScenePlayerStatePush(ScenePlayerStatePush { state: Some(state) }),
+                &MessageType::TownScenePlayerStatePush(ScenePlayerStatePush { state: Some(state) }),
                 0,
                 session_id,
             );

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 // 游戏业务通用数据类型。
 // 本文件只保存没有协议 id 的纯数据结构，不直接作为网络消息收发。
-package PB.Game;
+package PB.Types;
 
 option optimize_for = LITE_RUNTIME;
 
@@ -146,4 +146,10 @@ message BattlePlayerSpec {
 	uint32 session_id = 1;
 	// 玩家 id。
 	int64 player_id = 2;
+	// 职业 id（对应客户端 JobType / class_id）。
+	int32 class_id = 3;
+	// 角色显示名。
+	string name = 4;
+	// 角色 id（便于排查，可选）。
+	int64 character_id = 5;
 }

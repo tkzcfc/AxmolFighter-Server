@@ -6,6 +6,7 @@ use backend_framework::service_id::SERVICE_ID_TOWN;
 use protocol::game::*;
 use protocol::gateway_internal::{BindServiceReq, UnbindServiceReq};
 use protocol::message_map::MessageType;
+use protocol::town_internal::{TownEnterSceneReq, TownLeaveSceneReq};
 use tracing::warn;
 
 use crate::player::PlayerSessionDelegate;
@@ -27,7 +28,7 @@ impl PlayerSessionDelegate {
             .map(|instance_id| ServerSource::new(SERVICE_ID_TOWN, instance_id as i32))
             .unwrap_or_else(|| ServerSource::any_instance(SERVICE_ID_TOWN));
 
-        let town_req = MessageType::GameTownEnterSceneReq(TownEnterSceneReq {
+        let town_req = MessageType::TownInternalTownEnterSceneReq(TownEnterSceneReq {
             session_id: self.session_id,
             player_id: account_id,
             r#type: req.r#type,
@@ -37,7 +38,7 @@ impl PlayerSessionDelegate {
         });
 
         let town_resp = match self.shared.request_server(target, town_req).await {
-            Ok(MessageType::GameTownEnterSceneResp(resp)) => resp,
+            Ok(MessageType::TownInternalTownEnterSceneResp(resp)) => resp,
             Ok(_) => {
                 warn!("unexpected town enter scene response type");
                 return Self::enter_scene_error(-1, "invalid town response");
@@ -144,7 +145,7 @@ impl PlayerSessionDelegate {
             return true;
         };
 
-        let leave_req = MessageType::GameTownLeaveSceneReq(TownLeaveSceneReq {
+        let leave_req = MessageType::TownInternalTownLeaveSceneReq(TownLeaveSceneReq {
             session_id: self.session_id,
             player_id: account_id,
         });
@@ -157,7 +158,7 @@ impl PlayerSessionDelegate {
             )
             .await
         {
-            Ok(MessageType::GameTownLeaveSceneResp(resp)) => resp,
+            Ok(MessageType::TownInternalTownLeaveSceneResp(resp)) => resp,
             Ok(_) => {
                 warn!("unexpected town leave scene response type");
                 return false;
@@ -209,7 +210,7 @@ impl PlayerSessionDelegate {
     }
 
     async fn rollback_town_enter(&self, town_instance_id: u32, player_id: i64) {
-        let msg = MessageType::GameTownLeaveSceneReq(TownLeaveSceneReq {
+        let msg = MessageType::TownInternalTownLeaveSceneReq(TownLeaveSceneReq {
             session_id: self.session_id,
             player_id,
         });

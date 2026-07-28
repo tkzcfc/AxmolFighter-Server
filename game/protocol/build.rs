@@ -37,9 +37,11 @@ fn main() -> io::Result<()> {
 
     // 需要导出的协议文件列表
     let proto_file_list = [
+        "pb/client_game.proto",
+        "pb/client_battle.proto",
+        "pb/client_town.proto",
         "pb/game_battle.proto",
         "pb/game_types.proto",
-        "pb/game.proto",
         "pb/game_town.proto",
         "pb/gateway_client.proto",
         "pb/gateway_internal.proto",

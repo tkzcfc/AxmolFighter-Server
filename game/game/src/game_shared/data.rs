@@ -1,6 +1,6 @@
 use std::sync::atomic::Ordering;
 
-use protocol::game::CharacterInfo;
+use protocol::types::CharacterInfo;
 
 use super::GameShared;
 
