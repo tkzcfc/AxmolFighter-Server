@@ -60,6 +60,8 @@ BattleServerConfig loadBattleServerConfig(const std::string& path)
                 config.instanceId = static_cast<std::uint32_t>(std::stoul(value));
             else if (key == "tick_rate")
                 config.tickRate = std::stoi(value);
+            else if (key == "snapshot_interval_frames")
+                config.snapshotIntervalFrames = std::stoi(value);
             else if (key == "max_battles")
                 config.maxBattles = static_cast<std::uint32_t>(std::stoul(value));
             else if (key == "max_sessions")

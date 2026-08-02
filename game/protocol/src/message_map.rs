@@ -19,11 +19,18 @@ pub enum MessageType {
     GameSelectCharacterResp(super::game::SelectCharacterResp),
     GameBattleJoinReq(super::game::BattleJoinReq),
     GameBattleJoinResp(super::game::BattleJoinResp),
+    GameDuelInviteReq(super::game::DuelInviteReq),
+    GameDuelInviteResp(super::game::DuelInviteResp),
+    GameDuelRespondReq(super::game::DuelRespondReq),
+    GameDuelRespondResp(super::game::DuelRespondResp),
     GameEnterSceneReq(super::game::EnterSceneReq),
     GameEnterSceneResp(super::game::EnterSceneResp),
     GameAccountKickedPush(super::game::AccountKickedPush),
     GameBattleServerOfflinePush(super::game::BattleServerOfflinePush),
     GameTownServerOfflinePush(super::game::TownServerOfflinePush),
+    GameDuelInvitePush(super::game::DuelInvitePush),
+    GameDuelStartPush(super::game::DuelStartPush),
+    GameDuelEndPush(super::game::DuelEndPush),
     BattleBattleInputPush(super::battle::BattleInputPush),
     BattleBattleSnapshotPush(super::battle::BattleSnapshotPush),
     TownTownPlayerStatePush(super::town::TownPlayerStatePush),
@@ -138,6 +145,26 @@ impl From<super::game::BattleJoinResp> for MessageType {
         MessageType::GameBattleJoinResp(v)
     }
 }
+impl From<super::game::DuelInviteReq> for MessageType {
+    fn from(v: super::game::DuelInviteReq) -> Self {
+        MessageType::GameDuelInviteReq(v)
+    }
+}
+impl From<super::game::DuelInviteResp> for MessageType {
+    fn from(v: super::game::DuelInviteResp) -> Self {
+        MessageType::GameDuelInviteResp(v)
+    }
+}
+impl From<super::game::DuelRespondReq> for MessageType {
+    fn from(v: super::game::DuelRespondReq) -> Self {
+        MessageType::GameDuelRespondReq(v)
+    }
+}
+impl From<super::game::DuelRespondResp> for MessageType {
+    fn from(v: super::game::DuelRespondResp) -> Self {
+        MessageType::GameDuelRespondResp(v)
+    }
+}
 impl From<super::game::EnterSceneReq> for MessageType {
     fn from(v: super::game::EnterSceneReq) -> Self {
         MessageType::GameEnterSceneReq(v)
@@ -161,6 +188,21 @@ impl From<super::game::BattleServerOfflinePush> for MessageType {
 impl From<super::game::TownServerOfflinePush> for MessageType {
     fn from(v: super::game::TownServerOfflinePush) -> Self {
         MessageType::GameTownServerOfflinePush(v)
+    }
+}
+impl From<super::game::DuelInvitePush> for MessageType {
+    fn from(v: super::game::DuelInvitePush) -> Self {
+        MessageType::GameDuelInvitePush(v)
+    }
+}
+impl From<super::game::DuelStartPush> for MessageType {
+    fn from(v: super::game::DuelStartPush) -> Self {
+        MessageType::GameDuelStartPush(v)
+    }
+}
+impl From<super::game::DuelEndPush> for MessageType {
+    fn from(v: super::game::DuelEndPush) -> Self {
+        MessageType::GameDuelEndPush(v)
     }
 }
 impl From<super::battle::BattleInputPush> for MessageType {
@@ -336,11 +378,18 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
         MessageType::GameSelectCharacterResp(_) => Some(1205u32),
         MessageType::GameBattleJoinReq(_) => Some(1300u32),
         MessageType::GameBattleJoinResp(_) => Some(1301u32),
+        MessageType::GameDuelInviteReq(_) => Some(1304u32),
+        MessageType::GameDuelInviteResp(_) => Some(1305u32),
+        MessageType::GameDuelRespondReq(_) => Some(1306u32),
+        MessageType::GameDuelRespondResp(_) => Some(1307u32),
         MessageType::GameEnterSceneReq(_) => Some(1302u32),
         MessageType::GameEnterSceneResp(_) => Some(1303u32),
         MessageType::GameAccountKickedPush(_) => Some(1400u32),
         MessageType::GameBattleServerOfflinePush(_) => Some(1401u32),
         MessageType::GameTownServerOfflinePush(_) => Some(1402u32),
+        MessageType::GameDuelInvitePush(_) => Some(1410u32),
+        MessageType::GameDuelStartPush(_) => Some(1411u32),
+        MessageType::GameDuelEndPush(_) => Some(1412u32),
         MessageType::BattleBattleInputPush(_) => Some(20012u32),
         MessageType::BattleBattleSnapshotPush(_) => Some(20013u32),
         MessageType::TownTownPlayerStatePush(_) => Some(30000u32),
@@ -438,6 +487,22 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
             Ok(message) => Ok(MessageType::GameBattleJoinResp(message)),
             Err(err) => Err(err),
         },
+        1304u32 => match super::game::DuelInviteReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameDuelInviteReq(message)),
+            Err(err) => Err(err),
+        },
+        1305u32 => match super::game::DuelInviteResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameDuelInviteResp(message)),
+            Err(err) => Err(err),
+        },
+        1306u32 => match super::game::DuelRespondReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameDuelRespondReq(message)),
+            Err(err) => Err(err),
+        },
+        1307u32 => match super::game::DuelRespondResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameDuelRespondResp(message)),
+            Err(err) => Err(err),
+        },
         1302u32 => match super::game::EnterSceneReq::decode(bytes) {
             Ok(message) => Ok(MessageType::GameEnterSceneReq(message)),
             Err(err) => Err(err),
@@ -456,6 +521,18 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
         },
         1402u32 => match super::game::TownServerOfflinePush::decode(bytes) {
             Ok(message) => Ok(MessageType::GameTownServerOfflinePush(message)),
+            Err(err) => Err(err),
+        },
+        1410u32 => match super::game::DuelInvitePush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameDuelInvitePush(message)),
+            Err(err) => Err(err),
+        },
+        1411u32 => match super::game::DuelStartPush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameDuelStartPush(message)),
+            Err(err) => Err(err),
+        },
+        1412u32 => match super::game::DuelEndPush::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameDuelEndPush(message)),
             Err(err) => Err(err),
         },
         20012u32 => match super::battle::BattleInputPush::decode(bytes) {
@@ -603,11 +680,18 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
         MessageType::GameSelectCharacterResp(msg) => Some((1205u32, msg.encode_to_vec())),
         MessageType::GameBattleJoinReq(msg) => Some((1300u32, msg.encode_to_vec())),
         MessageType::GameBattleJoinResp(msg) => Some((1301u32, msg.encode_to_vec())),
+        MessageType::GameDuelInviteReq(msg) => Some((1304u32, msg.encode_to_vec())),
+        MessageType::GameDuelInviteResp(msg) => Some((1305u32, msg.encode_to_vec())),
+        MessageType::GameDuelRespondReq(msg) => Some((1306u32, msg.encode_to_vec())),
+        MessageType::GameDuelRespondResp(msg) => Some((1307u32, msg.encode_to_vec())),
         MessageType::GameEnterSceneReq(msg) => Some((1302u32, msg.encode_to_vec())),
         MessageType::GameEnterSceneResp(msg) => Some((1303u32, msg.encode_to_vec())),
         MessageType::GameAccountKickedPush(msg) => Some((1400u32, msg.encode_to_vec())),
         MessageType::GameBattleServerOfflinePush(msg) => Some((1401u32, msg.encode_to_vec())),
         MessageType::GameTownServerOfflinePush(msg) => Some((1402u32, msg.encode_to_vec())),
+        MessageType::GameDuelInvitePush(msg) => Some((1410u32, msg.encode_to_vec())),
+        MessageType::GameDuelStartPush(msg) => Some((1411u32, msg.encode_to_vec())),
+        MessageType::GameDuelEndPush(msg) => Some((1412u32, msg.encode_to_vec())),
         MessageType::BattleBattleInputPush(msg) => Some((20012u32, msg.encode_to_vec())),
         MessageType::BattleBattleSnapshotPush(msg) => Some((20013u32, msg.encode_to_vec())),
         MessageType::TownTownPlayerStatePush(msg) => Some((30000u32, msg.encode_to_vec())),
@@ -660,11 +744,18 @@ pub fn get_message_size(message: &MessageType) -> usize {
         MessageType::GameSelectCharacterResp(msg) => msg.encoded_len(),
         MessageType::GameBattleJoinReq(msg) => msg.encoded_len(),
         MessageType::GameBattleJoinResp(msg) => msg.encoded_len(),
+        MessageType::GameDuelInviteReq(msg) => msg.encoded_len(),
+        MessageType::GameDuelInviteResp(msg) => msg.encoded_len(),
+        MessageType::GameDuelRespondReq(msg) => msg.encoded_len(),
+        MessageType::GameDuelRespondResp(msg) => msg.encoded_len(),
         MessageType::GameEnterSceneReq(msg) => msg.encoded_len(),
         MessageType::GameEnterSceneResp(msg) => msg.encoded_len(),
         MessageType::GameAccountKickedPush(msg) => msg.encoded_len(),
         MessageType::GameBattleServerOfflinePush(msg) => msg.encoded_len(),
         MessageType::GameTownServerOfflinePush(msg) => msg.encoded_len(),
+        MessageType::GameDuelInvitePush(msg) => msg.encoded_len(),
+        MessageType::GameDuelStartPush(msg) => msg.encoded_len(),
+        MessageType::GameDuelEndPush(msg) => msg.encoded_len(),
         MessageType::BattleBattleInputPush(msg) => msg.encoded_len(),
         MessageType::BattleBattleSnapshotPush(msg) => msg.encoded_len(),
         MessageType::TownTownPlayerStatePush(msg) => msg.encoded_len(),
@@ -717,11 +808,18 @@ pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
         MessageType::GameSelectCharacterResp(msg) => msg.encode_raw(buf),
         MessageType::GameBattleJoinReq(msg) => msg.encode_raw(buf),
         MessageType::GameBattleJoinResp(msg) => msg.encode_raw(buf),
+        MessageType::GameDuelInviteReq(msg) => msg.encode_raw(buf),
+        MessageType::GameDuelInviteResp(msg) => msg.encode_raw(buf),
+        MessageType::GameDuelRespondReq(msg) => msg.encode_raw(buf),
+        MessageType::GameDuelRespondResp(msg) => msg.encode_raw(buf),
         MessageType::GameEnterSceneReq(msg) => msg.encode_raw(buf),
         MessageType::GameEnterSceneResp(msg) => msg.encode_raw(buf),
         MessageType::GameAccountKickedPush(msg) => msg.encode_raw(buf),
         MessageType::GameBattleServerOfflinePush(msg) => msg.encode_raw(buf),
         MessageType::GameTownServerOfflinePush(msg) => msg.encode_raw(buf),
+        MessageType::GameDuelInvitePush(msg) => msg.encode_raw(buf),
+        MessageType::GameDuelStartPush(msg) => msg.encode_raw(buf),
+        MessageType::GameDuelEndPush(msg) => msg.encode_raw(buf),
         MessageType::BattleBattleInputPush(msg) => msg.encode_raw(buf),
         MessageType::BattleBattleSnapshotPush(msg) => msg.encode_raw(buf),
         MessageType::TownTownPlayerStatePush(msg) => msg.encode_raw(buf),
@@ -775,11 +873,18 @@ pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {
         MessageType::GameSelectCharacterResp(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleJoinReq(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleJoinResp(msg) => serde_json::to_string(&msg),
+        MessageType::GameDuelInviteReq(msg) => serde_json::to_string(&msg),
+        MessageType::GameDuelInviteResp(msg) => serde_json::to_string(&msg),
+        MessageType::GameDuelRespondReq(msg) => serde_json::to_string(&msg),
+        MessageType::GameDuelRespondResp(msg) => serde_json::to_string(&msg),
         MessageType::GameEnterSceneReq(msg) => serde_json::to_string(&msg),
         MessageType::GameEnterSceneResp(msg) => serde_json::to_string(&msg),
         MessageType::GameAccountKickedPush(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleServerOfflinePush(msg) => serde_json::to_string(&msg),
         MessageType::GameTownServerOfflinePush(msg) => serde_json::to_string(&msg),
+        MessageType::GameDuelInvitePush(msg) => serde_json::to_string(&msg),
+        MessageType::GameDuelStartPush(msg) => serde_json::to_string(&msg),
+        MessageType::GameDuelEndPush(msg) => serde_json::to_string(&msg),
         MessageType::BattleBattleInputPush(msg) => serde_json::to_string(&msg),
         MessageType::BattleBattleSnapshotPush(msg) => serde_json::to_string(&msg),
         MessageType::TownTownPlayerStatePush(msg) => serde_json::to_string(&msg),

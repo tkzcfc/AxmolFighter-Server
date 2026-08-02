@@ -213,6 +213,8 @@ impl PlayerSessionDelegate {
             id, name, class_id, gender, level, exp, gold,
         );
         *self.selected_character.lock().unwrap() = Some(character.clone());
+        self.shared
+            .set_selected_character_for_session(self.session_id, character.clone());
 
         SelectCharacterResp {
             code: 0,

@@ -821,6 +821,9 @@ pub struct BattleJoinResp {
     /// 本机对应的 actor 实体 id，用于绑定 localPlayer。
     #[prost(uint32, tag = "6")]
     pub actor_entity_id: u32,
+    /// 战斗世界随机种子（由 game 生成）。
+    #[prost(uint64, tag = "7")]
+    pub random_seed: u64,
 }
 /// Nested message and enum types in `BattleJoinResp`.
 pub mod battle_join_resp {
@@ -843,6 +846,220 @@ pub mod battle_join_resp {
     pub enum MsgId {
         None = 0,
         Id = 1301,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 客户端请求向指定玩家发起决斗。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DuelInviteReq {
+    /// 被邀请的玩家 id。
+    #[prost(int64, tag = "1")]
+    pub target_player_id: i64,
+}
+/// Nested message and enum types in `DuelInviteReq`.
+pub mod duel_invite_req {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1304,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 决斗邀请响应。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DuelInviteResp {
+    /// 结果码，0 表示邀请已发出（不代表对方已接受）。
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    /// 结果说明。
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `DuelInviteResp`.
+pub mod duel_invite_resp {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1305,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 客户端回应决斗邀请。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DuelRespondReq {
+    /// 1=接受，0=拒绝。
+    #[prost(int32, tag = "1")]
+    pub accept: i32,
+}
+/// Nested message and enum types in `DuelRespondReq`.
+pub mod duel_respond_req {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1306,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 决斗回应响应。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DuelRespondResp {
+    /// 结果码，0 表示成功。
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    /// 结果说明。
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `DuelRespondResp`.
+pub mod duel_respond_resp {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1307,
     }
     impl MsgId {
         /// String value of the enum field names used in the ProtoBuf definition.
@@ -1139,6 +1356,186 @@ pub mod town_server_offline_push {
     pub enum MsgId {
         None = 0,
         Id = 1402,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 收到决斗邀请。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DuelInvitePush {
+    /// 发起方玩家 id。
+    #[prost(int64, tag = "1")]
+    pub from_player_id: i64,
+    /// 发起方角色名。
+    #[prost(string, tag = "2")]
+    pub from_name: ::prost::alloc::string::String,
+    /// 发起方职业 id。
+    #[prost(int32, tag = "3")]
+    pub from_class_id: i32,
+}
+/// Nested message and enum types in `DuelInvitePush`.
+pub mod duel_invite_push {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1410,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 决斗成立，双方进入战斗。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DuelStartPush {
+    /// 战斗 id。
+    #[prost(uint32, tag = "1")]
+    pub battle_id: u32,
+    /// 当前服务器帧。
+    #[prost(uint32, tag = "2")]
+    pub server_frame: u32,
+    /// 战斗世界快照。
+    #[prost(bytes = "vec", tag = "3")]
+    pub world_dump: ::prost::alloc::vec::Vec<u8>,
+    /// 本机对应的 actor 实体 id，用于绑定 localPlayer。
+    #[prost(uint32, tag = "4")]
+    pub actor_entity_id: u32,
+    /// 地图 id。
+    #[prost(int32, tag = "5")]
+    pub map_id: i32,
+    /// 战斗世界随机种子（由 game 生成）。
+    #[prost(uint64, tag = "6")]
+    pub random_seed: u64,
+}
+/// Nested message and enum types in `DuelStartPush`.
+pub mod duel_start_push {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1411,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 决斗结束/对方拒绝/过期等导致的结束通知。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DuelEndPush {
+    /// 原因码：1=对方拒绝 2=邀请过期 3=对方不在城镇/状态异常。
+    #[prost(int32, tag = "1")]
+    pub reason: i32,
+    /// 说明。
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `DuelEndPush`.
+pub mod duel_end_push {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1412,
     }
     impl MsgId {
         /// String value of the enum field names used in the ProtoBuf definition.

@@ -145,6 +145,14 @@ pub struct PlayerState {
     /// 朝向，对应客户端 FacingDirection（0=左，1=右）。
     #[prost(int32, tag = "9")]
     pub facing: i32,
+    /// 是否仍在主动移动（有移动意图/速度）。远端据此保持 walk，避免到点误切 idle。
+    #[prost(bool, tag = "10")]
+    pub moving: bool,
+    /// 当前水平速度（像素/秒），用于远端斜向外推。
+    #[prost(float, tag = "11")]
+    pub vel_x: f32,
+    #[prost(float, tag = "12")]
+    pub vel_y: f32,
 }
 /// 下发给客户端的场景公开信息，不包含服务器内部 SceneId。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]

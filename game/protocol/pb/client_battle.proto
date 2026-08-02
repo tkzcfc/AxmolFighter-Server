@@ -38,4 +38,7 @@ message BattleSnapshotPush {
     uint64 server_time_ms = 3;
     // 战斗世界快照。
     bytes world_dump = 4;
+    // 服务器最近一次应用的、属于本 session 的 client_frame。
+    // 客户端用它丢弃已确认输入，只重放未确认部分。
+    uint32 last_processed_client_frame = 5;
 }

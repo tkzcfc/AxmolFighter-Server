@@ -114,6 +114,11 @@ message PlayerState {
 	float pos_z = 8;
 	// 朝向，对应客户端 FacingDirection（0=左，1=右）。
 	int32 facing = 9;
+	// 是否仍在主动移动（有移动意图/速度）。远端据此保持 walk，避免到点误切 idle。
+	bool moving = 10;
+	// 当前水平速度（像素/秒），用于远端斜向外推。
+	float vel_x = 11;
+	float vel_y = 12;
 }
 
 // 城镇场景进入目标类型。

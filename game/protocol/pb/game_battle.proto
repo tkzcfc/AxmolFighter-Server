@@ -27,6 +27,8 @@ message BattleCreateReq {
     uint32 requester_service_id = 4;
     // 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
     uint32 requester_instance_id = 5;
+    // 战斗世界随机种子（由 game 生成，battle/客户端共用）。
+    uint64 random_seed = 6;
 }
 
 // Battle 返回创建战斗结果。
@@ -47,4 +49,14 @@ message BattleCreateResp {
     bytes world_dump = 6;
     // 请求方 session 对应的 actor 实体 id，便于客户端绑定 localPlayer。
     uint32 actor_entity_id = 7;
+    // 所有已加入玩家的 actor 映射（决斗等多人场景使用）。
+    repeated BattlePlayerSpawn players = 8;
+}
+
+// 单个已加入玩家的 actor 映射。
+message BattlePlayerSpawn {
+    // 客户端 session id。
+    uint32 session_id = 1;
+    // 对应的 actor 实体 id。
+    uint32 actor_entity_id = 2;
 }

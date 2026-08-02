@@ -19,6 +19,9 @@ pub struct BattleCreateReq {
     /// 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
     #[prost(uint32, tag = "5")]
     pub requester_instance_id: u32,
+    /// 战斗世界随机种子（由 game 生成，battle/客户端共用）。
+    #[prost(uint64, tag = "6")]
+    pub random_seed: u64,
 }
 /// Nested message and enum types in `BattleCreateReq`.
 pub mod battle_create_req {
@@ -89,6 +92,9 @@ pub struct BattleCreateResp {
     /// 请求方 session 对应的 actor 实体 id，便于客户端绑定 localPlayer。
     #[prost(uint32, tag = "7")]
     pub actor_entity_id: u32,
+    /// 所有已加入玩家的 actor 映射（决斗等多人场景使用）。
+    #[prost(message, repeated, tag = "8")]
+    pub players: ::prost::alloc::vec::Vec<BattlePlayerSpawn>,
 }
 /// Nested message and enum types in `BattleCreateResp`.
 pub mod battle_create_resp {
@@ -132,4 +138,16 @@ pub mod battle_create_resp {
             }
         }
     }
+}
+/// 单个已加入玩家的 actor 映射。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BattlePlayerSpawn {
+    /// 客户端 session id。
+    #[prost(uint32, tag = "1")]
+    pub session_id: u32,
+    /// 对应的 actor 实体 id。
+    #[prost(uint32, tag = "2")]
+    pub actor_entity_id: u32,
 }

@@ -9,6 +9,15 @@ impl GameShared {
         self.battle_id_seed.fetch_add(1, Ordering::Relaxed)
     }
 
+    pub fn next_random_seed(&self) -> u64 {
+        loop {
+            let seed = self.random_seed_counter.fetch_add(1, Ordering::Relaxed);
+            if seed != 0 {
+                return seed;
+            }
+        }
+    }
+
     pub async fn query_max_character_count(&self) -> i32 {
         match sqlx::query_scalar::<_, i64>(
             "SELECT value_int FROM server_settings WHERE key = 'max_character_count'",

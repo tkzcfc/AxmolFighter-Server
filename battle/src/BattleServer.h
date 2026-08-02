@@ -1,22 +1,15 @@
 #pragma once
 
+#include "battle/BattleRoomManager.h"
+#include "battle/BattleSync.h"
 #include "framework/BackendClient.h"
 #include "client_battle.pb.h"
 #include "client_game.pb.h"
 #include "game_types.pb.h"
-#include "mugen/core/ecs/Types.h"
 
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-
-namespace mugen
-{
-class GameWord;
-}
 
 struct BattleServerConfig
 {
@@ -25,23 +18,16 @@ struct BattleServerConfig
     int gatewayPort = 7100;
     float reconnectInterval = 3.0f;
     int tickRate = 30;
+    // 全量 snapshot 间隔（逻辑帧数）；默认 10 ≈ 3Hz（tick_rate=30）
+    int snapshotIntervalFrames = 10;
     std::uint32_t maxBattles = 100;
     std::uint32_t maxSessions = 200;
     float loadReportInterval = 5.0f;
-    /** Content 根目录，内含 mugen/config/**（服务器不部署 PNG/.ani） */
+    /** Content 根目录：含 mugen/config/**，以及逻辑播放所需的 .ani / .box / motion（可不部署 PNG） */
     std::string contentRoot = "../../client/Content";
 };
 
-struct BattleInstance
-{
-    std::uint32_t battleId = 0;
-    std::int32_t mapId = 1;
-    std::uint32_t serverFrame = 0;
-    float elapsed = 0.0f;
-    std::unordered_set<std::uint32_t> players;
-    std::unique_ptr<mugen::GameWord> world;
-};
-
+// Battle 服入口：只做协议解析、委托 RoomManager/Sync，以及 Backend 生命周期回调。
 class BattleServer final : public battle::BackendDelegate
 {
 public:
@@ -80,31 +66,19 @@ private:
     battle::SerializedMessagePtr onBattleCreate(const battle::BackendFrame& frame);
     void onBattleInput(std::uint32_t sessionId, const battle::BackendFrame& frame);
 
-    BattleInstance* createBattle(std::uint32_t battleId, std::int32_t mapId);
-    bool addPlayerToBattle(BattleInstance& battle, const PB::Types::BattlePlayerSpec& player);
-    void removePlayer(std::uint32_t sessionId);
-
-    std::pair<std::int32_t, std::int32_t> resolveSpawnPoint(const BattleInstance& battle, std::size_t slotIndex) const;
-
-    std::string serializeWorld(const BattleInstance& battle) const;
     battle::SerializedMessagePtr makeBattleCreateResp(std::int32_t code,
                                                       const std::string& message,
-                                                      const BattleInstance* battle,
-                                                      std::uint32_t actorEntityId = 0) const;
-    void sendSnapshot(const BattleInstance& battle);
+                                                      const battle::BattleRoom* room,
+                                                      std::uint32_t requesterActorId = 0) const;
     void sendLoadReport();
-    std::uint32_t activeSessionCount() const;
-    bool canAcceptBinding(std::uint32_t sessionId) const;
     void tick(float dt);
 
 private:
     BattleServerConfig m_config;
     battle::BackendClient m_backend;
+    std::unique_ptr<battle::BattleRoomManager> m_roomManager;
+    std::unique_ptr<battle::BattleSync> m_sync;
     bool m_running = false;
     std::uint64_t m_randomSeed = 0xBA771E;
     float m_loadReportTimer = 0.0f;
-
-    std::unordered_map<std::uint32_t, std::unique_ptr<BattleInstance>> m_battles;
-    std::unordered_map<std::uint32_t, std::uint32_t> m_sessionToBattle;
-    std::unordered_map<std::uint32_t, mugen::EntityId> m_sessionToActor;
 };

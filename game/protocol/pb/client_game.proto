@@ -198,6 +198,47 @@ message BattleJoinResp {
     bytes world_dump = 5;
     // 本机对应的 actor 实体 id，用于绑定 localPlayer。
     uint32 actor_entity_id = 6;
+    // 战斗世界随机种子（由 game 生成）。
+    uint64 random_seed = 7;
+}
+
+// [决斗] 1304-1307
+// 城镇内 1v1 邀请/接受，接受后由 game 服编排双方进 battle。
+
+// 客户端请求向指定玩家发起决斗。
+message DuelInviteReq {
+    enum MsgId { None = 0; Id = 1304; }
+
+    // 被邀请的玩家 id。
+    int64 target_player_id = 1;
+}
+
+// 决斗邀请响应。
+message DuelInviteResp {
+    enum MsgId { None = 0; Id = 1305; }
+
+    // 结果码，0 表示邀请已发出（不代表对方已接受）。
+    int32 code = 1;
+    // 结果说明。
+    string message = 2;
+}
+
+// 客户端回应决斗邀请。
+message DuelRespondReq {
+    enum MsgId { None = 0; Id = 1306; }
+
+    // 1=接受，0=拒绝。
+    int32 accept = 1;
+}
+
+// 决斗回应响应。
+message DuelRespondResp {
+    enum MsgId { None = 0; Id = 1307; }
+
+    // 结果码，0 表示成功。
+    int32 code = 1;
+    // 结果说明。
+    string message = 2;
 }
 
 // [城镇入口] 1302-1303
@@ -268,4 +309,46 @@ message TownServerOfflinePush {
     int32 reason = 2;
     // 下线说明。
     string message = 3;
+}
+
+// [决斗通知] 1410-1412
+
+// 收到决斗邀请。
+message DuelInvitePush {
+    enum MsgId { None = 0; Id = 1410; }
+
+    // 发起方玩家 id。
+    int64 from_player_id = 1;
+    // 发起方角色名。
+    string from_name = 2;
+    // 发起方职业 id。
+    int32 from_class_id = 3;
+}
+
+// 决斗成立，双方进入战斗。
+message DuelStartPush {
+    enum MsgId { None = 0; Id = 1411; }
+
+    // 战斗 id。
+    uint32 battle_id = 1;
+    // 当前服务器帧。
+    uint32 server_frame = 2;
+    // 战斗世界快照。
+    bytes world_dump = 3;
+    // 本机对应的 actor 实体 id，用于绑定 localPlayer。
+    uint32 actor_entity_id = 4;
+    // 地图 id。
+    int32 map_id = 5;
+    // 战斗世界随机种子（由 game 生成）。
+    uint64 random_seed = 6;
+}
+
+// 决斗结束/对方拒绝/过期等导致的结束通知。
+message DuelEndPush {
+    enum MsgId { None = 0; Id = 1412; }
+
+    // 原因码：1=对方拒绝 2=邀请过期 3=对方不在城镇/状态异常。
+    int32 reason = 1;
+    // 说明。
+    string message = 2;
 }

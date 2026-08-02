@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex, OnceLock, Weak};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
 use protocol::gateway_internal::KickSessionReq;
@@ -27,6 +27,16 @@ pub(crate) struct BattleSessionState {
     pub battle_instance_id: u32,
 }
 
+/// 待定决斗：挑战者已发出邀请，等待目标回应。
+#[derive(Clone, Copy)]
+pub(crate) struct PendingDuel {
+    pub challenger_session: u32,
+    pub challenger_player_id: i64,
+    pub target_session: u32,
+    pub target_player_id: i64,
+    pub created_at: std::time::Instant,
+}
+
 // 游戏服的共享全局状态。
 pub struct GameShared {
     pub session: Arc<BackendSession>,
@@ -36,12 +46,19 @@ pub struct GameShared {
     battle_instance_sessions: Mutex<HashMap<u32, HashSet<u32>>>,
     town_sessions: Mutex<HashMap<u32, u32>>,
     town_instance_sessions: Mutex<HashMap<u32, HashSet<u32>>>,
+    pending_duels: Mutex<HashMap<u32, PendingDuel>>,
+    selected_characters: Mutex<HashMap<u32, protocol::types::CharacterInfo>>,
     self_weak: OnceLock<Weak<Self>>,
     battle_id_seed: AtomicU32,
+    random_seed_counter: AtomicU64,
 }
 
 impl GameShared {
     pub fn new(pool: PgPool, session: Arc<BackendSession>) -> Arc<Self> {
+        let seed_init = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(1);
         Arc::new_cyclic(|weak| {
             let s = Self {
                 session,
@@ -51,8 +68,11 @@ impl GameShared {
                 battle_instance_sessions: Mutex::new(HashMap::new()),
                 town_sessions: Mutex::new(HashMap::new()),
                 town_instance_sessions: Mutex::new(HashMap::new()),
+                pending_duels: Mutex::new(HashMap::new()),
+                selected_characters: Mutex::new(HashMap::new()),
                 self_weak: OnceLock::new(),
                 battle_id_seed: AtomicU32::new(1),
+                random_seed_counter: AtomicU64::new(seed_init.max(1)),
             };
             s.self_weak.set(weak.clone()).ok();
             s
@@ -169,9 +189,121 @@ impl GameShared {
         self.town_sessions.lock().unwrap().get(&session_id).copied()
     }
 
+    pub(crate) fn session_in_battle(&self, session_id: u32) -> bool {
+        self.battle_sessions.lock().unwrap().contains_key(&session_id)
+    }
+
+    pub(crate) fn session_in_town(&self, session_id: u32) -> bool {
+        self.town_sessions.lock().unwrap().contains_key(&session_id)
+    }
+
+    // ── 待定决斗 ───────────────────────────────────────────
+
+    pub(crate) fn add_pending_duel(&self, pending: PendingDuel) {
+        self.pending_duels
+            .lock()
+            .unwrap()
+            .insert(pending.challenger_session, pending);
+    }
+
+    pub(crate) fn find_pending_duel_for_target(&self, target_session: u32) -> Option<PendingDuel> {
+        self.pending_duels
+            .lock()
+            .unwrap()
+            .values()
+            .find(|p| p.target_session == target_session)
+            .copied()
+    }
+
+    pub(crate) fn has_pending_duel_from(&self, challenger_session: u32) -> bool {
+        self.pending_duels
+            .lock()
+            .unwrap()
+            .contains_key(&challenger_session)
+    }
+
+    pub(crate) fn remove_pending_duel(&self, challenger_session: u32) -> Option<PendingDuel> {
+        self.pending_duels
+            .lock()
+            .unwrap()
+            .remove(&challenger_session)
+    }
+
+    pub(crate) fn remove_pending_duels_for_session(&self, session_id: u32) {
+        let mut duels = self.pending_duels.lock().unwrap();
+        duels.retain(|_, p| p.challenger_session != session_id && p.target_session != session_id);
+    }
+
+    // ── 选中角色缓存（跨 session 可读） ─────────────────────
+
+    pub(crate) fn set_selected_character_for_session(
+        &self,
+        session_id: u32,
+        character: protocol::types::CharacterInfo,
+    ) {
+        self.selected_characters
+            .lock()
+            .unwrap()
+            .insert(session_id, character);
+    }
+
+    pub(crate) fn character_for_session(
+        &self,
+        session_id: u32,
+    ) -> Option<protocol::types::CharacterInfo> {
+        self.selected_characters
+            .lock()
+            .unwrap()
+            .get(&session_id)
+            .cloned()
+    }
+
+    /// 代指定 session 离开城镇场景（用于决斗等需要同时移动双方的流程）。
+    pub(crate) async fn leave_town_for_session(&self, session_id: u32) -> bool {
+        use protocol::town_internal::TownLeaveSceneReq;
+
+        let Some(town_instance_id) = self.town_instance_for_session(session_id) else {
+            return true;
+        };
+        let player_id = {
+            let sessions = self.account_sessions.lock().unwrap();
+            sessions
+                .iter()
+                .find(|(_, sid)| **sid == session_id)
+                .map(|(pid, _)| *pid)
+        };
+        let Some(player_id) = player_id else {
+            return false;
+        };
+
+        let leave_req = MessageType::TownInternalTownLeaveSceneReq(TownLeaveSceneReq {
+            session_id,
+            player_id,
+        });
+        match self
+            .request_server(
+                ServerSource::new(SERVICE_ID_TOWN, town_instance_id as i32),
+                leave_req,
+            )
+            .await
+        {
+            Ok(MessageType::TownInternalTownLeaveSceneResp(resp)) => resp.code == 0,
+            Ok(_) => {
+                warn!("unexpected town leave scene response type");
+                false
+            }
+            Err(err) => {
+                warn!("town leave scene request failed: {}", err);
+                false
+            }
+        }
+    }
+
     pub(crate) fn clear_session_runtime_state(&self, session_id: u32) {
         self.clear_battle_session(session_id);
         self.clear_town_session(session_id);
+        self.remove_pending_duels_for_session(session_id);
+        self.selected_characters.lock().unwrap().remove(&session_id);
     }
 
     fn clear_all_runtime_state(&self) {

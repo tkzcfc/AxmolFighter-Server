@@ -77,6 +77,10 @@ pub struct BattleSnapshotPush {
     /// 战斗世界快照。
     #[prost(bytes = "vec", tag = "4")]
     pub world_dump: ::prost::alloc::vec::Vec<u8>,
+    /// 服务器最近一次应用的、属于本 session 的 client_frame。
+    /// 客户端用它丢弃已确认输入，只重放未确认部分。
+    #[prost(uint32, tag = "5")]
+    pub last_processed_client_frame: u32,
 }
 /// Nested message and enum types in `BattleSnapshotPush`.
 pub mod battle_snapshot_push {

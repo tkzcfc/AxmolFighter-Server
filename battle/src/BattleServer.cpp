@@ -2,13 +2,8 @@
 
 #include "framework/Logger.h"
 #include "game_battle.pb.h"
-#include "mugen/ActorSpawner.h"
-#include "mugen/Components.h"
-#include "mugen/GameWord.h"
 #include "mugen/conf/Config.h"
-#include "mugen/conf/GameDef.h"
 #include "mugen/core/io/FileUtils.h"
-#include "mugen/core/serialize/ByteBuffer.h"
 
 #include <chrono>
 #include <spdlog/spdlog.h>
@@ -38,13 +33,16 @@ bool BattleServer::init(const BattleServerConfig& config)
         spdlog::info("BattleServer content_root={}", m_config.contentRoot);
     }
 
+    m_roomManager = std::make_unique<battle::BattleRoomManager>(m_config.maxBattles, m_config.maxSessions);
+    m_sync        = std::make_unique<battle::BattleSync>(m_backend);
+
     battle::BackendConfig backendConfig;
     backendConfig.serviceId = battle::kServiceIdBattle;
-    backendConfig.instanceId = config.instanceId;
-    backendConfig.gatewayHost = config.gatewayHost;
-    backendConfig.gatewayPort = config.gatewayPort;
+    backendConfig.instanceId = m_config.instanceId;
+    backendConfig.gatewayHost = m_config.gatewayHost;
+    backendConfig.gatewayPort = m_config.gatewayPort;
     backendConfig.initialLoadScore = 0;
-    backendConfig.initialAcceptingBindings = config.maxBattles > 0 && config.maxSessions > 0;
+    backendConfig.initialAcceptingBindings = m_config.maxBattles > 0 && m_config.maxSessions > 0;
     backendConfig.initialLoadMessage = backendConfig.initialAcceptingBindings
         ? ""
         : "battle server capacity is full";
@@ -88,9 +86,7 @@ void BattleServer::onDisconnected(battle::BackendClient& client)
 {
     (void)client;
     spdlog::warn("BattleServer gateway disconnected, shutting down");
-    m_battles.clear();
-    m_sessionToBattle.clear();
-    m_sessionToActor.clear();
+    m_roomManager.reset();
     shutdown();
 }
 
@@ -146,9 +142,6 @@ void BattleServer::onServerOffline(battle::BackendClient& client,
 void BattleServer::onShutdown(battle::BackendClient& client)
 {
     (void)client;
-    m_battles.clear();
-    m_sessionToBattle.clear();
-    m_sessionToActor.clear();
 }
 
 void BattleServer::onSessionOnline(battle::BackendClient& client, std::uint32_t sessionId)
@@ -161,7 +154,11 @@ void BattleServer::onSessionOffline(battle::BackendClient& client, std::uint32_t
 {
     (void)client;
     spdlog::info("Session offline: {}", sessionId);
-    removePlayer(sessionId);
+    if (m_roomManager)
+    {
+        m_roomManager->removePlayer(sessionId);
+        m_backend.unbindService(sessionId, battle::kServiceIdBattle);
+    }
 }
 
 battle::SerializedMessagePtr BattleServer::onClientRequest(battle::BackendClient& client,
@@ -193,48 +190,44 @@ battle::SerializedMessagePtr BattleServer::onBattleCreate(const battle::BackendF
     if (!battle::parsePayload(req, frame.payload))
         return makeBattleCreateResp(1, "invalid BattleCreateReq", nullptr);
 
-    if (auto it = m_sessionToBattle.find(frame.sessionId); it != m_sessionToBattle.end())
+    // 重复创建：直接返回已有房间状态
+    if (auto* existing = m_roomManager->findRoom(req.battle_id()))
     {
-        auto battleIt = m_battles.find(it->second);
-        std::uint32_t actorId = 0;
-        if (battleIt != m_battles.end())
-        {
-            auto actorIt = m_sessionToActor.find(frame.sessionId);
-            if (actorIt != m_sessionToActor.end())
-                actorId = actorIt->second;
-        }
-        return makeBattleCreateResp(battleIt != m_battles.end() ? 0 : 2,
-                                    battleIt != m_battles.end() ? "" : "battle not found",
-                                    battleIt != m_battles.end() ? battleIt->second.get() : nullptr,
-                                    actorId);
+        const auto actorId = existing->actorIdForSession(frame.sessionId);
+        return makeBattleCreateResp(0, "", existing, actorId);
     }
 
-    BattleInstance* battle = createBattle(req.battle_id(), req.map_id());
-    if (!battle)
+    battle::BattleRoomConfig roomConfig;
+    roomConfig.battleId   = req.battle_id();
+    roomConfig.mapId      = req.map_id() <= 0 ? 1 : req.map_id();
+    roomConfig.randomSeed = req.random_seed() != 0 ? req.random_seed() : ++m_randomSeed;
+    roomConfig.mode       = "duel";
+    roomConfig.maxPlayers = 2;
+
+    auto* room = m_roomManager->createRoom(roomConfig);
+    if (!room)
         return makeBattleCreateResp(3, "create battle failed", nullptr);
 
     bool joined = false;
     std::uint32_t requesterActorId = 0;
     for (const auto& player : req.players())
     {
-        const bool ok = addPlayerToBattle(*battle, player);
+        const bool ok = m_roomManager->addPlayerToRoom(*room, player);
         if (!ok)
             continue;
 
         if (player.session_id() == frame.sessionId || frame.sessionId == 0)
         {
             joined = true;
-            auto actorIt = m_sessionToActor.find(player.session_id());
-            if (actorIt != m_sessionToActor.end())
-                requesterActorId = actorIt->second;
+            requesterActorId = room->actorIdForSession(player.session_id());
         }
     }
 
     if (!joined && req.players_size() > 0)
         return makeBattleCreateResp(4, "battle is full or spawn failed", nullptr);
 
-    sendSnapshot(*battle);
-    return makeBattleCreateResp(0, "", battle, requesterActorId);
+    m_sync->sendSnapshot(*room);
+    return makeBattleCreateResp(0, "", room, requesterActorId);
 }
 
 void BattleServer::onBattleInput(std::uint32_t sessionId, const battle::BackendFrame& frame)
@@ -243,228 +236,71 @@ void BattleServer::onBattleInput(std::uint32_t sessionId, const battle::BackendF
     if (!battle::parsePayload(input, frame.payload))
         return;
 
-    auto battleIt = m_sessionToBattle.find(sessionId);
-    if (battleIt == m_sessionToBattle.end() || battleIt->second != input.battle_id())
+    auto* room = m_roomManager->findRoomBySession(sessionId);
+    if (!room || room->battleId() != input.battle_id())
         return;
 
-    auto actorIt = m_sessionToActor.find(sessionId);
-    auto battleMapIt = m_battles.find(battleIt->second);
-    if (actorIt == m_sessionToActor.end() || battleMapIt == m_battles.end())
-        return;
-
-    auto actor = battleMapIt->second->world->ecsManager.getEntity(actorIt->second);
-    if (!actor)
-        return;
-
-    auto inputComp = MG_GET_COMPONENT(actor, InputComponent);
-    if (!inputComp)
-        return;
-
-    inputComp->keyDown = input.input_mask();
-}
-
-BattleInstance* BattleServer::createBattle(std::uint32_t battleId, std::int32_t mapId)
-{
-    if (battleId == 0)
-        return nullptr;
-
-    if (auto it = m_battles.find(battleId); it != m_battles.end())
-        return it->second.get();
-
-    if (m_battles.size() >= m_config.maxBattles)
-    {
-        spdlog::warn("Max battle count reached: {}/{}", m_battles.size(), m_config.maxBattles);
-        return nullptr;
-    }
-
-    auto battle = std::make_unique<BattleInstance>();
-    battle->battleId = battleId;
-    battle->mapId = mapId <= 0 ? 1 : mapId;
-    battle->world = std::make_unique<mugen::GameWord>();
-
-    if (!battle->world->init(++m_randomSeed) || !battle->world->loadMap(battle->mapId))
-    {
-        spdlog::error("Failed to initialize battle {} map={}", battle->battleId, battle->mapId);
-        return nullptr;
-    }
-
-    const auto createdBattleId = battle->battleId;
-    m_battles.emplace(createdBattleId, std::move(battle));
-    spdlog::info("Battle {} created map={}", createdBattleId, mapId);
-    return m_battles[createdBattleId].get();
-}
-
-bool BattleServer::addPlayerToBattle(BattleInstance& battle, const PB::Types::BattlePlayerSpec& player)
-{
-    const std::uint32_t sessionId = player.session_id();
-    if (activeSessionCount() >= m_config.maxSessions &&
-        m_sessionToBattle.find(sessionId) == m_sessionToBattle.end())
-    {
-        return false;
-    }
-
-    if (m_sessionToBattle.find(sessionId) != m_sessionToBattle.end())
-        return true;
-
-    if (battle.players.size() >= 2)
-        return false;
-
-    auto job      = static_cast<JobType>(player.class_id());
-    auto actorCfg = Config::getInstance()->getActorConfigByJob(job);
-    if (!actorCfg)
-    {
-        spdlog::error("Battle {}: actor config not found for class_id={}", battle.battleId, player.class_id());
-        return false;
-    }
-
-    const auto slotIndex = battle.players.size();
-    const auto [spawnX, spawnY] = resolveSpawnPoint(battle, slotIndex);
-
-    actor_spawner::PlayerSpawnParams params;
-    params.playerId = player.player_id();
-    params.name     = player.name();
-
-    auto* actor = actor_spawner::spawnPlayerActor(&battle.world->ecsManager, actorCfg, spawnX, spawnY, params);
-    if (!actor)
-    {
-        spdlog::error("Battle {}: failed to spawn player session={}", battle.battleId, sessionId);
-        return false;
-    }
-    actor->notifyEntityReady();
-
-    const EntityId actorId = actor->getId();
-    battle.players.insert(sessionId);
-    m_sessionToBattle[sessionId] = battle.battleId;
-    m_sessionToActor[sessionId]  = actorId;
-    spdlog::info("Session {} joined battle {} actor={} class_id={} pos=({},{})",
-                 sessionId, battle.battleId, actorId, player.class_id(), spawnX, spawnY);
-    return true;
-}
-
-std::pair<std::int32_t, std::int32_t> BattleServer::resolveSpawnPoint(const BattleInstance& battle,
-                                                                     std::size_t slotIndex) const
-{
-    auto mapConfig = Config::getInstance()->getMapConfigById(battle.mapId);
-    if (mapConfig)
-    {
-        if (slotIndex < mapConfig->actorSpawns.size())
-        {
-            const auto& spawn = mapConfig->actorSpawns[slotIndex];
-            return {spawn.x, spawn.y};
-        }
-
-        const auto& scope = mapConfig->scope;
-        if (slotIndex == 0)
-            return {scope.x + scope.width / 4, scope.y + scope.height / 2};
-        return {scope.x + (scope.width * 3) / 4, scope.y + scope.height / 2};
-    }
-    return {0, 0};
-}
-
-void BattleServer::removePlayer(std::uint32_t sessionId)
-{
-    auto it = m_sessionToBattle.find(sessionId);
-    if (it == m_sessionToBattle.end())
-        return;
-
-    auto battleIt = m_battles.find(it->second);
-    if (battleIt != m_battles.end())
-    {
-        battleIt->second->players.erase(sessionId);
-        if (battleIt->second->players.empty())
-        {
-            spdlog::info("Battle {} destroyed, no players remain", battleIt->first);
-            m_battles.erase(battleIt);
-        }
-    }
-
-    m_sessionToBattle.erase(it);
-    m_sessionToActor.erase(sessionId);
-    m_backend.unbindService(sessionId, battle::kServiceIdBattle);
-}
-
-std::string BattleServer::serializeWorld(const BattleInstance& battle) const
-{
-    mugen::ByteBuffer buffer(1024 * 1024 * 2);
-    battle.world->serialize(buffer);
-    buffer.writeFinish();
-    return std::string(reinterpret_cast<const char*>(buffer.data()), buffer.len());
+    room->applyInput(sessionId, input.client_frame(), input.input_mask());
 }
 
 battle::SerializedMessagePtr BattleServer::makeBattleCreateResp(std::int32_t code,
                                                                 const std::string& message,
-                                                                const BattleInstance* battle,
-                                                                std::uint32_t actorEntityId) const
+                                                                const battle::BattleRoom* room,
+                                                                std::uint32_t requesterActorId) const
 {
     PB::BattleInternal::BattleCreateResp resp;
     resp.set_code(code);
     resp.set_message(message);
-    if (battle)
+    if (room)
     {
-        resp.set_battle_id(battle->battleId);
+        resp.set_battle_id(room->battleId());
         resp.set_battle_instance_id(m_config.instanceId);
-        resp.set_server_frame(battle->serverFrame);
-        resp.set_world_dump(serializeWorld(*battle));
-        resp.set_actor_entity_id(actorEntityId);
+        resp.set_server_frame(room->serverFrame());
+        resp.set_world_dump(room->serializeWorld());
+        resp.set_actor_entity_id(requesterActorId);
+
+        for (const auto& [sessionId, slot] : room->players())
+        {
+            auto* spawn = resp.add_players();
+            spawn->set_session_id(sessionId);
+            spawn->set_actor_entity_id(slot.actorId);
+        }
     }
     return battle::makeSerializedMessage(resp);
-}
-
-void BattleServer::sendSnapshot(const BattleInstance& battle)
-{
-    PB::Battle::BattleSnapshotPush push;
-    push.set_battle_id(battle.battleId);
-    push.set_server_frame(battle.serverFrame);
-    push.set_server_time_ms(static_cast<std::uint64_t>(battle.elapsed * 1000.0f));
-    push.set_world_dump(serializeWorld(battle));
-
-    for (std::uint32_t sessionId : battle.players)
-        m_backend.sendPush(sessionId, push);
 }
 
 void BattleServer::sendLoadReport()
 {
     const std::uint32_t loadScore = m_config.maxBattles == 0
         ? 100
-        : static_cast<std::uint32_t>((m_battles.size() * 100) / m_config.maxBattles);
-    const bool accepting = canAcceptBinding(0);
+        : static_cast<std::uint32_t>((m_roomManager->roomCount() * 100) / m_config.maxBattles);
+    const bool accepting = m_roomManager->canAcceptSession(0);
     m_backend.reportLoad(loadScore > 100 ? 100 : loadScore,
                          accepting,
                          accepting ? "" : "battle server capacity is full");
 }
 
-std::uint32_t BattleServer::activeSessionCount() const
-{
-    return static_cast<std::uint32_t>(m_sessionToBattle.size());
-}
-
-bool BattleServer::canAcceptBinding(std::uint32_t sessionId) const
-{
-    if (m_sessionToBattle.find(sessionId) != m_sessionToBattle.end())
-        return true;
-    if (m_battles.size() >= m_config.maxBattles)
-        return false;
-    if (activeSessionCount() >= m_config.maxSessions)
-        return false;
-    return true;
-}
-
 void BattleServer::tick(float dt)
 {
+    if (!m_roomManager)
+        return;
+
     m_loadReportTimer += dt;
     if (m_loadReportTimer >= m_config.loadReportInterval)
     {
         m_loadReportTimer = 0.0f;
-        if (m_backend.isConnected())
-            sendLoadReport();
+        sendLoadReport();
     }
 
-    const float fixedDt = 1.0f / static_cast<float>(m_config.tickRate);
-    for (auto& [_, battle] : m_battles)
-    {
-        battle->elapsed += fixedDt;
-        battle->serverFrame += 1;
-        battle->world->update(fixedDt);
-        sendSnapshot(*battle);
-    }
+    m_roomManager->tickAll(dt);
+
+    const int snapshotInterval =
+        m_config.snapshotIntervalFrames > 0 ? m_config.snapshotIntervalFrames : 1;
+    m_roomManager->forEachRoom([this, snapshotInterval](battle::BattleRoom& room) {
+        if (room.isEmpty())
+            return;
+        if (room.serverFrame() % static_cast<std::uint32_t>(snapshotInterval) != 0)
+            return;
+        m_sync->sendSnapshot(room);
+    });
 }
