@@ -6,9 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
 
-set(YASIO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../client/axmol/3rdparty/yasio")
-set(CLIENT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../client/Source")
-set(AXMOL_3RDPARTY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../client/axmol/3rdparty")
+set(YASIO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rd/yasio")
+set(CLIENT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../AxmolFighter-Client/Source")
+set(AXMOL_3RDPARTY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rd")
 set(PROTOBUF_DIR "${CLIENT_SOURCE_DIR}/3rd/protobuf")
 set(MUGEN_DIR "${CLIENT_SOURCE_DIR}/mugen")
 
