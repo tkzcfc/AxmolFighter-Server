@@ -1,12 +1,13 @@
 [server]
 instance_id = 1
 tick_rate = 30
+# 全量 world_dump 快照间隔（逻辑帧）。10 ≈ 3Hz，避免每 tick 推全量导致客户端卡死
 snapshot_interval_frames = 10
 max_battles = 100
 max_sessions = 200
 load_report_interval = 5.0
-# Content 根目录（内含 mugen/config/**）。相对路径相对 battle 可执行文件工作目录。
-content_root = "../../client/Content"
+# Content 根目录（相对可执行文件工作目录）。需含 mugen/config/**，以及 .ani/.box/motion（可不含 PNG）。
+content_root = "../../AxmolFighter-Client/Content"
 
 [gateway]
 host = "127.0.0.1"

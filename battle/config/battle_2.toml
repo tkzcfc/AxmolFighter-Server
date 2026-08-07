@@ -5,7 +5,7 @@ snapshot_interval_frames = 10
 max_battles = 100
 max_sessions = 200
 load_report_interval = 5.0
-content_root = "../../client/Content"
+content_root = "../../AxmolFighter-Client/Content"  # 需含 config + .ani/.box/motion（可不含 PNG）
 
 [gateway]
 host = "127.0.0.1"
