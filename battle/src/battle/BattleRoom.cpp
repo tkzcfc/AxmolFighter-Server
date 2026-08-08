@@ -55,11 +55,10 @@ bool BattleRoom::addPlayer(const PB::Types::BattlePlayerSpec& spec)
     if (hasPlayer(sessionId))
         return true;
 
-    auto job      = static_cast<JobType>(spec.class_id());
-    auto actorCfg = Config::getInstance()->getActorConfigByJob(job);
-    if (!actorCfg)
+    const int32_t roleId = spec.class_id() > 0 ? spec.class_id() : 1;
+    if (!Config::getInstance()->getRoleConfigById(roleId))
     {
-        spdlog::error("BattleRoom {}: actor config not found for class_id={}", m_config.battleId, spec.class_id());
+        spdlog::error("BattleRoom {}: role config not found for class_id={}", m_config.battleId, spec.class_id());
         return false;
     }
 
@@ -70,7 +69,7 @@ bool BattleRoom::addPlayer(const PB::Types::BattlePlayerSpec& spec)
     params.playerId = spec.player_id();
     params.name     = spec.name();
 
-    auto* actor = actor_spawner::spawnPlayerActor(&m_world->ecsManager, actorCfg, spawnX, spawnY, params);
+    auto* actor = actor_spawner::spawnRolePlayerActor(&m_world->ecsManager, roleId, spawnX, spawnY, params);
     if (!actor)
     {
         spdlog::error("BattleRoom {}: failed to spawn player session={}", m_config.battleId, sessionId);
