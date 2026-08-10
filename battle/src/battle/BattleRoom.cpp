@@ -55,10 +55,11 @@ bool BattleRoom::addPlayer(const PB::Types::BattlePlayerSpec& spec)
     if (hasPlayer(sessionId))
         return true;
 
-    const int32_t roleId = spec.class_id() > 0 ? spec.class_id() : 1;
+    const int32_t roleId = actor_spawner::resolvePlayableRoleId(spec.class_id());
     if (!Config::getInstance()->getRoleConfigById(roleId))
     {
-        spdlog::error("BattleRoom {}: role config not found for class_id={}", m_config.battleId, spec.class_id());
+        spdlog::error("BattleRoom {}: role config not found for class_id={} roleId={}", m_config.battleId,
+                      spec.class_id(), roleId);
         return false;
     }
 
@@ -163,21 +164,28 @@ mugen::EntityId BattleRoom::actorIdForSession(std::uint32_t sessionId) const
 
 std::pair<std::int32_t, std::int32_t> BattleRoom::resolveSpawnPoint(std::size_t slotIndex) const
 {
-    auto mapConfig = Config::getInstance()->getMapConfigById(m_config.mapId);
-    if (!mapConfig)
+    if (!m_world)
+        return {0, 0};
+
+    auto* director = m_world->getDirector();
+    auto* directorComp = director ? MG_GET_COMPONENT(director, DirectorComponent) : nullptr;
+    auto* mapEntity =
+        directorComp ? m_world->ecsManager.getEntity(directorComp->mapEntityId) : nullptr;
+    auto* mapComp = mapEntity ? MG_GET_COMPONENT(mapEntity, GameMapComponent) : nullptr;
+    if (!mapComp)
     {
-        spdlog::warn("BattleRoom {}: map {} config not found, spawn at origin", m_config.battleId, m_config.mapId);
+        spdlog::warn("BattleRoom {}: GameMapComponent missing, spawn at origin", m_config.battleId);
         return {0, 0};
     }
 
-    if (!mapConfig->spawnPoints.empty())
+    if (!mapComp->spawnPoints.empty())
     {
-        const auto& first = mapConfig->spawnPoints[0];
+        const auto& first = mapComp->spawnPoints[0];
         return {first.x + static_cast<std::int32_t>(slotIndex) * 200, first.y};
     }
 
     spdlog::warn("BattleRoom {}: map {} has no spawnPoints, fallback to scope", m_config.battleId, m_config.mapId);
-    const auto& scope = mapConfig->scope;
+    const auto& scope = mapComp->scope;
     if (slotIndex == 0)
         return {scope.x + scope.width / 4, scope.y + scope.height / 2};
     return {scope.x + (scope.width * 3) / 4 + static_cast<std::int32_t>(slotIndex - 1) * 200,
