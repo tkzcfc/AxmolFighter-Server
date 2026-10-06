@@ -116,6 +116,10 @@ message CreateCharacterReq {
     int32 class_id = 2;
     // 性别。
     int32 gender = 3;
+    // 创角头发 res_fashion id。
+    int32 hair_id = 4;
+    // 创角衣服 res_fashion id。
+    int32 clothes_id = 5;
 }
 
 // 创建角色响应。

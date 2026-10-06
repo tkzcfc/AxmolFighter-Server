@@ -1,6 +1,7 @@
 mod account;
 mod battle;
 mod character;
+mod fashion_defaults;
 mod town;
 
 use std::sync::{Arc, Mutex};

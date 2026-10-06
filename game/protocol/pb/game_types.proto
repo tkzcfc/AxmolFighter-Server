@@ -64,12 +64,34 @@ message ItemInfo {
 	int32 count = 3;
 }
 
+// 创角默认外观槽（res_fashion id）。
+message DefaultSkin {
+	// 时装部位（FashionPosition：2 衣 / 4 发 / 7 皮肤）。
+	int32 position = 1;
+	// res_fashion 配置 id。
+	int32 res_fashion_id = 2;
+}
+
+// 时装实例。
+message FashionInfo {
+	// 时装实例 id。
+	int64 id = 1;
+	// 时装配置 id。
+	int32 config_id = 2;
+	// 时装部位。
+	int32 position = 3;
+	// 是否穿在身上。
+	bool worn = 4;
+}
+
 // 背包信息。
 message InventoryInfo {
 	// 普通道具列表。
 	repeated ItemInfo items = 1;
 	// 装备列表。
 	repeated EquipmentInfo equipments = 2;
+	// 装扮列表。
+	repeated FashionInfo fashions = 3;
 }
 
 // 角色信息。
@@ -88,6 +110,12 @@ message CharacterInfo {
 	int64 exp = 6;
 	// 金币。
 	int64 gold = 7;
+	// 创角默认外观（发/衣/皮肤）。
+	repeated DefaultSkin default_skins = 8;
+	// 拥有的全部装扮。
+	repeated FashionInfo fashions = 9;
+	// 拥有+穿上的全部装备。
+	repeated EquipmentInfo equipments = 10;
 }
 
 // ============================================================================

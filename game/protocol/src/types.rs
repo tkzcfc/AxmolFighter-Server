@@ -74,6 +74,36 @@ pub struct ItemInfo {
     #[prost(int32, tag = "3")]
     pub count: i32,
 }
+/// 创角默认外观槽（res_fashion id）。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DefaultSkin {
+    /// 时装部位（FashionPosition：2 衣 / 4 发 / 7 皮肤）。
+    #[prost(int32, tag = "1")]
+    pub position: i32,
+    /// res_fashion 配置 id。
+    #[prost(int32, tag = "2")]
+    pub res_fashion_id: i32,
+}
+/// 时装实例。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FashionInfo {
+    /// 时装实例 id。
+    #[prost(int64, tag = "1")]
+    pub id: i64,
+    /// 时装配置 id。
+    #[prost(int32, tag = "2")]
+    pub config_id: i32,
+    /// 时装部位。
+    #[prost(int32, tag = "3")]
+    pub position: i32,
+    /// 是否穿在身上。
+    #[prost(bool, tag = "4")]
+    pub worn: bool,
+}
 /// 背包信息。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -85,6 +115,9 @@ pub struct InventoryInfo {
     /// 装备列表。
     #[prost(message, repeated, tag = "2")]
     pub equipments: ::prost::alloc::vec::Vec<EquipmentInfo>,
+    /// 装扮列表。
+    #[prost(message, repeated, tag = "3")]
+    pub fashions: ::prost::alloc::vec::Vec<FashionInfo>,
 }
 /// 角色信息。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -112,6 +145,15 @@ pub struct CharacterInfo {
     /// 金币。
     #[prost(int64, tag = "7")]
     pub gold: i64,
+    /// 创角默认外观（发/衣/皮肤）。
+    #[prost(message, repeated, tag = "8")]
+    pub default_skins: ::prost::alloc::vec::Vec<DefaultSkin>,
+    /// 拥有的全部装扮。
+    #[prost(message, repeated, tag = "9")]
+    pub fashions: ::prost::alloc::vec::Vec<FashionInfo>,
+    /// 拥有+穿上的全部装备。
+    #[prost(message, repeated, tag = "10")]
+    pub equipments: ::prost::alloc::vec::Vec<EquipmentInfo>,
 }
 /// 城镇场景内玩家状态。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]

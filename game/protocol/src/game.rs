@@ -422,6 +422,12 @@ pub struct CreateCharacterReq {
     /// 性别。
     #[prost(int32, tag = "3")]
     pub gender: i32,
+    /// 创角头发 res_fashion id。
+    #[prost(int32, tag = "4")]
+    pub hair_id: i32,
+    /// 创角衣服 res_fashion id。
+    #[prost(int32, tag = "5")]
+    pub clothes_id: i32,
 }
 /// Nested message and enum types in `CreateCharacterReq`.
 pub mod create_character_req {

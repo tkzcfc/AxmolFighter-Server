@@ -23,7 +23,7 @@ struct BattleServerConfig
     std::uint32_t maxBattles = 100;
     std::uint32_t maxSessions = 200;
     float loadReportInterval = 5.0f;
-    /** Content 根目录：含 mugen/config/**，以及逻辑播放所需的 .ani / .box / motion（可不部署 PNG） */
+    /** Content 根目录：含 mugen/config/config.bin 与 avatar.bin */
     std::string contentRoot = "../../AxmolFighter-Client/Content";
 };
 
