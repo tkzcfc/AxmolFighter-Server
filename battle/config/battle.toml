@@ -11,5 +11,5 @@ content_root = "../../AxmolFighter-Client/Content"
 
 [gateway]
 host = "127.0.0.1"
-port = 7100
+port = 17100
 reconnect_interval = 3.0

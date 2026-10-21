@@ -1,6 +1,6 @@
 [gateway]
-client_listen = "0.0.0.0:7000"
-internal_listen = "0.0.0.0:7100"
+client_listen = "0.0.0.0:17000"
+internal_listen = "0.0.0.0:17100"
 
 # 游戏服 id为 0，协议范围 1-19999
 [[route]]

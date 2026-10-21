@@ -6,10 +6,10 @@
 
 | 服务 | 技术 | service_id | 默认端口 / 连接 | 职责 |
 |------|------|-------------|-----------------|------|
-| gateway | Rust | — | 客户端 `0.0.0.0:7000`；内部 `0.0.0.0:7100` | 接入、路由、会话绑定 |
-| game | Rust | `0` | 连 gateway `127.0.0.1:7100`；Postgres | 账号、角色、业务逻辑 |
-| battle | C++ | `1` | 连 gateway `127.0.0.1:7100` | 战斗房间、tick、同步 |
-| town | Rust | `2` | 连 gateway `127.0.0.1:7100` | 城镇场景 |
+| gateway | Rust | — | 客户端 `0.0.0.0:17000`；内部 `0.0.0.0:17100` | 接入、路由、会话绑定 |
+| game | Rust | `0` | 连 gateway `127.0.0.1:17100`；Postgres | 账号、角色、业务逻辑 |
+| battle | C++ | `1` | 连 gateway `127.0.0.1:17100` | 战斗房间、tick、同步 |
+| town | Rust | `2` | 连 gateway `127.0.0.1:17100` | 城镇场景 |
 
 `service_id` 定义见 [`game/backend-framework/src/service_id.rs`](game/backend-framework/src/service_id.rs)，路由见 [`game/gateway/gateway.toml`](game/gateway/gateway.toml)。
 
@@ -17,10 +17,10 @@
 
 ```mermaid
 flowchart LR
-  Client[Client] -->|"7000"| Gateway[gateway]
-  Gateway -->|"7100"| Game[game]
-  Gateway -->|"7100"| Battle[battle]
-  Gateway -->|"7100"| Town[town]
+  Client[Client] -->|"17000"| Gateway[gateway]
+  Gateway -->|"17100"| Game[game]
+  Gateway -->|"17100"| Battle[battle]
+  Gateway -->|"17100"| Town[town]
   Game -->|"server RPC via gateway"| Battle
   Game -->|"server RPC via gateway"| Town
   Game --> DB[(Postgres)]
@@ -29,8 +29,8 @@ flowchart LR
 
 要点：
 
-- **客户端**只连 gateway 的 `client_listen`（`:7000`）。
-- **后端**（game / battle / town）主动连 gateway 的 `internal_listen`（`:7100`）并注册。
+- **客户端**只连 gateway 的 `client_listen`（`:17000`）。
+- **后端**（game / battle / town）主动连 gateway 的 `internal_listen`（`:17100`）并注册。
 - gateway 按 **msg_id** 把客户端包路由到对应服务：
   - `1–19999` → game（`require_binding = false`）
   - `20000–29999` → battle（`require_binding = true`）

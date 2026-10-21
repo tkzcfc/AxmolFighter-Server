@@ -20,7 +20,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    let gateway_addr = "127.0.0.1:7100".to_string();
+    let gateway_addr = "127.0.0.1:17100".to_string();
     let instance_id = 1u32;
     let reconnect_interval = Duration::from_secs(3);
 

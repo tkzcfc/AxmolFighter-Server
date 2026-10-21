@@ -15,7 +15,7 @@ struct BattleServerConfig
 {
     std::uint32_t instanceId = 1;
     std::string gatewayHost = "127.0.0.1";
-    int gatewayPort = 7100;
+    int gatewayPort = 17100;
     float reconnectInterval = 3.0f;
     int tickRate = 30;
     // 全量 snapshot 间隔（逻辑帧数）；默认 10 ≈ 3Hz（tick_rate=30）

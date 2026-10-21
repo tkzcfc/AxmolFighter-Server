@@ -33,7 +33,7 @@ struct BackendConfig
     std::uint32_t serviceId = kServiceIdBattle;
     std::uint32_t instanceId = 1;
     std::string gatewayHost = "127.0.0.1";
-    int gatewayPort = 7100;
+    int gatewayPort = 17100;
     std::uint32_t initialLoadScore = 0;
     bool initialAcceptingBindings = true;
     std::string initialLoadMessage;

@@ -4,7 +4,7 @@ Clients connect only to the gateway.
 
 | Service | Lang | service_id | Notes |
 |---|---|---|---|
-| gateway | Rust | — | Clients on :7000, internal services on :7100. Config: `game/gateway/gateway.toml` |
+| gateway | Rust | — | Clients on :17000, internal services on :17100. Config: `game/gateway/gateway.toml` |
 | game | Rust | 0 | PostgreSQL (`postgres:123456@127.0.0.1:5432/axmol_fighter`). Config: `game/game/game.toml` |
 | battle | C++20 | 1 | `battle/`. Compiles the client's `mugen` with `RUNTIME_IN_AXMOL=0` |
 | town | Rust | 2 | Gateway address is hardcoded |
