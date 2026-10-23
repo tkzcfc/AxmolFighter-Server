@@ -29,10 +29,18 @@ fn main() -> io::Result<()> {
             set_var("PROTOC", "bin/protoc.exe");
         }
     } else {
-        return Ok(());
-        // let (protoc_bin, _) = protoc_prebuilt::init("22.0").unwrap();
-        // println!("protoc_bin: {}", protoc_bin.to_str().unwrap());
-        // unsafe { set_var("PROTOC", protoc_bin); }
+        // macOS/Linux: use AxmolFighter-Tools/protoc when PROTOC unset.
+        if env::var_os("PROTOC").is_none() {
+            let tools_protoc = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../../AxmolFighter-Tools/protoc/bin/protoc");
+            if tools_protoc.exists() {
+                unsafe {
+                    set_var("PROTOC", tools_protoc);
+                }
+            } else {
+                return Ok(());
+            }
+        }
     }
 
     // 需要导出的协议文件列表

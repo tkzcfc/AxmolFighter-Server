@@ -20,6 +20,7 @@ use crate::player::PlayerSessionDelegate;
 
 // 数据访问和业务辅助函数（next_battle_id、DB 查询、max_character_count 等）
 mod data;
+pub(crate) use data::CharacterProgress;
 
 #[derive(Clone, Copy)]
 pub(crate) struct BattleSessionState {

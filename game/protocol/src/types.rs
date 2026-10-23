@@ -154,6 +154,80 @@ pub struct CharacterInfo {
     /// 拥有+穿上的全部装备。
     #[prost(message, repeated, tag = "10")]
     pub equipments: ::prost::alloc::vec::Vec<EquipmentInfo>,
+    /// 武装进度。
+    #[prost(message, repeated, tag = "11")]
+    pub armaments: ::prost::alloc::vec::Vec<ArmamentInfo>,
+    /// 当前武装外观 config_id（0=无）。
+    #[prost(int32, tag = "12")]
+    pub armament_appearance_id: i32,
+    /// 技能槽绑定。
+    #[prost(message, repeated, tag = "13")]
+    pub skill_slots: ::prost::alloc::vec::Vec<SkillSlotInfo>,
+    /// 宠物进度。
+    #[prost(message, repeated, tag = "14")]
+    pub pets: ::prost::alloc::vec::Vec<PetInfo>,
+    /// 跟随宠物 config_id（0=无）。
+    #[prost(int32, tag = "15")]
+    pub active_pet_id: i32,
+    /// 伙伴进度。
+    #[prost(message, repeated, tag = "16")]
+    pub partners: ::prost::alloc::vec::Vec<PartnerInfo>,
+    /// 出战伙伴 config_id（0=无）。
+    #[prost(int32, tag = "17")]
+    pub active_partner_id: i32,
+}
+/// 武装实例（武装面板进度）。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ArmamentInfo {
+    #[prost(int32, tag = "1")]
+    pub config_id: i32,
+    #[prost(int32, tag = "2")]
+    pub level: i32,
+    #[prost(int32, tag = "3")]
+    pub star: i32,
+    #[prost(int32, tag = "4")]
+    pub grade: i32,
+    #[prost(int32, tag = "5")]
+    pub skin_id: i32,
+    #[prost(int32, tag = "6")]
+    pub skill_id: i32,
+}
+/// 技能槽绑定。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SkillSlotInfo {
+    /// EnumSkillSlot 数值。
+    #[prost(int32, tag = "1")]
+    pub slot: i32,
+    #[prost(int32, tag = "2")]
+    pub leaf_id: i32,
+}
+/// 宠物实例。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PetInfo {
+    #[prost(int32, tag = "1")]
+    pub config_id: i32,
+    #[prost(int32, tag = "2")]
+    pub level: i32,
+    #[prost(int32, tag = "3")]
+    pub star: i32,
+}
+/// 伙伴实例。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PartnerInfo {
+    #[prost(int32, tag = "1")]
+    pub config_id: i32,
+    #[prost(int32, tag = "2")]
+    pub level: i32,
+    #[prost(int32, tag = "3")]
+    pub star: i32,
 }
 /// 城镇场景内玩家状态。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]

@@ -116,6 +116,52 @@ message CharacterInfo {
 	repeated FashionInfo fashions = 9;
 	// 拥有+穿上的全部装备。
 	repeated EquipmentInfo equipments = 10;
+	// 武装进度。
+	repeated ArmamentInfo armaments = 11;
+	// 当前武装外观 config_id（0=无）。
+	int32 armament_appearance_id = 12;
+	// 技能槽绑定。
+	repeated SkillSlotInfo skill_slots = 13;
+	// 宠物进度。
+	repeated PetInfo pets = 14;
+	// 跟随宠物 config_id（0=无）。
+	int32 active_pet_id = 15;
+	// 伙伴进度。
+	repeated PartnerInfo partners = 16;
+	// 出战伙伴 config_id（0=无）。
+	int32 active_partner_id = 17;
+}
+
+
+// 武装实例（武装面板进度）。
+message ArmamentInfo {
+	int32 config_id = 1;
+	int32 level = 2;
+	int32 star = 3;
+	int32 grade = 4;
+	int32 skin_id = 5;
+	int32 skill_id = 6;
+}
+
+// 技能槽绑定。
+message SkillSlotInfo {
+	// EnumSkillSlot 数值。
+	int32 slot = 1;
+	int32 leaf_id = 2;
+}
+
+// 宠物实例。
+message PetInfo {
+	int32 config_id = 1;
+	int32 level = 2;
+	int32 star = 3;
+}
+
+// 伙伴实例。
+message PartnerInfo {
+	int32 config_id = 1;
+	int32 level = 2;
+	int32 star = 3;
 }
 
 // ============================================================================

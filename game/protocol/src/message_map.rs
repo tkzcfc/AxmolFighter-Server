@@ -31,6 +31,16 @@ pub enum MessageType {
     GameDuelInvitePush(super::game::DuelInvitePush),
     GameDuelStartPush(super::game::DuelStartPush),
     GameDuelEndPush(super::game::DuelEndPush),
+    GameFashionWearReq(super::game::FashionWearReq),
+    GameFashionWearResp(super::game::FashionWearResp),
+    GameArmamentSyncReq(super::game::ArmamentSyncReq),
+    GameArmamentSyncResp(super::game::ArmamentSyncResp),
+    GameSkillSlotsSyncReq(super::game::SkillSlotsSyncReq),
+    GameSkillSlotsSyncResp(super::game::SkillSlotsSyncResp),
+    GamePetSyncReq(super::game::PetSyncReq),
+    GamePetSyncResp(super::game::PetSyncResp),
+    GamePartnerSyncReq(super::game::PartnerSyncReq),
+    GamePartnerSyncResp(super::game::PartnerSyncResp),
     BattleBattleInputPush(super::battle::BattleInputPush),
     BattleBattleSnapshotPush(super::battle::BattleSnapshotPush),
     TownTownPlayerStatePush(super::town::TownPlayerStatePush),
@@ -203,6 +213,56 @@ impl From<super::game::DuelStartPush> for MessageType {
 impl From<super::game::DuelEndPush> for MessageType {
     fn from(v: super::game::DuelEndPush) -> Self {
         MessageType::GameDuelEndPush(v)
+    }
+}
+impl From<super::game::FashionWearReq> for MessageType {
+    fn from(v: super::game::FashionWearReq) -> Self {
+        MessageType::GameFashionWearReq(v)
+    }
+}
+impl From<super::game::FashionWearResp> for MessageType {
+    fn from(v: super::game::FashionWearResp) -> Self {
+        MessageType::GameFashionWearResp(v)
+    }
+}
+impl From<super::game::ArmamentSyncReq> for MessageType {
+    fn from(v: super::game::ArmamentSyncReq) -> Self {
+        MessageType::GameArmamentSyncReq(v)
+    }
+}
+impl From<super::game::ArmamentSyncResp> for MessageType {
+    fn from(v: super::game::ArmamentSyncResp) -> Self {
+        MessageType::GameArmamentSyncResp(v)
+    }
+}
+impl From<super::game::SkillSlotsSyncReq> for MessageType {
+    fn from(v: super::game::SkillSlotsSyncReq) -> Self {
+        MessageType::GameSkillSlotsSyncReq(v)
+    }
+}
+impl From<super::game::SkillSlotsSyncResp> for MessageType {
+    fn from(v: super::game::SkillSlotsSyncResp) -> Self {
+        MessageType::GameSkillSlotsSyncResp(v)
+    }
+}
+impl From<super::game::PetSyncReq> for MessageType {
+    fn from(v: super::game::PetSyncReq) -> Self {
+        MessageType::GamePetSyncReq(v)
+    }
+}
+impl From<super::game::PetSyncResp> for MessageType {
+    fn from(v: super::game::PetSyncResp) -> Self {
+        MessageType::GamePetSyncResp(v)
+    }
+}
+impl From<super::game::PartnerSyncReq> for MessageType {
+    fn from(v: super::game::PartnerSyncReq) -> Self {
+        MessageType::GamePartnerSyncReq(v)
+    }
+}
+impl From<super::game::PartnerSyncResp> for MessageType {
+    fn from(v: super::game::PartnerSyncResp) -> Self {
+        MessageType::GamePartnerSyncResp(v)
     }
 }
 impl From<super::battle::BattleInputPush> for MessageType {
@@ -390,6 +450,16 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
         MessageType::GameDuelInvitePush(_) => Some(1410u32),
         MessageType::GameDuelStartPush(_) => Some(1411u32),
         MessageType::GameDuelEndPush(_) => Some(1412u32),
+        MessageType::GameFashionWearReq(_) => Some(1500u32),
+        MessageType::GameFashionWearResp(_) => Some(1501u32),
+        MessageType::GameArmamentSyncReq(_) => Some(1502u32),
+        MessageType::GameArmamentSyncResp(_) => Some(1503u32),
+        MessageType::GameSkillSlotsSyncReq(_) => Some(1504u32),
+        MessageType::GameSkillSlotsSyncResp(_) => Some(1505u32),
+        MessageType::GamePetSyncReq(_) => Some(1506u32),
+        MessageType::GamePetSyncResp(_) => Some(1507u32),
+        MessageType::GamePartnerSyncReq(_) => Some(1508u32),
+        MessageType::GamePartnerSyncResp(_) => Some(1509u32),
         MessageType::BattleBattleInputPush(_) => Some(20012u32),
         MessageType::BattleBattleSnapshotPush(_) => Some(20013u32),
         MessageType::TownTownPlayerStatePush(_) => Some(30000u32),
@@ -533,6 +603,46 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
         },
         1412u32 => match super::game::DuelEndPush::decode(bytes) {
             Ok(message) => Ok(MessageType::GameDuelEndPush(message)),
+            Err(err) => Err(err),
+        },
+        1500u32 => match super::game::FashionWearReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameFashionWearReq(message)),
+            Err(err) => Err(err),
+        },
+        1501u32 => match super::game::FashionWearResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameFashionWearResp(message)),
+            Err(err) => Err(err),
+        },
+        1502u32 => match super::game::ArmamentSyncReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameArmamentSyncReq(message)),
+            Err(err) => Err(err),
+        },
+        1503u32 => match super::game::ArmamentSyncResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameArmamentSyncResp(message)),
+            Err(err) => Err(err),
+        },
+        1504u32 => match super::game::SkillSlotsSyncReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameSkillSlotsSyncReq(message)),
+            Err(err) => Err(err),
+        },
+        1505u32 => match super::game::SkillSlotsSyncResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameSkillSlotsSyncResp(message)),
+            Err(err) => Err(err),
+        },
+        1506u32 => match super::game::PetSyncReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GamePetSyncReq(message)),
+            Err(err) => Err(err),
+        },
+        1507u32 => match super::game::PetSyncResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GamePetSyncResp(message)),
+            Err(err) => Err(err),
+        },
+        1508u32 => match super::game::PartnerSyncReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GamePartnerSyncReq(message)),
+            Err(err) => Err(err),
+        },
+        1509u32 => match super::game::PartnerSyncResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GamePartnerSyncResp(message)),
             Err(err) => Err(err),
         },
         20012u32 => match super::battle::BattleInputPush::decode(bytes) {
@@ -692,6 +802,16 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
         MessageType::GameDuelInvitePush(msg) => Some((1410u32, msg.encode_to_vec())),
         MessageType::GameDuelStartPush(msg) => Some((1411u32, msg.encode_to_vec())),
         MessageType::GameDuelEndPush(msg) => Some((1412u32, msg.encode_to_vec())),
+        MessageType::GameFashionWearReq(msg) => Some((1500u32, msg.encode_to_vec())),
+        MessageType::GameFashionWearResp(msg) => Some((1501u32, msg.encode_to_vec())),
+        MessageType::GameArmamentSyncReq(msg) => Some((1502u32, msg.encode_to_vec())),
+        MessageType::GameArmamentSyncResp(msg) => Some((1503u32, msg.encode_to_vec())),
+        MessageType::GameSkillSlotsSyncReq(msg) => Some((1504u32, msg.encode_to_vec())),
+        MessageType::GameSkillSlotsSyncResp(msg) => Some((1505u32, msg.encode_to_vec())),
+        MessageType::GamePetSyncReq(msg) => Some((1506u32, msg.encode_to_vec())),
+        MessageType::GamePetSyncResp(msg) => Some((1507u32, msg.encode_to_vec())),
+        MessageType::GamePartnerSyncReq(msg) => Some((1508u32, msg.encode_to_vec())),
+        MessageType::GamePartnerSyncResp(msg) => Some((1509u32, msg.encode_to_vec())),
         MessageType::BattleBattleInputPush(msg) => Some((20012u32, msg.encode_to_vec())),
         MessageType::BattleBattleSnapshotPush(msg) => Some((20013u32, msg.encode_to_vec())),
         MessageType::TownTownPlayerStatePush(msg) => Some((30000u32, msg.encode_to_vec())),
@@ -756,6 +876,16 @@ pub fn get_message_size(message: &MessageType) -> usize {
         MessageType::GameDuelInvitePush(msg) => msg.encoded_len(),
         MessageType::GameDuelStartPush(msg) => msg.encoded_len(),
         MessageType::GameDuelEndPush(msg) => msg.encoded_len(),
+        MessageType::GameFashionWearReq(msg) => msg.encoded_len(),
+        MessageType::GameFashionWearResp(msg) => msg.encoded_len(),
+        MessageType::GameArmamentSyncReq(msg) => msg.encoded_len(),
+        MessageType::GameArmamentSyncResp(msg) => msg.encoded_len(),
+        MessageType::GameSkillSlotsSyncReq(msg) => msg.encoded_len(),
+        MessageType::GameSkillSlotsSyncResp(msg) => msg.encoded_len(),
+        MessageType::GamePetSyncReq(msg) => msg.encoded_len(),
+        MessageType::GamePetSyncResp(msg) => msg.encoded_len(),
+        MessageType::GamePartnerSyncReq(msg) => msg.encoded_len(),
+        MessageType::GamePartnerSyncResp(msg) => msg.encoded_len(),
         MessageType::BattleBattleInputPush(msg) => msg.encoded_len(),
         MessageType::BattleBattleSnapshotPush(msg) => msg.encoded_len(),
         MessageType::TownTownPlayerStatePush(msg) => msg.encoded_len(),
@@ -820,6 +950,16 @@ pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
         MessageType::GameDuelInvitePush(msg) => msg.encode_raw(buf),
         MessageType::GameDuelStartPush(msg) => msg.encode_raw(buf),
         MessageType::GameDuelEndPush(msg) => msg.encode_raw(buf),
+        MessageType::GameFashionWearReq(msg) => msg.encode_raw(buf),
+        MessageType::GameFashionWearResp(msg) => msg.encode_raw(buf),
+        MessageType::GameArmamentSyncReq(msg) => msg.encode_raw(buf),
+        MessageType::GameArmamentSyncResp(msg) => msg.encode_raw(buf),
+        MessageType::GameSkillSlotsSyncReq(msg) => msg.encode_raw(buf),
+        MessageType::GameSkillSlotsSyncResp(msg) => msg.encode_raw(buf),
+        MessageType::GamePetSyncReq(msg) => msg.encode_raw(buf),
+        MessageType::GamePetSyncResp(msg) => msg.encode_raw(buf),
+        MessageType::GamePartnerSyncReq(msg) => msg.encode_raw(buf),
+        MessageType::GamePartnerSyncResp(msg) => msg.encode_raw(buf),
         MessageType::BattleBattleInputPush(msg) => msg.encode_raw(buf),
         MessageType::BattleBattleSnapshotPush(msg) => msg.encode_raw(buf),
         MessageType::TownTownPlayerStatePush(msg) => msg.encode_raw(buf),
@@ -885,6 +1025,16 @@ pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {
         MessageType::GameDuelInvitePush(msg) => serde_json::to_string(&msg),
         MessageType::GameDuelStartPush(msg) => serde_json::to_string(&msg),
         MessageType::GameDuelEndPush(msg) => serde_json::to_string(&msg),
+        MessageType::GameFashionWearReq(msg) => serde_json::to_string(&msg),
+        MessageType::GameFashionWearResp(msg) => serde_json::to_string(&msg),
+        MessageType::GameArmamentSyncReq(msg) => serde_json::to_string(&msg),
+        MessageType::GameArmamentSyncResp(msg) => serde_json::to_string(&msg),
+        MessageType::GameSkillSlotsSyncReq(msg) => serde_json::to_string(&msg),
+        MessageType::GameSkillSlotsSyncResp(msg) => serde_json::to_string(&msg),
+        MessageType::GamePetSyncReq(msg) => serde_json::to_string(&msg),
+        MessageType::GamePetSyncResp(msg) => serde_json::to_string(&msg),
+        MessageType::GamePartnerSyncReq(msg) => serde_json::to_string(&msg),
+        MessageType::GamePartnerSyncResp(msg) => serde_json::to_string(&msg),
         MessageType::BattleBattleInputPush(msg) => serde_json::to_string(&msg),
         MessageType::BattleBattleSnapshotPush(msg) => serde_json::to_string(&msg),
         MessageType::TownTownPlayerStatePush(msg) => serde_json::to_string(&msg),

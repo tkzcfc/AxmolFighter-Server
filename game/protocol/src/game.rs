@@ -1564,3 +1564,524 @@ pub mod duel_end_push {
         }
     }
 }
+/// 保存装扮穿戴（整表替换拥有列表中的 worn 标记；未拥有的 config 会插入）。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FashionWearReq {
+    #[prost(message, repeated, tag = "1")]
+    pub fashions: ::prost::alloc::vec::Vec<super::types::FashionInfo>,
+}
+/// Nested message and enum types in `FashionWearReq`.
+pub mod fashion_wear_req {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1500,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FashionWearResp {
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `FashionWearResp`.
+pub mod fashion_wear_resp {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1501,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 同步武装进度 + 外观。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ArmamentSyncReq {
+    #[prost(message, repeated, tag = "1")]
+    pub armaments: ::prost::alloc::vec::Vec<super::types::ArmamentInfo>,
+    #[prost(int32, tag = "2")]
+    pub appearance_id: i32,
+}
+/// Nested message and enum types in `ArmamentSyncReq`.
+pub mod armament_sync_req {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1502,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ArmamentSyncResp {
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `ArmamentSyncResp`.
+pub mod armament_sync_resp {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1503,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 同步技能槽绑定。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SkillSlotsSyncReq {
+    #[prost(message, repeated, tag = "1")]
+    pub slots: ::prost::alloc::vec::Vec<super::types::SkillSlotInfo>,
+}
+/// Nested message and enum types in `SkillSlotsSyncReq`.
+pub mod skill_slots_sync_req {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1504,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SkillSlotsSyncResp {
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `SkillSlotsSyncResp`.
+pub mod skill_slots_sync_resp {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1505,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 同步宠物进度 + 跟随。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PetSyncReq {
+    #[prost(message, repeated, tag = "1")]
+    pub pets: ::prost::alloc::vec::Vec<super::types::PetInfo>,
+    #[prost(int32, tag = "2")]
+    pub active_pet_id: i32,
+}
+/// Nested message and enum types in `PetSyncReq`.
+pub mod pet_sync_req {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1506,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PetSyncResp {
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `PetSyncResp`.
+pub mod pet_sync_resp {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1507,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 同步伙伴进度 + 出战。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PartnerSyncReq {
+    #[prost(message, repeated, tag = "1")]
+    pub partners: ::prost::alloc::vec::Vec<super::types::PartnerInfo>,
+    #[prost(int32, tag = "2")]
+    pub active_partner_id: i32,
+}
+/// Nested message and enum types in `PartnerSyncReq`.
+pub mod partner_sync_req {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1508,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PartnerSyncResp {
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `PartnerSyncResp`.
+pub mod partner_sync_resp {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1509,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}

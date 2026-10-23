@@ -356,3 +356,79 @@ message DuelEndPush {
     // 说明。
     string message = 2;
 }
+
+// [角色养成同步] 1500-1519
+// 装扮穿戴、武装、技能槽、宠物、伙伴进度落库。
+
+// 保存装扮穿戴（整表替换拥有列表中的 worn 标记；未拥有的 config 会插入）。
+message FashionWearReq {
+    enum MsgId { None = 0; Id = 1500; }
+
+    repeated PB.Types.FashionInfo fashions = 1;
+}
+
+message FashionWearResp {
+    enum MsgId { None = 0; Id = 1501; }
+
+    int32 code = 1;
+    string message = 2;
+}
+
+// 同步武装进度 + 外观。
+message ArmamentSyncReq {
+    enum MsgId { None = 0; Id = 1502; }
+
+    repeated PB.Types.ArmamentInfo armaments = 1;
+    int32 appearance_id = 2;
+}
+
+message ArmamentSyncResp {
+    enum MsgId { None = 0; Id = 1503; }
+
+    int32 code = 1;
+    string message = 2;
+}
+
+// 同步技能槽绑定。
+message SkillSlotsSyncReq {
+    enum MsgId { None = 0; Id = 1504; }
+
+    repeated PB.Types.SkillSlotInfo slots = 1;
+}
+
+message SkillSlotsSyncResp {
+    enum MsgId { None = 0; Id = 1505; }
+
+    int32 code = 1;
+    string message = 2;
+}
+
+// 同步宠物进度 + 跟随。
+message PetSyncReq {
+    enum MsgId { None = 0; Id = 1506; }
+
+    repeated PB.Types.PetInfo pets = 1;
+    int32 active_pet_id = 2;
+}
+
+message PetSyncResp {
+    enum MsgId { None = 0; Id = 1507; }
+
+    int32 code = 1;
+    string message = 2;
+}
+
+// 同步伙伴进度 + 出战。
+message PartnerSyncReq {
+    enum MsgId { None = 0; Id = 1508; }
+
+    repeated PB.Types.PartnerInfo partners = 1;
+    int32 active_partner_id = 2;
+}
+
+message PartnerSyncResp {
+    enum MsgId { None = 0; Id = 1509; }
+
+    int32 code = 1;
+    string message = 2;
+}

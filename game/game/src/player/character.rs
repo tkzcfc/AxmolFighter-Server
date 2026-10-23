@@ -127,7 +127,7 @@ impl PlayerSessionDelegate {
             message: String::new(),
             character: Some(GameShared::character_to_proto(
                 id, name, class_id, gender, level, exp, gold, hair_id, clothes_id, skin_id,
-                fashions, equipments,
+                fashions, equipments, crate::game_shared::CharacterProgress::default(),
             )),
         }
     }

@@ -2,6 +2,7 @@ mod account;
 mod battle;
 mod character;
 mod fashion_defaults;
+mod progress;
 mod town;
 
 use std::sync::{Arc, Mutex};
@@ -58,6 +59,13 @@ impl SessionDelegate for PlayerSessionDelegate {
             MessageType::GameDuelInviteReq(req) => self.handle_duel_invite(req).await.into(),
             MessageType::GameDuelRespondReq(req) => self.handle_duel_respond(req).await.into(),
             MessageType::GameEnterSceneReq(req) => self.handle_enter_scene(req).await.into(),
+            MessageType::GameFashionWearReq(req) => self.handle_fashion_wear(req).await.into(),
+            MessageType::GameArmamentSyncReq(req) => self.handle_armament_sync(req).await.into(),
+            MessageType::GameSkillSlotsSyncReq(req) => {
+                self.handle_skill_slots_sync(req).await.into()
+            }
+            MessageType::GamePetSyncReq(req) => self.handle_pet_sync(req).await.into(),
+            MessageType::GamePartnerSyncReq(req) => self.handle_partner_sync(req).await.into(),
             other => {
                 warn!("no request handler for session={}", self.session_id);
                 drop(other);
