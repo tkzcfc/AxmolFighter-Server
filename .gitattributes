@@ -1,1 +1,4 @@
 *.exe filter=lfs diff=lfs merge=lfs -text
+
+# sqlx migrations: checksums break if CRLF is introduced on Windows
+game/game/migrations/*.sql text eol=lf
