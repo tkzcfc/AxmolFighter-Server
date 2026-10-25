@@ -74,11 +74,14 @@ Read-Host
     Write-Host "Starting town (new window)..."
     $pids += Start-ServerWindow -Title "town" -ExePath $townExe
 
-    if (-not $IsWindows) {
+    # Windows PowerShell 5 has no $IsWindows; detect via OS env as well.
+    $onWindows = ($IsWindows -eq $true) -or ($env:OS -eq "Windows_NT")
+    if (-not $onWindows) {
         # Terminal windows don't expose the server PID; look the processes up by binary path.
         Start-Sleep -Seconds 1
         $pids = @($gatewayExe, $gameExe, $townExe) | ForEach-Object { & pgrep -f "^$_" } | Where-Object { $_ }
     }
+    $pids = @($pids | Where-Object { $_ })
 
     $pids | Set-Content -Path $pidFile -Encoding ascii
     Write-Host "Stack started in 3 foreground windows. PIDs: $($pids -join ', ')"
