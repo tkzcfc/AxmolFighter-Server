@@ -1,3 +1,5 @@
 game/.idea/
 battle/build-vs/
 battle/logs/
+
+.run-stack.pids
