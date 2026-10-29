@@ -2,8 +2,9 @@
 
 #include "framework/Logger.h"
 #include "game_battle.pb.h"
-#include "mugen/conf/Config.h"
+#include "mugen/conf/ReflectedConfig.h"
 #include "mugen/avatar/data/AvatarAssetCache.h"
+#include "mugen/core/io/ContentMount.h"
 #include "mugen/core/io/FileUtils.h"
 
 #include <chrono>
@@ -24,19 +25,20 @@ bool BattleServer::init(const BattleServerConfig& config)
 
     if (!m_config.contentRoot.empty())
     {
-        mugen::io::clearSearchPaths();
-        const std::string zhcn = m_config.contentRoot + "/res_zhcn";
-        if (mugen::io::isDirectoryExist(zhcn))
-            mugen::io::addSearchPath(zhcn, true);
-        mugen::io::addSearchPath(m_config.contentRoot, true);
-        if (!mugen::Config::getInstance()->loadConfig("mugen/config/config.bin"))
+        static vfs::VirtualFileSystem contentFs;
+        if (!mugen::io::mountContentRoot(contentFs, m_config.contentRoot, false))
+        {
+            spdlog::error("Failed to mount / from content_root={}", m_config.contentRoot);
+            return false;
+        }
+        mugen::io::setVfs(&contentFs);
+        if (!mugen::conf::Config::instance().load("/mugen/config/config.bin"))
         {
             spdlog::error("Failed to load config.bin from content_root={}", m_config.contentRoot);
             return false;
         }
         auto* avatarCache = mugen::AvatarAssetCache::getInstance();
-        avatarCache->addSearchPath("res_zhcn");
-        if (!avatarCache->load("mugen/config/avatar.bin"))
+        if (!avatarCache->load("/mugen/config/avatar.bin"))
         {
             spdlog::error("Failed to load avatar.bin from content_root={}", m_config.contentRoot);
             return false;

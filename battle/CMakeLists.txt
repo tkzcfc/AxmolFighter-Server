@@ -81,12 +81,18 @@ target_sources(mugen PRIVATE
 target_compile_definitions(mugen PUBLIC RUNTIME_IN_AXMOL=0)
 target_include_directories(mugen PUBLIC
     "${CLIENT_SOURCE_DIR}"
+    "${CLIENT_SOURCE_DIR}/3rd"
     "${CLIENT_SOURCE_DIR}/3rd/tinyexpr"
     "${AXMOL_3RDPARTY_DIR}"
 )
 if(MSVC)
     target_compile_options(mugen PRIVATE /utf-8)
 endif()
+
+include("${CLIENT_SOURCE_DIR}/../cmake/VfsSources.cmake")
+target_sources(mugen PRIVATE ${VFS_SOURCES})
+find_package(Threads REQUIRED)
+target_link_libraries(mugen PUBLIC Threads::Threads)
 
 # ========== battle_server ==========
 file(GLOB_RECURSE BATTLE_SOURCES CONFIGURE_DEPENDS
