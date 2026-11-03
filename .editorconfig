@@ -1,0 +1,8 @@
+root = true
+
+# sqlx hashes migration files byte-for-byte. LF keeps the checksum
+# identical on Windows and macOS. .gitattributes also forces eol=lf.
+[game/game/migrations/*.sql]
+end_of_line = lf
+charset = utf-8
+insert_final_newline = true
