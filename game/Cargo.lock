@@ -2444,8 +2444,10 @@ dependencies = [
  "backend-framework",
  "base",
  "protocol",
+ "serde",
  "tokio",
  "tokio-util",
+ "toml",
  "tracing",
  "tracing-subscriber",
 ]

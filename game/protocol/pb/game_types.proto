@@ -168,31 +168,73 @@ message PartnerInfo {
 // 城镇与场景相关类型
 // ============================================================================
 
-// 城镇场景内玩家状态。
-message PlayerState {
-	// 玩家 id。客户端上报时服务端会使用登录态覆盖该字段。
-	int64 player_id = 1;
-	// x 坐标。
-	float pos_x = 2;
-	// y 坐标。
-	float pos_y = 3;
-	// 当前血量。
-	int32 hp = 4;
+// 三维整数坐标/位移。
+// 坐标采用定点数：真实值 = 字段值 / 1000（即 1/1000 像素精度）。服务端只做整数运算，
+// 避免浮点漂移，客户端上报/消费时自行在浮点像素与定点数之间换算。
+message TownVec3 {
+	// x 分量（定点，1/1000 像素）。
+	int32 x = 1;
+	// y 分量（定点，1/1000 像素）。
+	int32 y = 2;
+	// z 分量（定点，1/1000 像素）。
+	int32 z = 3;
+}
+
+// 三维速度（像素/秒，浮点）。仅用于远端斜向外推，不做权威校验。
+message TownVel {
+	float x = 1;
+	float y = 2;
+	float z = 3;
+}
+
+// 城镇角色运动状态（权威位置 + 表现状态）。
+message TownMovement {
+	// 权威位置（定点，1/1000 像素）。
+	TownVec3 pos = 1;
+	// 朝向，对应客户端 FacingDirection（0=左，1=右）。
+	int32 facing = 2;
+	// 是否仍在主动移动（有移动意图/速度）。远端据此保持 walk，避免到点误切 idle。
+	bool moving = 3;
+	// 当前水平速度（像素/秒），用于远端斜向外推。
+	TownVel vel = 4;
 	// 当前状态（当前播放的 motion 名，如 idle/walk）。
 	string state = 5;
+}
+
+// 城镇角色穿在身上的单件装扮（部位 + 配置 id）。
+message TownFashionItem {
+	// 时装部位（FashionPosition：2 衣 / 4 发 / 7 皮肤 / 其他）。
+	int32 position = 1;
+	// res_fashion / 时装配置 id。
+	int32 config_id = 2;
+}
+
+// 城镇角色外观。由 game 服根据角色数据构造，随进入/换装/宠物切换下发。
+message TownAppearance {
 	// 职业 id，决定远端用哪个角色配置创建 avatar。
-	int32 class_id = 6;
+	int32 class_id = 1;
 	// 角色名。
-	string name = 7;
-	// z 坐标（高度）。
-	float pos_z = 8;
-	// 朝向，对应客户端 FacingDirection（0=左，1=右）。
-	int32 facing = 9;
-	// 是否仍在主动移动（有移动意图/速度）。远端据此保持 walk，避免到点误切 idle。
-	bool moving = 10;
-	// 当前水平速度（像素/秒），用于远端斜向外推。
-	float vel_x = 11;
-	float vel_y = 12;
+	string name = 2;
+	// 等级。
+	int32 level = 3;
+	// 穿在身上的装扮列表（按部位）。
+	repeated TownFashionItem fashions = 4;
+	// 跟随宠物 config_id（0=无）。
+	int32 pet_id = 5;
+	// 创角默认外观（发/衣/皮肤，res_fashion id）。
+	repeated DefaultSkin base_skins = 6;
+	// 武装外观 config_id（0=无，使用职业默认武器）。
+	int32 armament_id = 7;
+}
+
+// 城镇场景内玩家的公开信息（外观 + 运动状态）。
+message TownPlayerInfo {
+	// 玩家 id。
+	int64 player_id = 1;
+	// 外观。
+	TownAppearance appearance = 2;
+	// 运动状态（权威位置 + 表现状态）。
+	TownMovement movement = 3;
 }
 
 // 城镇场景进入目标类型。

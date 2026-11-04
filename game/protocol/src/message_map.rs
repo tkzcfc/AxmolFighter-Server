@@ -25,6 +25,8 @@ pub enum MessageType {
     GameDuelRespondResp(super::game::DuelRespondResp),
     GameEnterSceneReq(super::game::EnterSceneReq),
     GameEnterSceneResp(super::game::EnterSceneResp),
+    GameLeaveSceneReq(super::game::LeaveSceneReq),
+    GameLeaveSceneResp(super::game::LeaveSceneResp),
     GameAccountKickedPush(super::game::AccountKickedPush),
     GameBattleServerOfflinePush(super::game::BattleServerOfflinePush),
     GameTownServerOfflinePush(super::game::TownServerOfflinePush),
@@ -43,16 +45,19 @@ pub enum MessageType {
     GamePartnerSyncResp(super::game::PartnerSyncResp),
     BattleBattleInputPush(super::battle::BattleInputPush),
     BattleBattleSnapshotPush(super::battle::BattleSnapshotPush),
-    TownTownPlayerStatePush(super::town::TownPlayerStatePush),
+    TownTownMoveReport(super::town::TownMoveReport),
     TownScenePlayerEnterPush(super::town::ScenePlayerEnterPush),
     TownScenePlayerLeavePush(super::town::ScenePlayerLeavePush),
-    TownScenePlayerStatePush(super::town::ScenePlayerStatePush),
+    TownScenePlayerAppearancePush(super::town::ScenePlayerAppearancePush),
+    TownScenePlayerStatesPush(super::town::ScenePlayerStatesPush),
+    TownTownPositionCorrectionPush(super::town::TownPositionCorrectionPush),
     BattleInternalBattleCreateReq(super::battle_internal::BattleCreateReq),
     BattleInternalBattleCreateResp(super::battle_internal::BattleCreateResp),
     TownInternalTownEnterSceneReq(super::town_internal::TownEnterSceneReq),
     TownInternalTownEnterSceneResp(super::town_internal::TownEnterSceneResp),
     TownInternalTownLeaveSceneReq(super::town_internal::TownLeaveSceneReq),
     TownInternalTownLeaveSceneResp(super::town_internal::TownLeaveSceneResp),
+    TownInternalTownUpdateAppearanceReq(super::town_internal::TownUpdateAppearanceReq),
     GatewayClientServerStatusReq(super::gateway_client::ServerStatusReq),
     GatewayClientServerStatusPush(super::gateway_client::ServerStatusPush),
     GatewayClientGatewayErrorResp(super::gateway_client::GatewayErrorResp),
@@ -185,6 +190,16 @@ impl From<super::game::EnterSceneResp> for MessageType {
         MessageType::GameEnterSceneResp(v)
     }
 }
+impl From<super::game::LeaveSceneReq> for MessageType {
+    fn from(v: super::game::LeaveSceneReq) -> Self {
+        MessageType::GameLeaveSceneReq(v)
+    }
+}
+impl From<super::game::LeaveSceneResp> for MessageType {
+    fn from(v: super::game::LeaveSceneResp) -> Self {
+        MessageType::GameLeaveSceneResp(v)
+    }
+}
 impl From<super::game::AccountKickedPush> for MessageType {
     fn from(v: super::game::AccountKickedPush) -> Self {
         MessageType::GameAccountKickedPush(v)
@@ -275,9 +290,9 @@ impl From<super::battle::BattleSnapshotPush> for MessageType {
         MessageType::BattleBattleSnapshotPush(v)
     }
 }
-impl From<super::town::TownPlayerStatePush> for MessageType {
-    fn from(v: super::town::TownPlayerStatePush) -> Self {
-        MessageType::TownTownPlayerStatePush(v)
+impl From<super::town::TownMoveReport> for MessageType {
+    fn from(v: super::town::TownMoveReport) -> Self {
+        MessageType::TownTownMoveReport(v)
     }
 }
 impl From<super::town::ScenePlayerEnterPush> for MessageType {
@@ -290,9 +305,19 @@ impl From<super::town::ScenePlayerLeavePush> for MessageType {
         MessageType::TownScenePlayerLeavePush(v)
     }
 }
-impl From<super::town::ScenePlayerStatePush> for MessageType {
-    fn from(v: super::town::ScenePlayerStatePush) -> Self {
-        MessageType::TownScenePlayerStatePush(v)
+impl From<super::town::ScenePlayerAppearancePush> for MessageType {
+    fn from(v: super::town::ScenePlayerAppearancePush) -> Self {
+        MessageType::TownScenePlayerAppearancePush(v)
+    }
+}
+impl From<super::town::ScenePlayerStatesPush> for MessageType {
+    fn from(v: super::town::ScenePlayerStatesPush) -> Self {
+        MessageType::TownScenePlayerStatesPush(v)
+    }
+}
+impl From<super::town::TownPositionCorrectionPush> for MessageType {
+    fn from(v: super::town::TownPositionCorrectionPush) -> Self {
+        MessageType::TownTownPositionCorrectionPush(v)
     }
 }
 impl From<super::battle_internal::BattleCreateReq> for MessageType {
@@ -323,6 +348,11 @@ impl From<super::town_internal::TownLeaveSceneReq> for MessageType {
 impl From<super::town_internal::TownLeaveSceneResp> for MessageType {
     fn from(v: super::town_internal::TownLeaveSceneResp) -> Self {
         MessageType::TownInternalTownLeaveSceneResp(v)
+    }
+}
+impl From<super::town_internal::TownUpdateAppearanceReq> for MessageType {
+    fn from(v: super::town_internal::TownUpdateAppearanceReq) -> Self {
+        MessageType::TownInternalTownUpdateAppearanceReq(v)
     }
 }
 impl From<super::gateway_client::ServerStatusReq> for MessageType {
@@ -444,6 +474,8 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
         MessageType::GameDuelRespondResp(_) => Some(1307u32),
         MessageType::GameEnterSceneReq(_) => Some(1302u32),
         MessageType::GameEnterSceneResp(_) => Some(1303u32),
+        MessageType::GameLeaveSceneReq(_) => Some(1308u32),
+        MessageType::GameLeaveSceneResp(_) => Some(1309u32),
         MessageType::GameAccountKickedPush(_) => Some(1400u32),
         MessageType::GameBattleServerOfflinePush(_) => Some(1401u32),
         MessageType::GameTownServerOfflinePush(_) => Some(1402u32),
@@ -462,16 +494,19 @@ pub fn get_message_id(message: &MessageType) -> Option<u32> {
         MessageType::GamePartnerSyncResp(_) => Some(1509u32),
         MessageType::BattleBattleInputPush(_) => Some(20012u32),
         MessageType::BattleBattleSnapshotPush(_) => Some(20013u32),
-        MessageType::TownTownPlayerStatePush(_) => Some(30000u32),
+        MessageType::TownTownMoveReport(_) => Some(30000u32),
         MessageType::TownScenePlayerEnterPush(_) => Some(30001u32),
         MessageType::TownScenePlayerLeavePush(_) => Some(30002u32),
-        MessageType::TownScenePlayerStatePush(_) => Some(30003u32),
+        MessageType::TownScenePlayerAppearancePush(_) => Some(30003u32),
+        MessageType::TownScenePlayerStatesPush(_) => Some(30004u32),
+        MessageType::TownTownPositionCorrectionPush(_) => Some(30005u32),
         MessageType::BattleInternalBattleCreateReq(_) => Some(60000u32),
         MessageType::BattleInternalBattleCreateResp(_) => Some(60001u32),
         MessageType::TownInternalTownEnterSceneReq(_) => Some(61000u32),
         MessageType::TownInternalTownEnterSceneResp(_) => Some(61001u32),
         MessageType::TownInternalTownLeaveSceneReq(_) => Some(61002u32),
         MessageType::TownInternalTownLeaveSceneResp(_) => Some(61003u32),
+        MessageType::TownInternalTownUpdateAppearanceReq(_) => Some(61004u32),
         MessageType::GatewayClientServerStatusReq(_) => Some(1u32),
         MessageType::GatewayClientServerStatusPush(_) => Some(2u32),
         MessageType::GatewayClientGatewayErrorResp(_) => Some(3u32),
@@ -581,6 +616,14 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
             Ok(message) => Ok(MessageType::GameEnterSceneResp(message)),
             Err(err) => Err(err),
         },
+        1308u32 => match super::game::LeaveSceneReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameLeaveSceneReq(message)),
+            Err(err) => Err(err),
+        },
+        1309u32 => match super::game::LeaveSceneResp::decode(bytes) {
+            Ok(message) => Ok(MessageType::GameLeaveSceneResp(message)),
+            Err(err) => Err(err),
+        },
         1400u32 => match super::game::AccountKickedPush::decode(bytes) {
             Ok(message) => Ok(MessageType::GameAccountKickedPush(message)),
             Err(err) => Err(err),
@@ -653,8 +696,8 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
             Ok(message) => Ok(MessageType::BattleBattleSnapshotPush(message)),
             Err(err) => Err(err),
         },
-        30000u32 => match super::town::TownPlayerStatePush::decode(bytes) {
-            Ok(message) => Ok(MessageType::TownTownPlayerStatePush(message)),
+        30000u32 => match super::town::TownMoveReport::decode(bytes) {
+            Ok(message) => Ok(MessageType::TownTownMoveReport(message)),
             Err(err) => Err(err),
         },
         30001u32 => match super::town::ScenePlayerEnterPush::decode(bytes) {
@@ -665,8 +708,16 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
             Ok(message) => Ok(MessageType::TownScenePlayerLeavePush(message)),
             Err(err) => Err(err),
         },
-        30003u32 => match super::town::ScenePlayerStatePush::decode(bytes) {
-            Ok(message) => Ok(MessageType::TownScenePlayerStatePush(message)),
+        30003u32 => match super::town::ScenePlayerAppearancePush::decode(bytes) {
+            Ok(message) => Ok(MessageType::TownScenePlayerAppearancePush(message)),
+            Err(err) => Err(err),
+        },
+        30004u32 => match super::town::ScenePlayerStatesPush::decode(bytes) {
+            Ok(message) => Ok(MessageType::TownScenePlayerStatesPush(message)),
+            Err(err) => Err(err),
+        },
+        30005u32 => match super::town::TownPositionCorrectionPush::decode(bytes) {
+            Ok(message) => Ok(MessageType::TownTownPositionCorrectionPush(message)),
             Err(err) => Err(err),
         },
         60000u32 => match super::battle_internal::BattleCreateReq::decode(bytes) {
@@ -691,6 +742,10 @@ pub fn decode_message(message_id: u32, bytes: &[u8]) -> Result<MessageType, Deco
         },
         61003u32 => match super::town_internal::TownLeaveSceneResp::decode(bytes) {
             Ok(message) => Ok(MessageType::TownInternalTownLeaveSceneResp(message)),
+            Err(err) => Err(err),
+        },
+        61004u32 => match super::town_internal::TownUpdateAppearanceReq::decode(bytes) {
+            Ok(message) => Ok(MessageType::TownInternalTownUpdateAppearanceReq(message)),
             Err(err) => Err(err),
         },
         1u32 => match super::gateway_client::ServerStatusReq::decode(bytes) {
@@ -796,6 +851,8 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
         MessageType::GameDuelRespondResp(msg) => Some((1307u32, msg.encode_to_vec())),
         MessageType::GameEnterSceneReq(msg) => Some((1302u32, msg.encode_to_vec())),
         MessageType::GameEnterSceneResp(msg) => Some((1303u32, msg.encode_to_vec())),
+        MessageType::GameLeaveSceneReq(msg) => Some((1308u32, msg.encode_to_vec())),
+        MessageType::GameLeaveSceneResp(msg) => Some((1309u32, msg.encode_to_vec())),
         MessageType::GameAccountKickedPush(msg) => Some((1400u32, msg.encode_to_vec())),
         MessageType::GameBattleServerOfflinePush(msg) => Some((1401u32, msg.encode_to_vec())),
         MessageType::GameTownServerOfflinePush(msg) => Some((1402u32, msg.encode_to_vec())),
@@ -814,16 +871,19 @@ pub fn encode_message(message: &MessageType) -> Option<(u32, Vec<u8>)> {
         MessageType::GamePartnerSyncResp(msg) => Some((1509u32, msg.encode_to_vec())),
         MessageType::BattleBattleInputPush(msg) => Some((20012u32, msg.encode_to_vec())),
         MessageType::BattleBattleSnapshotPush(msg) => Some((20013u32, msg.encode_to_vec())),
-        MessageType::TownTownPlayerStatePush(msg) => Some((30000u32, msg.encode_to_vec())),
+        MessageType::TownTownMoveReport(msg) => Some((30000u32, msg.encode_to_vec())),
         MessageType::TownScenePlayerEnterPush(msg) => Some((30001u32, msg.encode_to_vec())),
         MessageType::TownScenePlayerLeavePush(msg) => Some((30002u32, msg.encode_to_vec())),
-        MessageType::TownScenePlayerStatePush(msg) => Some((30003u32, msg.encode_to_vec())),
+        MessageType::TownScenePlayerAppearancePush(msg) => Some((30003u32, msg.encode_to_vec())),
+        MessageType::TownScenePlayerStatesPush(msg) => Some((30004u32, msg.encode_to_vec())),
+        MessageType::TownTownPositionCorrectionPush(msg) => Some((30005u32, msg.encode_to_vec())),
         MessageType::BattleInternalBattleCreateReq(msg) => Some((60000u32, msg.encode_to_vec())),
         MessageType::BattleInternalBattleCreateResp(msg) => Some((60001u32, msg.encode_to_vec())),
         MessageType::TownInternalTownEnterSceneReq(msg) => Some((61000u32, msg.encode_to_vec())),
         MessageType::TownInternalTownEnterSceneResp(msg) => Some((61001u32, msg.encode_to_vec())),
         MessageType::TownInternalTownLeaveSceneReq(msg) => Some((61002u32, msg.encode_to_vec())),
         MessageType::TownInternalTownLeaveSceneResp(msg) => Some((61003u32, msg.encode_to_vec())),
+        MessageType::TownInternalTownUpdateAppearanceReq(msg) => Some((61004u32, msg.encode_to_vec())),
         MessageType::GatewayClientServerStatusReq(msg) => Some((1u32, msg.encode_to_vec())),
         MessageType::GatewayClientServerStatusPush(msg) => Some((2u32, msg.encode_to_vec())),
         MessageType::GatewayClientGatewayErrorResp(msg) => Some((3u32, msg.encode_to_vec())),
@@ -870,6 +930,8 @@ pub fn get_message_size(message: &MessageType) -> usize {
         MessageType::GameDuelRespondResp(msg) => msg.encoded_len(),
         MessageType::GameEnterSceneReq(msg) => msg.encoded_len(),
         MessageType::GameEnterSceneResp(msg) => msg.encoded_len(),
+        MessageType::GameLeaveSceneReq(msg) => msg.encoded_len(),
+        MessageType::GameLeaveSceneResp(msg) => msg.encoded_len(),
         MessageType::GameAccountKickedPush(msg) => msg.encoded_len(),
         MessageType::GameBattleServerOfflinePush(msg) => msg.encoded_len(),
         MessageType::GameTownServerOfflinePush(msg) => msg.encoded_len(),
@@ -888,16 +950,19 @@ pub fn get_message_size(message: &MessageType) -> usize {
         MessageType::GamePartnerSyncResp(msg) => msg.encoded_len(),
         MessageType::BattleBattleInputPush(msg) => msg.encoded_len(),
         MessageType::BattleBattleSnapshotPush(msg) => msg.encoded_len(),
-        MessageType::TownTownPlayerStatePush(msg) => msg.encoded_len(),
+        MessageType::TownTownMoveReport(msg) => msg.encoded_len(),
         MessageType::TownScenePlayerEnterPush(msg) => msg.encoded_len(),
         MessageType::TownScenePlayerLeavePush(msg) => msg.encoded_len(),
-        MessageType::TownScenePlayerStatePush(msg) => msg.encoded_len(),
+        MessageType::TownScenePlayerAppearancePush(msg) => msg.encoded_len(),
+        MessageType::TownScenePlayerStatesPush(msg) => msg.encoded_len(),
+        MessageType::TownTownPositionCorrectionPush(msg) => msg.encoded_len(),
         MessageType::BattleInternalBattleCreateReq(msg) => msg.encoded_len(),
         MessageType::BattleInternalBattleCreateResp(msg) => msg.encoded_len(),
         MessageType::TownInternalTownEnterSceneReq(msg) => msg.encoded_len(),
         MessageType::TownInternalTownEnterSceneResp(msg) => msg.encoded_len(),
         MessageType::TownInternalTownLeaveSceneReq(msg) => msg.encoded_len(),
         MessageType::TownInternalTownLeaveSceneResp(msg) => msg.encoded_len(),
+        MessageType::TownInternalTownUpdateAppearanceReq(msg) => msg.encoded_len(),
         MessageType::GatewayClientServerStatusReq(msg) => msg.encoded_len(),
         MessageType::GatewayClientServerStatusPush(msg) => msg.encoded_len(),
         MessageType::GatewayClientGatewayErrorResp(msg) => msg.encoded_len(),
@@ -944,6 +1009,8 @@ pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
         MessageType::GameDuelRespondResp(msg) => msg.encode_raw(buf),
         MessageType::GameEnterSceneReq(msg) => msg.encode_raw(buf),
         MessageType::GameEnterSceneResp(msg) => msg.encode_raw(buf),
+        MessageType::GameLeaveSceneReq(msg) => msg.encode_raw(buf),
+        MessageType::GameLeaveSceneResp(msg) => msg.encode_raw(buf),
         MessageType::GameAccountKickedPush(msg) => msg.encode_raw(buf),
         MessageType::GameBattleServerOfflinePush(msg) => msg.encode_raw(buf),
         MessageType::GameTownServerOfflinePush(msg) => msg.encode_raw(buf),
@@ -962,16 +1029,19 @@ pub fn encode_raw_message(message: &MessageType, buf: &mut impl BufMut) {
         MessageType::GamePartnerSyncResp(msg) => msg.encode_raw(buf),
         MessageType::BattleBattleInputPush(msg) => msg.encode_raw(buf),
         MessageType::BattleBattleSnapshotPush(msg) => msg.encode_raw(buf),
-        MessageType::TownTownPlayerStatePush(msg) => msg.encode_raw(buf),
+        MessageType::TownTownMoveReport(msg) => msg.encode_raw(buf),
         MessageType::TownScenePlayerEnterPush(msg) => msg.encode_raw(buf),
         MessageType::TownScenePlayerLeavePush(msg) => msg.encode_raw(buf),
-        MessageType::TownScenePlayerStatePush(msg) => msg.encode_raw(buf),
+        MessageType::TownScenePlayerAppearancePush(msg) => msg.encode_raw(buf),
+        MessageType::TownScenePlayerStatesPush(msg) => msg.encode_raw(buf),
+        MessageType::TownTownPositionCorrectionPush(msg) => msg.encode_raw(buf),
         MessageType::BattleInternalBattleCreateReq(msg) => msg.encode_raw(buf),
         MessageType::BattleInternalBattleCreateResp(msg) => msg.encode_raw(buf),
         MessageType::TownInternalTownEnterSceneReq(msg) => msg.encode_raw(buf),
         MessageType::TownInternalTownEnterSceneResp(msg) => msg.encode_raw(buf),
         MessageType::TownInternalTownLeaveSceneReq(msg) => msg.encode_raw(buf),
         MessageType::TownInternalTownLeaveSceneResp(msg) => msg.encode_raw(buf),
+        MessageType::TownInternalTownUpdateAppearanceReq(msg) => msg.encode_raw(buf),
         MessageType::GatewayClientServerStatusReq(msg) => msg.encode_raw(buf),
         MessageType::GatewayClientServerStatusPush(msg) => msg.encode_raw(buf),
         MessageType::GatewayClientGatewayErrorResp(msg) => msg.encode_raw(buf),
@@ -1019,6 +1089,8 @@ pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {
         MessageType::GameDuelRespondResp(msg) => serde_json::to_string(&msg),
         MessageType::GameEnterSceneReq(msg) => serde_json::to_string(&msg),
         MessageType::GameEnterSceneResp(msg) => serde_json::to_string(&msg),
+        MessageType::GameLeaveSceneReq(msg) => serde_json::to_string(&msg),
+        MessageType::GameLeaveSceneResp(msg) => serde_json::to_string(&msg),
         MessageType::GameAccountKickedPush(msg) => serde_json::to_string(&msg),
         MessageType::GameBattleServerOfflinePush(msg) => serde_json::to_string(&msg),
         MessageType::GameTownServerOfflinePush(msg) => serde_json::to_string(&msg),
@@ -1037,16 +1109,19 @@ pub fn serialize_to_json(message: &MessageType) -> serde_json::Result<String> {
         MessageType::GamePartnerSyncResp(msg) => serde_json::to_string(&msg),
         MessageType::BattleBattleInputPush(msg) => serde_json::to_string(&msg),
         MessageType::BattleBattleSnapshotPush(msg) => serde_json::to_string(&msg),
-        MessageType::TownTownPlayerStatePush(msg) => serde_json::to_string(&msg),
+        MessageType::TownTownMoveReport(msg) => serde_json::to_string(&msg),
         MessageType::TownScenePlayerEnterPush(msg) => serde_json::to_string(&msg),
         MessageType::TownScenePlayerLeavePush(msg) => serde_json::to_string(&msg),
-        MessageType::TownScenePlayerStatePush(msg) => serde_json::to_string(&msg),
+        MessageType::TownScenePlayerAppearancePush(msg) => serde_json::to_string(&msg),
+        MessageType::TownScenePlayerStatesPush(msg) => serde_json::to_string(&msg),
+        MessageType::TownTownPositionCorrectionPush(msg) => serde_json::to_string(&msg),
         MessageType::BattleInternalBattleCreateReq(msg) => serde_json::to_string(&msg),
         MessageType::BattleInternalBattleCreateResp(msg) => serde_json::to_string(&msg),
         MessageType::TownInternalTownEnterSceneReq(msg) => serde_json::to_string(&msg),
         MessageType::TownInternalTownEnterSceneResp(msg) => serde_json::to_string(&msg),
         MessageType::TownInternalTownLeaveSceneReq(msg) => serde_json::to_string(&msg),
         MessageType::TownInternalTownLeaveSceneResp(msg) => serde_json::to_string(&msg),
+        MessageType::TownInternalTownUpdateAppearanceReq(msg) => serde_json::to_string(&msg),
         MessageType::GatewayClientServerStatusReq(msg) => serde_json::to_string(&msg),
         MessageType::GatewayClientServerStatusPush(msg) => serde_json::to_string(&msg),
         MessageType::GatewayClientGatewayErrorResp(msg) => serde_json::to_string(&msg),

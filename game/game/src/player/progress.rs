@@ -63,6 +63,7 @@ impl PlayerSessionDelegate {
 
         self.refresh_selected_character_fashions(character_id, &req.fashions)
             .await;
+        self.notify_town_appearance();
         FashionWearResp {
             code: 0,
             message: String::new(),
@@ -178,6 +179,8 @@ impl PlayerSessionDelegate {
                     .set_selected_character_for_session(self.session_id, c);
             }
         }
+
+        self.notify_town_appearance();
 
         ArmamentSyncResp {
             code: 0,
@@ -349,6 +352,8 @@ impl PlayerSessionDelegate {
                     .set_selected_character_for_session(self.session_id, c);
             }
         }
+
+        self.notify_town_appearance();
 
         PetSyncResp {
             code: 0,

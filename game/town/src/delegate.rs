@@ -10,7 +10,7 @@ use backend_framework::session_delegate::SessionDelegate;
 use protocol::message_map::MessageType;
 use tracing::{debug, info, warn};
 
-use crate::scene::TownShared;
+use crate::scene::{SyncConfig, TownShared};
 
 pub struct TownDelegate {
     shutdown: ShutdownHandle,
@@ -18,10 +18,15 @@ pub struct TownDelegate {
 }
 
 impl TownDelegate {
-    pub fn new(session: Arc<BackendSession>, shutdown: ShutdownHandle, instance_id: u32) -> Self {
+    pub fn new(
+        session: Arc<BackendSession>,
+        shutdown: ShutdownHandle,
+        instance_id: u32,
+        config: SyncConfig,
+    ) -> Self {
         Self {
             shutdown,
-            shared: TownShared::new(session, instance_id),
+            shared: TownShared::new(session, instance_id, config),
         }
     }
 }
@@ -50,8 +55,8 @@ impl SessionDelegate for TownSessionDelegate {
 
     async fn on_client_push(&self, msg: MessageType) -> anyhow::Result<()> {
         match msg {
-            MessageType::TownTownPlayerStatePush(push) => {
-                self.shared.update_state(self.session_id, push);
+            MessageType::TownTownMoveReport(report) => {
+                self.shared.move_report(self.session_id, report);
             }
             other => {
                 debug!("unhandled town client push session={}", self.session_id);
@@ -120,6 +125,31 @@ impl BackendDelegate for TownDelegate {
             }
         };
         Ok(resp)
+    }
+
+    async fn on_server_push(
+        &self,
+        source: ServerSource,
+        msg: MessageType,
+    ) -> anyhow::Result<()> {
+        if source.service_id != SERVICE_ID_GAME {
+            warn!(
+                "rejected town server push from non-game source={}",
+                source
+            );
+            return Ok(());
+        }
+
+        match msg {
+            MessageType::TownInternalTownUpdateAppearanceReq(req) => {
+                self.shared.update_appearance(req);
+            }
+            other => {
+                warn!("unhandled town server push source={}", source);
+                drop(other);
+            }
+        }
+        Ok(())
     }
 
     async fn on_shutdown(&self) {

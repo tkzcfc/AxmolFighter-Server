@@ -45,7 +45,7 @@ AxmolFighter-Server/
 ├── game/                 # Rust Cargo workspace
 │   ├── gateway/          # 网关 + gateway.toml
 │   ├── game/             # 游戏服 + game.toml（含数据库）
-│   ├── town/             # 城镇服（当前 gateway 地址硬编码）
+│   ├── town/             # 城镇服 + town.toml（gateway + 城镇同步）
 │   ├── backend-framework/
 │   ├── base/
 │   └── protocol/

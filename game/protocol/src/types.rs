@@ -229,46 +229,109 @@ pub struct PartnerInfo {
     #[prost(int32, tag = "3")]
     pub star: i32,
 }
-/// 城镇场景内玩家状态。
+/// 三维整数坐标/位移。
+/// 坐标采用定点数：真实值 = 字段值 / 1000（即 1/1000 像素精度）。服务端只做整数运算，
+/// 避免浮点漂移，客户端上报/消费时自行在浮点像素与定点数之间换算。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PlayerState {
-    /// 玩家 id。客户端上报时服务端会使用登录态覆盖该字段。
-    #[prost(int64, tag = "1")]
-    pub player_id: i64,
-    /// x 坐标。
+pub struct TownVec3 {
+    /// x 分量（定点，1/1000 像素）。
+    #[prost(int32, tag = "1")]
+    pub x: i32,
+    /// y 分量（定点，1/1000 像素）。
+    #[prost(int32, tag = "2")]
+    pub y: i32,
+    /// z 分量（定点，1/1000 像素）。
+    #[prost(int32, tag = "3")]
+    pub z: i32,
+}
+/// 三维速度（像素/秒，浮点）。仅用于远端斜向外推，不做权威校验。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TownVel {
+    #[prost(float, tag = "1")]
+    pub x: f32,
     #[prost(float, tag = "2")]
-    pub pos_x: f32,
-    /// y 坐标。
+    pub y: f32,
     #[prost(float, tag = "3")]
-    pub pos_y: f32,
-    /// 当前血量。
-    #[prost(int32, tag = "4")]
-    pub hp: i32,
+    pub z: f32,
+}
+/// 城镇角色运动状态（权威位置 + 表现状态）。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TownMovement {
+    /// 权威位置（定点，1/1000 像素）。
+    #[prost(message, optional, tag = "1")]
+    pub pos: ::core::option::Option<TownVec3>,
+    /// 朝向，对应客户端 FacingDirection（0=左，1=右）。
+    #[prost(int32, tag = "2")]
+    pub facing: i32,
+    /// 是否仍在主动移动（有移动意图/速度）。远端据此保持 walk，避免到点误切 idle。
+    #[prost(bool, tag = "3")]
+    pub moving: bool,
+    /// 当前水平速度（像素/秒），用于远端斜向外推。
+    #[prost(message, optional, tag = "4")]
+    pub vel: ::core::option::Option<TownVel>,
     /// 当前状态（当前播放的 motion 名，如 idle/walk）。
     #[prost(string, tag = "5")]
     pub state: ::prost::alloc::string::String,
+}
+/// 城镇角色穿在身上的单件装扮（部位 + 配置 id）。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TownFashionItem {
+    /// 时装部位（FashionPosition：2 衣 / 4 发 / 7 皮肤 / 其他）。
+    #[prost(int32, tag = "1")]
+    pub position: i32,
+    /// res_fashion / 时装配置 id。
+    #[prost(int32, tag = "2")]
+    pub config_id: i32,
+}
+/// 城镇角色外观。由 game 服根据角色数据构造，随进入/换装/宠物切换下发。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TownAppearance {
     /// 职业 id，决定远端用哪个角色配置创建 avatar。
-    #[prost(int32, tag = "6")]
+    #[prost(int32, tag = "1")]
     pub class_id: i32,
     /// 角色名。
-    #[prost(string, tag = "7")]
+    #[prost(string, tag = "2")]
     pub name: ::prost::alloc::string::String,
-    /// z 坐标（高度）。
-    #[prost(float, tag = "8")]
-    pub pos_z: f32,
-    /// 朝向，对应客户端 FacingDirection（0=左，1=右）。
-    #[prost(int32, tag = "9")]
-    pub facing: i32,
-    /// 是否仍在主动移动（有移动意图/速度）。远端据此保持 walk，避免到点误切 idle。
-    #[prost(bool, tag = "10")]
-    pub moving: bool,
-    /// 当前水平速度（像素/秒），用于远端斜向外推。
-    #[prost(float, tag = "11")]
-    pub vel_x: f32,
-    #[prost(float, tag = "12")]
-    pub vel_y: f32,
+    /// 等级。
+    #[prost(int32, tag = "3")]
+    pub level: i32,
+    /// 穿在身上的装扮列表（按部位）。
+    #[prost(message, repeated, tag = "4")]
+    pub fashions: ::prost::alloc::vec::Vec<TownFashionItem>,
+    /// 跟随宠物 config_id（0=无）。
+    #[prost(int32, tag = "5")]
+    pub pet_id: i32,
+    /// 创角默认外观（发/衣/皮肤，res_fashion id）。
+    #[prost(message, repeated, tag = "6")]
+    pub base_skins: ::prost::alloc::vec::Vec<DefaultSkin>,
+    /// 武装外观 config_id（0=无，使用职业默认武器）。
+    #[prost(int32, tag = "7")]
+    pub armament_id: i32,
+}
+/// 城镇场景内玩家的公开信息（外观 + 运动状态）。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TownPlayerInfo {
+    /// 玩家 id。
+    #[prost(int64, tag = "1")]
+    pub player_id: i64,
+    /// 外观。
+    #[prost(message, optional, tag = "2")]
+    pub appearance: ::core::option::Option<TownAppearance>,
+    /// 运动状态（权威位置 + 表现状态）。
+    #[prost(message, optional, tag = "3")]
+    pub movement: ::core::option::Option<TownMovement>,
 }
 /// 下发给客户端的场景公开信息，不包含服务器内部 SceneId。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]

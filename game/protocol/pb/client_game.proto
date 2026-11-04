@@ -258,8 +258,8 @@ message EnterSceneReq {
     uint32 map_id = 2;
     // 家园拥有者玩家 id，type 为 Home 时填写。
     uint64 owner_uid = 3;
-    // 客户端当前上报的玩家状态，player_id 由服务器登录态覆盖。
-    PB.Types.PlayerState state = 4;
+    // 客户端出生运动状态（位置/朝向），外观由 game 服根据角色数据构造。
+    PB.Types.TownMovement movement = 4;
 }
 
 // game 服返回给客户端的进入城镇场景结果。
@@ -272,8 +272,24 @@ message EnterSceneResp {
     string message = 2;
     // 当前场景公开信息，不包含 SceneId。
     PB.Types.SceneInfo scene = 3;
-    // 当前场景内的玩家状态快照，包含自己。
-    repeated PB.Types.PlayerState players = 4;
+    // 当前场景内的玩家快照（外观 + 运动状态），包含自己。
+    repeated PB.Types.TownPlayerInfo players = 4;
+}
+
+// 客户端请求离开城镇场景。进入本地副本等离线战斗时调用，game 服据此通知 town 服
+// 执行离开，让同场景其他玩家收到 ScenePlayerLeavePush。
+message LeaveSceneReq {
+    enum MsgId { None = 0; Id = 1308; }
+}
+
+// 离开城镇场景响应。
+message LeaveSceneResp {
+    enum MsgId { None = 0; Id = 1309; }
+
+    // 结果码，0 表示成功。
+    int32 code = 1;
+    // 结果说明。
+    string message = 2;
 }
 
 // [游戏服通知] 1400-1499

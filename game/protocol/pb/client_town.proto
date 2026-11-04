@@ -11,37 +11,75 @@ option optimize_for = LITE_RUNTIME;
 // 客户端和城镇服协议范围：30000-39999
 // ============================================================================
 
-// [城镇同步] 30000-30003
-// 客户端向已绑定 town 服推送自身状态，town 服向同场景客户端广播玩家变化。
+// [城镇同步] 30000-30007
+// 客户端把本地移动上报给已绑定的 town 服（本地预测），town 服校验后按固定 tick
+// 把「发生变化」的玩家批量广播给同场景（AOI 内）的其他客户端；违规时仅向发送者
+// 下发权威位置校正。
 
-// 客户端向已绑定 town 服推送自身状态。
-message TownPlayerStatePush {
+// 客户端移动上报（本地预测）。发送者自测本地位置，服务端按速度/边界校验。
+message TownMoveReport {
     enum MsgId { None = 0; Id = 30000; }
 
-    // 客户端当前上报的玩家状态，player_id 由 town 服记录覆盖。
-    PB.Types.PlayerState state = 1;
+    // 客户端自增序号，用于校正回包对齐（0 表示未启用）。
+    uint32 client_seq = 1;
+    // 客户端上报时刻的本地时间戳（毫秒，任意单调时钟，仅用于校正对齐）。
+    uint64 client_time_ms = 2;
+    // 上报的运动状态（位置为客户端本地预测）。
+    PB.Types.TownMovement movement = 3;
+    // 客户端已应用的最近一次位置校正的 client_seq（0 表示未应用过校正）。
+    uint32 ack_correction_seq = 4;
 }
 
-// town 服通知客户端：同场景有玩家进入。
+// town 服通知客户端：同场景（AOI 内）有玩家进入。进入者快照携带外观 + 运动状态。
 message ScenePlayerEnterPush {
     enum MsgId { None = 0; Id = 30001; }
 
-    // 新进入玩家的状态。
-    PB.Types.PlayerState state = 1;
+    // 新进入玩家的公开信息（外观 + 运动状态）。
+    PB.Types.TownPlayerInfo player = 1;
 }
 
-// town 服通知客户端：同场景有玩家离开。
+// town 服通知客户端：同场景（AOI 内）有玩家离开。
 message ScenePlayerLeavePush {
     enum MsgId { None = 0; Id = 30002; }
 
-    // 离开场景的玩家 id。
+    // 离开场景（或离开 AOI）的玩家 id。
     int64 player_id = 1;
 }
 
-// town 服通知客户端：同场景玩家状态更新。
-message ScenePlayerStatePush {
+// town 服通知客户端：某玩家外观变化（换装 / 切换宠物）。
+message ScenePlayerAppearancePush {
     enum MsgId { None = 0; Id = 30003; }
 
-    // 更新后的玩家状态。
-    PB.Types.PlayerState state = 1;
+    // 外观变化的玩家 id。
+    int64 player_id = 1;
+    // 新外观。
+    PB.Types.TownAppearance appearance = 2;
+}
+
+// 广播批次里单个玩家的状态条目（不含外观，外观经 EnterPush/AppearancePush 下发）。
+message TownStateEntry {
+    // 玩家 id。
+    int64 player_id = 1;
+    // 服务端本 tick 时间戳（Unix 毫秒），客户端据此做缓冲插值。
+    uint64 server_time_ms = 2;
+    // 权威运动状态。
+    PB.Types.TownMovement movement = 3;
+}
+
+// town 服按固定 tick 广播：本 tick 内状态发生变化的玩家（send-on-change）。
+message ScenePlayerStatesPush {
+    enum MsgId { None = 0; Id = 30004; }
+
+    // 状态变化的玩家条目；已剔除接收者自身。
+    repeated TownStateEntry players = 1;
+}
+
+// town 服只发给发送者：位置校正（违规被 clamp/拒绝后的权威位置 + 序号）。
+message TownPositionCorrectionPush {
+    enum MsgId { None = 0; Id = 30005; }
+
+    // 对齐最近一次被接受的客户端序号。
+    uint32 client_seq = 1;
+    // 权威位置（定点，1/1000 像素）。
+    PB.Types.TownVec3 pos = 2;
 }

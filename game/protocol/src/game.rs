@@ -1102,9 +1102,9 @@ pub struct EnterSceneReq {
     /// 家园拥有者玩家 id，type 为 Home 时填写。
     #[prost(uint64, tag = "3")]
     pub owner_uid: u64,
-    /// 客户端当前上报的玩家状态，player_id 由服务器登录态覆盖。
+    /// 客户端出生运动状态（位置/朝向），外观由 game 服根据角色数据构造。
     #[prost(message, optional, tag = "4")]
-    pub state: ::core::option::Option<super::types::PlayerState>,
+    pub movement: ::core::option::Option<super::types::TownMovement>,
 }
 /// Nested message and enum types in `EnterSceneReq`.
 pub mod enter_scene_req {
@@ -1163,9 +1163,9 @@ pub struct EnterSceneResp {
     /// 当前场景公开信息，不包含 SceneId。
     #[prost(message, optional, tag = "3")]
     pub scene: ::core::option::Option<super::types::SceneInfo>,
-    /// 当前场景内的玩家状态快照，包含自己。
+    /// 当前场景内的玩家快照（外观 + 运动状态），包含自己。
     #[prost(message, repeated, tag = "4")]
-    pub players: ::prost::alloc::vec::Vec<super::types::PlayerState>,
+    pub players: ::prost::alloc::vec::Vec<super::types::TownPlayerInfo>,
 }
 /// Nested message and enum types in `EnterSceneResp`.
 pub mod enter_scene_resp {
@@ -1188,6 +1188,110 @@ pub mod enter_scene_resp {
     pub enum MsgId {
         None = 0,
         Id = 1303,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 客户端请求离开城镇场景。进入本地副本等离线战斗时调用，game 服据此通知 town 服
+/// 执行离开，让同场景其他玩家收到 ScenePlayerLeavePush。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct LeaveSceneReq {}
+/// Nested message and enum types in `LeaveSceneReq`.
+pub mod leave_scene_req {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1308,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// 离开城镇场景响应。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct LeaveSceneResp {
+    /// 结果码，0 表示成功。
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    /// 结果说明。
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `LeaveSceneResp`.
+pub mod leave_scene_resp {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 1309,
     }
     impl MsgId {
         /// String value of the enum field names used in the ProtoBuf definition.

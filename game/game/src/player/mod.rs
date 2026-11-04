@@ -59,6 +59,7 @@ impl SessionDelegate for PlayerSessionDelegate {
             MessageType::GameDuelInviteReq(req) => self.handle_duel_invite(req).await.into(),
             MessageType::GameDuelRespondReq(req) => self.handle_duel_respond(req).await.into(),
             MessageType::GameEnterSceneReq(req) => self.handle_enter_scene(req).await.into(),
+            MessageType::GameLeaveSceneReq(req) => self.handle_leave_scene(req).await.into(),
             MessageType::GameFashionWearReq(req) => self.handle_fashion_wear(req).await.into(),
             MessageType::GameArmamentSyncReq(req) => self.handle_armament_sync(req).await.into(),
             MessageType::GameSkillSlotsSyncReq(req) => {

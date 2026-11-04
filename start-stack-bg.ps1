@@ -38,7 +38,8 @@ try {
     Start-Sleep -Seconds 1
 
     Write-Host "Starting town..."
-    $town = Start-Process -FilePath $townExe -WorkingDirectory $gameDir -PassThru
+    $town = Start-Process -FilePath $townExe -ArgumentList @("town/town.toml") `
+        -WorkingDirectory $gameDir -PassThru
     $pids += $town.Id
 
     $pids | Set-Content -Path $pidFile -Encoding ascii

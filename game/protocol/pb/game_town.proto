@@ -27,8 +27,10 @@ message TownEnterSceneReq {
     uint32 map_id = 4;
     // 家园拥有者玩家 id，type 为 Home 时有效。
     uint64 owner_uid = 5;
-    // 玩家进入场景时的初始状态，player_id 由服务器覆盖。
-    PB.Types.PlayerState state = 6;
+    // 玩家出生运动状态（位置/朝向），由 game 服转发客户端上报。
+    PB.Types.TownMovement movement = 6;
+    // 玩家外观，由 game 服根据角色数据构造。
+    PB.Types.TownAppearance appearance = 7;
 }
 
 // town 服返回给 game 服的进入场景结果。
@@ -43,8 +45,8 @@ message TownEnterSceneResp {
     uint32 town_instance_id = 3;
     // 当前场景公开信息，不包含 SceneId。
     PB.Types.SceneInfo scene = 4;
-    // 当前场景内的玩家状态快照，包含自己。
-    repeated PB.Types.PlayerState players = 5;
+    // 当前场景内的玩家快照（外观 + 运动状态），包含自己。
+    repeated PB.Types.TownPlayerInfo players = 5;
 }
 
 // game 服请求 town 服执行离开场景。
@@ -65,4 +67,19 @@ message TownLeaveSceneResp {
     int32 code = 1;
     // 结果说明。
     string message = 2;
+}
+
+// [外观同步] 61004
+
+// game 服单向通知 town 服：玩家外观变化（换装 / 切换宠物）。town 服据此向同场景
+// 客户端广播 ScenePlayerAppearancePush。
+message TownUpdateAppearanceReq {
+    enum MsgId { None = 0; Id = 61004; }
+
+    // 客户端 session id。
+    uint32 session_id = 1;
+    // 玩家 id。
+    int64 player_id = 2;
+    // 新外观。
+    PB.Types.TownAppearance appearance = 3;
 }

@@ -6,7 +6,8 @@ use backend_framework::service_id::SERVICE_ID_TOWN;
 use protocol::game::*;
 use protocol::gateway_internal::{BindServiceReq, UnbindServiceReq};
 use protocol::message_map::MessageType;
-use protocol::town_internal::{TownEnterSceneReq, TownLeaveSceneReq};
+use protocol::town_internal::{TownEnterSceneReq, TownLeaveSceneReq, TownUpdateAppearanceReq};
+use protocol::types::{DefaultSkin, TownAppearance, TownFashionItem};
 use tracing::warn;
 
 use crate::player::PlayerSessionDelegate;
@@ -14,13 +15,65 @@ use crate::player::PlayerSessionDelegate;
 const TOWN_ROLLBACK_TIMEOUT: Duration = Duration::from_secs(3);
 
 impl PlayerSessionDelegate {
+    /// 从当前选中角色构造城镇外观。
+    pub(crate) fn build_town_appearance(&self) -> TownAppearance {
+        let character = self.selected_character();
+        let Some(character) = character else {
+            return TownAppearance::default();
+        };
+        let fashions = character
+            .fashions
+            .iter()
+            .filter(|f| f.worn)
+            .map(|f| TownFashionItem {
+                position: f.position,
+                config_id: f.config_id,
+            })
+            .collect();
+        let base_skins = character
+            .default_skins
+            .iter()
+            .map(|s| DefaultSkin {
+                position: s.position,
+                res_fashion_id: s.res_fashion_id,
+            })
+            .collect();
+        TownAppearance {
+            class_id: character.class_id,
+            name: character.name.clone(),
+            level: character.level,
+            fashions,
+            pet_id: character.active_pet_id,
+            base_skins,
+            armament_id: character.armament_appearance_id,
+        }
+    }
+
+    /// 通知 town 服：本 session 玩家外观已变化（换装 / 切换宠物 / 切换武装）。
+    pub(crate) fn notify_town_appearance(&self) {
+        let Some(player_id) = self.account_id() else {
+            return;
+        };
+        let Some(town_instance_id) = self.shared.town_instance_for_session(self.session_id) else {
+            return;
+        };
+        let msg = MessageType::TownInternalTownUpdateAppearanceReq(TownUpdateAppearanceReq {
+            session_id: self.session_id,
+            player_id,
+            appearance: Some(self.build_town_appearance()),
+        });
+        self.shared
+            .session
+            .send_server_msg(ServerSource::new(SERVICE_ID_TOWN, town_instance_id as i32), &msg, 0)
+            .ok();
+    }
+
     pub(crate) async fn handle_enter_scene(&self, req: EnterSceneReq) -> EnterSceneResp {
         let Some(account_id) = self.account_id() else {
             return Self::enter_scene_error(401, "please login first");
         };
 
-        let mut state = req.state.unwrap_or_default();
-        state.player_id = account_id;
+        let movement = req.movement;
 
         let target = self
             .shared
@@ -34,7 +87,8 @@ impl PlayerSessionDelegate {
             r#type: req.r#type,
             map_id: req.map_id,
             owner_uid: req.owner_uid,
-            state: Some(state),
+            movement,
+            appearance: Some(self.build_town_appearance()),
         });
 
         let town_resp = match self.shared.request_server(target, town_req).await {
@@ -133,6 +187,21 @@ impl PlayerSessionDelegate {
             message: String::new(),
             scene: town_resp.scene,
             players: town_resp.players,
+        }
+    }
+
+    /// 处理客户端离开城镇场景请求（进入本地副本等离线战斗时调用）。
+    pub(crate) async fn handle_leave_scene(&self, _req: LeaveSceneReq) -> LeaveSceneResp {
+        if self.leave_town_scene().await {
+            LeaveSceneResp {
+                code: 0,
+                message: String::new(),
+            }
+        } else {
+            LeaveSceneResp {
+                code: -1,
+                message: "failed to leave town scene".to_string(),
+            }
         }
     }
 

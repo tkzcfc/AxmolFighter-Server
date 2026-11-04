@@ -72,7 +72,7 @@ Read-Host
     Start-Sleep -Seconds 1
 
     Write-Host "Starting town (new window)..."
-    $pids += Start-ServerWindow -Title "town" -ExePath $townExe
+    $pids += Start-ServerWindow -Title "town" -ExePath $townExe -ExeArgs @("town/town.toml")
 
     # Windows PowerShell 5 has no $IsWindows; detect via OS env as well.
     $onWindows = ($IsWindows -eq $true) -or ($env:OS -eq "Windows_NT")

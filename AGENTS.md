@@ -7,7 +7,7 @@ Clients connect only to the gateway.
 | gateway | Rust | — | Clients on :17000, internal services on :17100. Config: `game/gateway/gateway.toml` |
 | game | Rust | 0 | PostgreSQL (`postgres:123456@127.0.0.1:5432/axmol_fighter`). Config: `game/game/game.toml` |
 | battle | C++20 | 1 | `battle/`. Compiles the client's `mugen` with `RUNTIME_IN_AXMOL=0` |
-| town | Rust | 2 | Gateway address is hardcoded |
+| town | Rust | 2 | Config: `game/town/town.toml` (gateway + `[sync]` movement/AOI) |
 
 ## Commands (PowerShell; start the gateway first)
 - Start: `.\run-gateway.ps1`, then `.\run-game.ps1`, `.\run-town.ps1`, `.\run-battle.ps1 [config\battle_2.toml]`
