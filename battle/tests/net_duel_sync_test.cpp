@@ -6,6 +6,7 @@
 #include "test_support.h"
 
 #include "mugen/core/serialize/ByteBuffer.h"
+#include "mugen/render/battle/PoseTrack.h"
 #include "mugen/sim/BattleBootstrap.h"
 #include "mugen/sim/input/ControlManagerCore.h"
 #include "mugen/sim/net/NetBattleSync.h"
@@ -257,6 +258,8 @@ public:
             return;
         const auto begin           = std::chrono::steady_clock::now();
         const auto resimBefore     = m_sync->session().stats().resimFrames;
+        const auto rollbacksBefore = m_sync->session().stats().rollbacks;
+        const auto heroBefore      = heroXZ(m_localSlot);
         for (const auto& frame : push.frames())
         {
             mugen::sim::FrameInput input;
@@ -277,6 +280,13 @@ public:
         m_sync->onServerFeedback(feedback, localNowMs(now));
         leadMax = std::max(leadMax, m_sync->inputLeadFrames());
         m_sync->flushRollback();
+        if (m_sync->session().stats().rollbacks != rollbacksBefore)
+        {
+            // 回滚在同一帧号上重推：本地英雄位置的前后差就是这次回滚的纠正量。
+            const auto heroAfter = heroXZ(m_localSlot);
+            corrections.push_back({now, heroAfter.first - heroBefore.first, heroAfter.second - heroBefore.second});
+            track.applyCorrection({heroAfter.first - heroBefore.first, 0.0f, heroAfter.second - heroBefore.second});
+        }
         for (const auto& hash : push.hashes())
         {
             if (m_sync->session().hashAt(hash.frame()) != 0)
@@ -305,7 +315,8 @@ public:
                m_sync->session().canAdvance())
         {
             std::vector<mugen::sim::PlayerCommand> commands;
-            m_control.advance(commands);
+            if (m_sync->inputReady(localNowMs(now), m_sync->session().currentFrame() + 1))
+                m_control.advance(commands);
             mugen::sim::PlayerInput input;
             input.slot     = m_localSlot;
             input.commands = std::move(commands);
@@ -318,6 +329,7 @@ public:
         }
         const double ms = elapsedMs(begin);
         probe.observe(m_sync->session().world());
+        steppedThisRender = advanced;
         m_frameMsSoFar += ms;
         perf.frameMsMax = std::max(perf.frameMsMax, m_frameMsSoFar);
         m_frameMsSoFar  = 0.0;
@@ -358,6 +370,39 @@ public:
     }
 
     void setKey(mugen::sim::ControlKey key, bool pressed) { m_control.setKey(key, pressed); }
+
+    // 指定槽位英雄在客户端世界中的水平 / 纵深位置（渲染单位，仅测试度量）。
+    std::pair<float, float> heroXZ(std::uint32_t slot) const
+    {
+        const auto& world = m_sync->session().world();
+        const auto& slots = world.ecs().singleton<mugen::sim::PlayerSlots>().entities;
+        const auto& t     = world.ecs().get<mugen::sim::Transform>(slots.at(slot));
+        return {t.position.x.toFloatForRender(), t.position.z.toFloatForRender()};
+    }
+
+    // 一次回滚对本地英雄位置的纠正量。
+    struct Correction
+    {
+        Micros at = 0;
+        float dx  = 0.0f;
+        float dz  = 0.0f;
+    };
+    std::vector<Correction> corrections;
+
+    // 与 WorldPresenter 同一套表现层位置轨迹：每个渲染帧采样本地英雄，返回其显示位置（x, z）。
+    // 与 NetBattleMode 一致：回滚纠正在 onFrames 里即时作用于轨迹，tick 进度从 tick 那一刻起算。
+    mugen::PoseTrack track;
+    mugen::TickAlpha tickAlpha;
+    bool steppedThisRender = false;
+    std::pair<float, float> presentStep(float deltaSec)
+    {
+        const auto pos = heroXZ(m_localSlot);
+        track.sample(m_sync->session().currentFrame(), {pos.first, 0.0f, pos.second});
+        tickAlpha.onRenderFrame(deltaSec, steppedThisRender);
+        track.advance(deltaSec);
+        const auto shown = track.display(tickAlpha.alpha(static_cast<float>(m_frameMs) / 1000.0f));
+        return {shown.x, shown.z};
+    }
 
     std::uint32_t session() const { return m_session; }
     mugen::sim::net::NetBattleSync& sync() { return *m_sync; }
@@ -1173,6 +1218,364 @@ void runAdaptiveLeadScenario(const char* label, Micros latencyUs, Micros jitterU
     expect(clients[0]->hashesCompared >= 10 && clients[1]->hashesCompared >= 10, "adaptive lead: hashes compared");
 }
 
+// 本地玩家持续移动场景的度量：按「按键状态不变期间位置是否反向」检测被拉回。
+struct PullbackTracker
+{
+    bool has = false;
+    float lastPos[2]    = {0, 0};
+    float lastMove[2]   = {0, 0};  // 各轴最近一次非零位移。
+    std::uint32_t keys  = 0;
+    int keysRun         = 0;
+    // 累计度量。
+    int events          = 0;
+    float maxJump       = 0.0f;
+    float sumJump       = 0.0f;
+
+    void observe(float x, float z, std::uint32_t keyMask)
+    {
+        if (!has)
+        {
+            has = true;
+            lastPos[0] = x;
+            lastPos[1] = z;
+            keys = keyMask;
+            return;
+        }
+        if (keyMask != keys)
+        {
+            keys    = keyMask;
+            keysRun = 0;
+            lastMove[0] = lastMove[1] = 0.0f;
+        }
+        else
+            ++keysRun;
+        const float cur[2] = {x - lastPos[0], z - lastPos[1]};
+        for (int axis = 0; axis < 2; ++axis)
+        {
+            if (std::abs(cur[axis]) < 0.01f)
+                continue;
+            if (keysRun >= 6 && lastMove[axis] * cur[axis] < 0.0f && std::abs(cur[axis]) > 0.05f)
+            {
+                ++events;
+                maxJump = std::max(maxJump, std::abs(cur[axis]));
+                sumJump += std::abs(cur[axis]);
+            }
+            lastMove[axis] = cur[axis];
+        }
+        lastPos[0] = x;
+        lastPos[1] = z;
+    }
+};
+
+// 当前（修复前）表现层的采样模型：墙钟锯齿 alpha + 逻辑帧门控的 previous/current。
+struct LegacyPresenterModel
+{
+    float prev[2] = {0, 0}, cur[2] = {0, 0};
+    std::uint64_t lastFrame = 0;
+    bool has = false;
+    float accum = 0.0f;
+
+    void step(std::uint64_t frame, float x, float z, float deltaSec, float frameSec, float out[2])
+    {
+        if (!has)
+        {
+            has = true;
+            prev[0] = cur[0] = x;
+            prev[1] = cur[1] = z;
+            lastFrame = frame;
+        }
+        else if (frame != lastFrame)
+        {
+            const bool snap = frame - lastFrame > 1;
+            prev[0] = snap ? x : cur[0];
+            prev[1] = snap ? z : cur[1];
+            cur[0] = x;
+            cur[1] = z;
+            lastFrame = frame;
+        }
+        accum += deltaSec;
+        if (accum >= frameSec)
+            accum -= frameSec;
+        const float alpha = accum / frameSec;
+        out[0] = prev[0] + (cur[0] - prev[0]) * alpha;
+        out[1] = prev[1] + (cur[1] - prev[1]) * alpha;
+    }
+};
+
+struct MovementParams
+{
+    const char* label  = "";
+    Micros latencyUs   = 0;
+    Micros jitterUs    = 0;
+    // 大于等于 0：kSwitchAt 时双向基础时延切换为该值。
+    Micros latencyAfterUs = -1;
+    // 摇杆式（每 120~400ms 随机换八方向 / 松开）或键盘式（按住 / 直接转向 / 松开）。
+    bool joystick = false;
+};
+
+// 本地玩家持续移动场景：槽位 0 按脚本持续移动（起点就在领先量收敛期内），槽位 1 空闲，
+// 链路带抖动。度量本地客户端的错误预测、回滚、位置被拉回次数（模拟世界与表现层各一份）。
+void runMovementScenario(const MovementParams& params)
+{
+    std::printf("--- scenario: move %s (one-way %lld us, jitter %lld us, after-switch %lld us, %s)\n",
+                params.label,
+                static_cast<long long>(params.latencyUs),
+                static_cast<long long>(params.jitterUs),
+                static_cast<long long>(params.latencyAfterUs),
+                params.joystick ? "joystick" : "keyboard");
+
+    Micros now = 0;
+    Wire toClients;
+    Wire toServer;
+    WireSender sender(toClients, now, params.latencyUs, params.jitterUs);
+    std::map<std::uint32_t, Link> upLinks;
+    for (std::uint32_t session : {1001u, 1002u})
+    {
+        Link l;
+        l.m_latencyUs = params.latencyUs;
+        l.m_jitterUs  = params.jitterUs;
+        l.m_rng       = 9001u + session;
+        upLinks.emplace(session, l);
+    }
+
+    auto room = battle::BattleRoom::create(sender, makeDuelConfig(500));
+    expect(room != nullptr, "room created for movement scenario");
+    if (!room)
+        return;
+
+    std::vector<std::unique_ptr<TestClient>> clients;
+    clients.push_back(std::make_unique<TestClient>(1001, 0));
+    clients.push_back(std::make_unique<TestClient>(1002, 55555));
+    room->markReady(1001);
+    room->markReady(1002);
+
+    constexpr Micros kServerTickUs = 33333;
+    constexpr Micros kClientTickUs = 16667;
+    constexpr Micros kSwitchAt     = 12000000;
+    constexpr Micros kEndAt        = 22000000;
+    // 收敛期：移动从启动即开始，量化「收敛之后」的稳态指标取该时刻之后的数据。
+    const Micros kMarkAt = params.latencyAfterUs >= 0 ? kSwitchAt + 5000000 : 6000000;
+
+    Micros nextServerTick = 0;
+    Micros nextClientTick = 0;
+    Micros moveStart      = -1;
+    bool switched         = false;
+    std::uint32_t scriptRng = 4242;
+
+    PullbackTracker simAll, simAfter, dispAll, dispAfter, shownAll, shownAfter;
+    LegacyPresenterModel legacy;
+    struct Snapshot
+    {
+        bool taken = false;
+        std::uint32_t late = 0, carried = 0, dropped = 0;
+        std::uint64_t localMis = 0, rollbacks = 0;
+        std::size_t corrections = 0;
+    } mark;
+    std::uint32_t leadAtMark = 0;
+
+    // 脚本：返回 now 时刻应按住的方向键掩码（bit0 左 bit1 右 bit2 上 bit3 下）。
+    std::uint32_t scriptMask = 0;
+    Micros scriptNextAt      = 0;
+    int scriptIndex          = 0;
+    auto advanceScript = [&](Micros t) {
+        if (t < scriptNextAt)
+            return;
+        if (params.joystick)
+        {
+            scriptRng = scriptRng * 1664525u + 1013904223u;
+            const std::uint32_t r = scriptRng >> 8;
+            static constexpr std::uint32_t kMasks[] = {0, 2, 2, 1, 1, 4, 8, 2 | 4, 2 | 8, 1 | 4, 1 | 8};
+            scriptMask   = kMasks[r % (sizeof(kMasks) / sizeof(kMasks[0]))];
+            scriptNextAt = t + 120000 + static_cast<Micros>((r >> 4) % 280000);
+        }
+        else
+        {
+            struct Step { std::uint32_t mask; Micros us; };
+            static constexpr Step kSteps[] = {{2, 900000}, {0, 300000}, {1, 900000}, {2, 700000}, {8, 400000},
+                                              {2 | 4, 600000}, {0, 500000}, {1, 1200000}, {2, 1500000}, {0, 400000}};
+            const Step& s = kSteps[scriptIndex % (sizeof(kSteps) / sizeof(kSteps[0]))];
+            ++scriptIndex;
+            scriptMask   = s.mask;
+            scriptNextAt = t + s.us;
+        }
+    };
+
+    for (now = 0; now <= kEndAt; now += 1000)
+    {
+        for (auto& message : toClients.popDue(now))
+        {
+            auto& client = *clients[message.session == 1001 ? 0 : 1];
+            if (message.kind == Message::Kind::Start)
+            {
+                PB::Battle::BattleStartPush push;
+                push.ParseFromString(message.bytes);
+                client.onStart(push, now);
+            }
+            else if (message.kind == Message::Kind::Frames)
+            {
+                PB::Battle::BattleFramesPush push;
+                push.ParseFromString(message.bytes);
+                client.onFrames(push, now);
+            }
+        }
+        for (auto& message : toServer.popDue(now))
+        {
+            PB::Battle::BattleInputPush push;
+            push.ParseFromString(message.bytes);
+            room->submitInput(message.session, push);
+        }
+        if (now >= nextServerTick)
+        {
+            room->tick(1.0f / 30.0f);
+            nextServerTick += kServerTickUs;
+        }
+        if (now >= nextClientTick)
+        {
+            for (auto& client : clients)
+            {
+                std::string bytes;
+                if (client->update(now, bytes))
+                    toServer.push(upLinks[client->session()].deliverAt(now),
+                                  {Message::Kind::Input, client->session(), std::move(bytes)});
+            }
+            nextClientTick += kClientTickUs;
+
+            if (clients[0]->started())
+            {
+                const auto pos = clients[0]->heroXZ(0);
+                simAll.observe(pos.first, pos.second, scriptMask);
+                if (mark.taken)
+                    simAfter.observe(pos.first, pos.second, scriptMask);
+                float out[2];
+                legacy.step(clients[0]->sync().session().currentFrame(), pos.first, pos.second, 0.016667f, 0.033f, out);
+                dispAll.observe(out[0], out[1], scriptMask);
+                if (mark.taken)
+                    dispAfter.observe(out[0], out[1], scriptMask);
+                const auto shown = clients[0]->presentStep(0.016667f);
+                shownAll.observe(shown.first, shown.second, scriptMask);
+                if (mark.taken)
+                    shownAfter.observe(shown.first, shown.second, scriptMask);
+            }
+        }
+
+        if (!clients[0]->started() || !clients[1]->started())
+            continue;
+        if (moveStart < 0)
+            moveStart = now;
+        advanceScript(now - moveStart);
+        clients[0]->setKey(mugen::sim::ControlKey::Left, (scriptMask & 1) != 0);
+        clients[0]->setKey(mugen::sim::ControlKey::Right, (scriptMask & 2) != 0);
+        clients[0]->setKey(mugen::sim::ControlKey::Up, (scriptMask & 4) != 0);
+        clients[0]->setKey(mugen::sim::ControlKey::Down, (scriptMask & 8) != 0);
+
+        if (params.latencyAfterUs >= 0 && !switched && now >= kSwitchAt)
+        {
+            switched = true;
+            sender.setLatency(params.latencyAfterUs);
+            for (auto& [session, l] : upLinks)
+                l.m_latencyUs = params.latencyAfterUs;
+        }
+        if (!mark.taken && now >= kMarkAt)
+        {
+            mark.taken       = true;
+            const auto& st   = room->authority().inputStats(0);
+            mark.late        = st.m_lateInputs;
+            mark.carried     = st.m_carriedInputs;
+            mark.dropped     = st.m_droppedInputs;
+            mark.localMis    = clients[0]->sync().session().stats().localMispredictions;
+            mark.rollbacks   = clients[0]->sync().session().stats().rollbacks;
+            mark.corrections = clients[0]->corrections.size();
+            leadAtMark       = clients[0]->sync().inputLeadFrames();
+        }
+    }
+
+    const auto& st    = room->authority().inputStats(0);
+    const auto& stats = clients[0]->sync().session().stats();
+    float corrMax = 0.0f, corrSum = 0.0f;
+    std::size_t corrCount = 0;
+    for (std::size_t i = mark.corrections; i < clients[0]->corrections.size(); ++i)
+    {
+        const float mag = std::abs(clients[0]->corrections[i].dx) + std::abs(clients[0]->corrections[i].dz);
+        corrMax = std::max(corrMax, mag);
+        corrSum += mag;
+        ++corrCount;
+    }
+    std::printf("  lead: mark=%u max=%u end=%u rtt=%lldms jitter=%lldms | server slot0 late=%u carried=%u dropped=%u "
+                "(after mark late=%u carried=%u dropped=%u)\n",
+                leadAtMark, clients[0]->leadMax, clients[0]->sync().inputLeadFrames(),
+                static_cast<long long>(clients[0]->sync().rttMs()),
+                static_cast<long long>(clients[0]->sync().rttJitterMs()),
+                st.m_lateInputs, st.m_carriedInputs, st.m_droppedInputs,
+                st.m_lateInputs - mark.late, st.m_carriedInputs - mark.carried, st.m_droppedInputs - mark.dropped);
+    std::printf("  local mispredict total=%llu after-mark=%llu | rollbacks total=%llu after-mark=%llu | hero corrections after-mark: "
+                "n=%zu max=%.1f sum=%.1f\n",
+                static_cast<unsigned long long>(stats.localMispredictions),
+                static_cast<unsigned long long>(stats.localMispredictions - mark.localMis),
+                static_cast<unsigned long long>(stats.rollbacks),
+                static_cast<unsigned long long>(stats.rollbacks - mark.rollbacks),
+                corrCount, corrMax, corrSum);
+    std::printf("  pullbacks sim: total=%d (max %.1f) after-mark=%d (max %.1f sum %.1f) | legacy display: total=%d (max %.1f) "
+                "after-mark=%d (max %.1f sum %.1f)\n",
+                simAll.events, simAll.maxJump, simAfter.events, simAfter.maxJump, simAfter.sumJump,
+                dispAll.events, dispAll.maxJump, dispAfter.events, dispAfter.maxJump, dispAfter.sumJump);
+    std::printf("  pullbacks shown (tick-aligned alpha + smoothed corrections): total=%d (max %.1f sum %.1f) after-mark=%d (max %.1f sum %.1f)\n",
+                shownAll.events, shownAll.maxJump, shownAll.sumJump, shownAfter.events, shownAfter.maxJump, shownAfter.sumJump);
+
+    // 回归：领先量收敛之后，服务器不得再记录本地玩家的迟到输入，本地输入不被改写、英雄位置不被回滚，
+    // 模拟位置与表现层显示位置都不得反向（被拉回）。
+    expect(st.m_lateInputs == mark.late, "movement: no late input after convergence");
+    expect(stats.localMispredictions == mark.localMis, "movement: server never rewrites the local move input after convergence");
+    expect(stats.rollbacks == mark.rollbacks, "movement: local client never rolls back after convergence");
+    expect(simAfter.events == 0, "movement: simulated local hero never moves backwards after convergence");
+    expect(shownAfter.events == 0, "movement: displayed local hero never moves backwards after convergence");
+    expect(clients[0]->hashMismatches == 0 && clients[1]->hashMismatches == 0, "movement: no hash mismatch");
+    expect(sender.snapshots == 0, "movement: no resync snapshot requested");
+    if (params.latencyAfterUs < 0)
+    {
+        // 稳定链路（含开局校准期）：起步到停下全程本地输入都不被改写，没有任何回滚与拉回。
+        expect(stats.localMispredictions == 0, "movement: no local misprediction even during lead calibration");
+        // 显示位置允许因输入采样滞后出现极小的方向反转，但绝不能出现肉眼可见的拉回。
+        expect(shownAll.maxJump < 8.0f, "movement: displayed local hero is never pulled back, including calibration");
+    }
+}
+
+// 持续移动回归套件：键盘式与摇杆式移动，覆盖 100~400ms 单向时延 + 抖动、突变与恢复。
+void runMovementSuite()
+{
+    for (const bool joystick : {false, true})
+    {
+        for (const Micros ms : {100, 150, 250, 400})
+        {
+            MovementParams p;
+            p.label     = joystick ? "joy" : "kbd";
+            p.latencyUs = ms * 1000;
+            p.jitterUs  = ms * 1000 / 5;
+            p.joystick  = joystick;
+            runMovementScenario(p);
+        }
+        MovementParams heavy;
+        heavy.label     = joystick ? "joy-heavyjitter-250" : "kbd-heavyjitter-250";
+        heavy.latencyUs = 250000;
+        heavy.jitterUs  = 100000;
+        heavy.joystick  = joystick;
+        runMovementScenario(heavy);
+        MovementParams spike;
+        spike.label          = joystick ? "joy-spike-100to300" : "kbd-spike-100to300";
+        spike.latencyUs      = 100000;
+        spike.jitterUs       = 20000;
+        spike.latencyAfterUs = 300000;
+        spike.joystick       = joystick;
+        runMovementScenario(spike);
+        MovementParams relax;
+        relax.label          = joystick ? "joy-relax-300to100" : "kbd-relax-300to100";
+        relax.latencyUs      = 300000;
+        relax.jitterUs       = 60000;
+        relax.latencyAfterUs = 100000;
+        relax.joystick       = joystick;
+        runMovementScenario(relax);
+    }
+}
+
 // 出生检查：两名决斗者面对面，且各自使用所属职业的角色。
 void testSpawnFacing()
 {
@@ -1222,6 +1625,7 @@ void runNetDuelTests()
     runAdaptiveLeadScenario("adaptive-lead-200ms", 200000, 40000);
     runAdaptiveLeadScenario("adaptive-lead-spike-20ms-to-150ms", 20000, 6000, 150000);
     runAdaptiveLeadScenario("adaptive-lead-relax-200ms-to-20ms", 200000, 20000, 20000);
+    runMovementSuite();
     runReconnectScenario("reconnect-localhost", 1000, 0);
     runReconnectScenario("reconnect-wan-60ms-offset-domain", 60000, 123456);
 }
