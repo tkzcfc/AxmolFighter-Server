@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <deque>
 #include <map>
 #include <set>
 #include <memory>
@@ -196,6 +197,11 @@ double elapsedMs(std::chrono::steady_clock::time_point begin)
     return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin).count();
 }
 
+// 测试客户端使用的本地输入延迟模式：默认自动；对比实验里切到 Off 以复现「没有本地输入延迟」的旧行为。
+mugen::sim::net::LocalDelayMode g_localDelayMode = mugen::sim::net::LocalDelayMode::Auto;
+// 测试客户端对端英雄表现层轨迹的纠正平滑档位：默认与 WorldPresenter 一致（对端用 Remote）；对比实验里切回 Local。
+mugen::CorrectionProfile g_remoteProfile = mugen::CorrectionProfile::Remote;
+
 // 复刻 NetBattleMode 的网络与预测逻辑（不含引擎表现层）。
 class TestClient
 {
@@ -230,8 +236,10 @@ public:
         mugen::sim::net::NetBattleSyncConfig config;
         config.m_inputDelayFrames = push.input_delay_frames();
         config.m_frameMs          = m_frameMs;
+        config.m_localDelayMode   = g_localDelayMode;
         m_sync = std::make_unique<mugen::sim::net::NetBattleSync>(m_localSlot, push.slot_count(), config);
         m_sync->start(std::move(world), push.start_server_time_ms(), localNowMs(now));
+        remoteTrack.setProfile(g_remoteProfile);
         m_started = true;
     }
 
@@ -260,6 +268,7 @@ public:
         const auto resimBefore     = m_sync->session().stats().resimFrames;
         const auto rollbacksBefore = m_sync->session().stats().rollbacks;
         const auto heroBefore      = heroXZ(m_localSlot);
+        const auto remoteBefore    = heroXZ(remoteSlot());
         for (const auto& frame : push.frames())
         {
             mugen::sim::FrameInput input;
@@ -279,6 +288,7 @@ public:
         feedback.m_lateInputs       = push.late_inputs();
         m_sync->onServerFeedback(feedback, localNowMs(now));
         leadMax = std::max(leadMax, m_sync->inputLeadFrames());
+        delayMax = std::max(delayMax, m_sync->localInputDelayFrames());
         m_sync->flushRollback();
         if (m_sync->session().stats().rollbacks != rollbacksBefore)
         {
@@ -286,6 +296,16 @@ public:
             const auto heroAfter = heroXZ(m_localSlot);
             corrections.push_back({now, heroAfter.first - heroBefore.first, heroAfter.second - heroBefore.second});
             track.applyCorrection({heroAfter.first - heroBefore.first, 0.0f, heroAfter.second - heroBefore.second});
+            // 对端英雄同理：回滚把它的位置改写多少，表现层轨迹就收到多大的纠正（WorldPresenter 对每个角色都这样做）。
+            const auto remoteAfter = heroXZ(remoteSlot());
+            const float rdx        = remoteAfter.first - remoteBefore.first;
+            const float rdz        = remoteAfter.second - remoteBefore.second;
+            if (rdx != 0.0f || rdz != 0.0f)
+            {
+                remoteTrack.applyCorrection({rdx, 0.0f, rdz});
+                ++remoteCorrections;
+                remoteCorrectionMax = std::max(remoteCorrectionMax, std::sqrt(rdx * rdx + rdz * rdz));
+            }
         }
         for (const auto& hash : push.hashes())
         {
@@ -400,9 +420,24 @@ public:
         track.sample(m_sync->session().currentFrame(), {pos.first, 0.0f, pos.second});
         tickAlpha.onRenderFrame(deltaSec, steppedThisRender);
         track.advance(deltaSec);
-        const auto shown = track.display(tickAlpha.alpha(static_cast<float>(m_frameMs) / 1000.0f));
+        const float alpha = tickAlpha.alpha(static_cast<float>(m_frameMs) / 1000.0f);
+        const auto remotePos = heroXZ(remoteSlot());
+        remoteTrack.sample(m_sync->session().currentFrame(), {remotePos.first, 0.0f, remotePos.second});
+        remoteTrack.advance(deltaSec);
+        const auto remote = remoteTrack.display(alpha);
+        remoteShown       = {remote.x, remote.z};
+        const auto shown = track.display(alpha);
         return {shown.x, shown.z};
     }
+    // 最近一次 presentStep 算出的对端英雄显示位置（x, z）。
+    std::pair<float, float> remoteShown{0.0f, 0.0f};
+    // 对端英雄的表现层轨迹：度量本客户端看到的对端被回滚拉回。
+    mugen::PoseTrack remoteTrack;
+    // 回滚改写对端英雄位置的次数与最大改写距离（渲染单位）。
+    std::uint32_t remoteCorrections = 0;
+    float remoteCorrectionMax       = 0.0f;
+    // 对端槽位（决斗只有两个槽位）。
+    std::uint32_t remoteSlot() const { return m_localSlot == 0 ? 1u : 0u; }
 
     std::uint32_t session() const { return m_session; }
     mugen::sim::net::NetBattleSync& sync() { return *m_sync; }
@@ -419,6 +454,8 @@ public:
     std::uint64_t frameAfterSnapshot  = 0;
     // 观察到的最大自适应输入领先量。
     std::uint32_t leadMax = 0;
+    // 观察到的最大本地输入延迟 D。
+    std::uint32_t delayMax = 0;
     // 已发送输入帧的内容，以及同一帧号被发出不同内容的次数（必须为 0）。
     std::map<std::uint64_t, std::string> sentInputs;
     int resendConflicts = 0;
@@ -1231,7 +1268,8 @@ struct PullbackTracker
     float maxJump       = 0.0f;
     float sumJump       = 0.0f;
 
-    void observe(float x, float z, std::uint32_t keyMask)
+    // grace：按键状态变化后忽略方向反转的观察次数（本地输入延迟越大，英雄响应越晚，忽略越久）。
+    void observe(float x, float z, std::uint32_t keyMask, int grace = 6)
     {
         if (!has)
         {
@@ -1254,7 +1292,7 @@ struct PullbackTracker
         {
             if (std::abs(cur[axis]) < 0.01f)
                 continue;
-            if (keysRun >= 6 && lastMove[axis] * cur[axis] < 0.0f && std::abs(cur[axis]) > 0.05f)
+            if (keysRun >= grace && lastMove[axis] * cur[axis] < 0.0f && std::abs(cur[axis]) > 0.05f)
             {
                 ++events;
                 maxJump = std::max(maxJump, std::abs(cur[axis]));
@@ -1364,6 +1402,8 @@ void runMovementScenario(const MovementParams& params)
 
     PullbackTracker simAll, simAfter, dispAll, dispAfter, shownAll, shownAfter;
     LegacyPresenterModel legacy;
+    // 近 1 秒的按键掩码历史（时间, 掩码），用于按本地输入延迟折算英雄响应的时刻。
+    std::deque<std::pair<Micros, std::uint32_t>> maskHistory;
     struct Snapshot
     {
         bool taken = false;
@@ -1442,19 +1482,31 @@ void runMovementScenario(const MovementParams& params)
 
             if (clients[0]->started())
             {
+                // 本地输入延迟 D 让英雄晚 D 帧响应按键：拉回判定用「晚 D - 1 帧」的按键状态，
+                // 使按键变化先于英雄转向被记录（留出一个余量），D 变化瞬间也不会把正常的延迟响应误判成拉回。
+                maskHistory.emplace_back(now, scriptMask);
+                const std::uint32_t delayFrames = clients[0]->sync().localInputDelayFrames();
+                const int grace = 6 + static_cast<int>(delayFrames);
+                const Micros shift = delayFrames > 1 ? static_cast<Micros>(delayFrames - 1) * 33000 : 0;
+                std::uint32_t observedMask = maskHistory.front().second;
+                for (const auto& [at, mask] : maskHistory)
+                    if (at <= now - shift)
+                        observedMask = mask;
+                while (maskHistory.size() > 2 && maskHistory[1].first <= now - 1000000)
+                    maskHistory.pop_front();
                 const auto pos = clients[0]->heroXZ(0);
-                simAll.observe(pos.first, pos.second, scriptMask);
+                simAll.observe(pos.first, pos.second, observedMask, grace);
                 if (mark.taken)
-                    simAfter.observe(pos.first, pos.second, scriptMask);
+                    simAfter.observe(pos.first, pos.second, observedMask, grace);
                 float out[2];
                 legacy.step(clients[0]->sync().session().currentFrame(), pos.first, pos.second, 0.016667f, 0.033f, out);
-                dispAll.observe(out[0], out[1], scriptMask);
+                dispAll.observe(out[0], out[1], observedMask, grace);
                 if (mark.taken)
-                    dispAfter.observe(out[0], out[1], scriptMask);
+                    dispAfter.observe(out[0], out[1], observedMask, grace);
                 const auto shown = clients[0]->presentStep(0.016667f);
-                shownAll.observe(shown.first, shown.second, scriptMask);
+                shownAll.observe(shown.first, shown.second, observedMask, grace);
                 if (mark.taken)
-                    shownAfter.observe(shown.first, shown.second, scriptMask);
+                    shownAfter.observe(shown.first, shown.second, observedMask, grace);
             }
         }
 
@@ -1536,6 +1588,321 @@ void runMovementScenario(const MovementParams& params)
         expect(stats.localMispredictions == 0, "movement: no local misprediction even during lead calibration");
         // 显示位置允许因输入采样滞后出现极小的方向反转，但绝不能出现肉眼可见的拉回。
         expect(shownAll.maxJump < 8.0f, "movement: displayed local hero is never pulled back, including calibration");
+    }
+}
+
+
+// 对端被拉回度量：槽位 0 反复「跑一段、停下」，槽位 1 的客户端看到的槽位 0 的显示位置（与 WorldPresenter 同一套
+// PoseTrack）在服务器权威停下之后向回退了多少、退得多快。
+struct RemotePullbackStats
+{
+    // 权威世界里槽位 0 的停下次数（每次停下取其后 kStopWindowUs 内的显示轨迹）。
+    int stops = 0;
+    // 每次停下后显示位置相对「已达最远点」的最大回退距离：最大值与总和（渲染单位）。
+    float maxRetreat = 0.0f;
+    float sumRetreat = 0.0f;
+    // 100ms 内的最大回退距离（渲染单位）：越大越像瞬移，越小越像平滑滑行。
+    float maxBack100 = 0.0f;
+    // 观察期内显示位置单个渲染帧跳变超过 kSnapJump 的次数（瞬移 / 吸附 / 过快的滑行）。
+    int snaps = 0;
+    // 观察期内回滚改写对端英雄位置的次数、最大改写距离（渲染单位）。
+    int corrections           = 0;
+    float maxCorrection       = 0.0f;
+    std::uint32_t maxDelay    = 0;
+    // 结束时的输入领先量（稳态：领先量 + D 约等于覆盖 RTT 所需帧数）。
+    std::uint32_t finalLead   = 0;
+    std::int64_t rttMs        = 0;
+    // 槽位 0 自己的客户端：稳态后本地错误预测增量、哈希不一致与快照次数。
+    std::uint64_t moverLocalMispredictAfterMark = 0;
+    int hashMismatches = 0;
+    int snapshots      = 0;
+    int resendConflicts = 0;
+};
+
+constexpr Micros kStopWindowUs = 1100000;
+constexpr float kSnapJump      = 40.0f;
+
+RemotePullbackStats runRemotePullbackScenario(Micros oneWayUs, Micros jitterUs, mugen::sim::net::LocalDelayMode mode,
+                                              mugen::CorrectionProfile profile)
+{
+    const auto savedMode    = g_localDelayMode;
+    const auto savedProfile = g_remoteProfile;
+    g_localDelayMode        = mode;
+    g_remoteProfile         = profile;
+
+    RemotePullbackStats result;
+    Micros now = 0;
+    Wire toClients;
+    Wire toServer;
+    WireSender sender(toClients, now, oneWayUs, jitterUs);
+    std::map<std::uint32_t, Link> upLinks;
+    for (std::uint32_t session : {1001u, 1002u})
+    {
+        Link l;
+        l.m_latencyUs = oneWayUs;
+        l.m_jitterUs  = jitterUs;
+        l.m_rng       = 9001u + session;
+        upLinks.emplace(session, l);
+    }
+
+    auto room = battle::BattleRoom::create(sender, makeDuelConfig(600));
+    expect(room != nullptr, "room created for remote pullback scenario");
+    if (!room)
+    {
+        g_localDelayMode = savedMode;
+        g_remoteProfile  = savedProfile;
+        return result;
+    }
+
+    std::vector<std::unique_ptr<TestClient>> clients;
+    clients.push_back(std::make_unique<TestClient>(1001, 0));
+    clients.push_back(std::make_unique<TestClient>(1002, 55555));
+    room->markReady(1001);
+    room->markReady(1002);
+
+    constexpr Micros kServerTickUs = 33333;
+    constexpr Micros kClientTickUs = 16667;
+    constexpr Micros kScriptStart  = 5000000;
+    constexpr Micros kEndAt        = 35000000;
+    // 脚本周期 4.8s：右 0.9s，停 1.5s，左 0.9s，停 1.5s，净位移为 0。
+    constexpr Micros kPeriod = 4800000;
+
+    Micros nextServerTick = 0;
+    Micros nextClientTick = 0;
+    std::uint64_t moverMisMark = 0;
+    bool markTaken             = false;
+
+    // 权威世界槽位 0 的运动状态：连续移动 tick 数、连续静止 tick 数、行进方向。
+    float lastServerX = 0.0f;
+    bool hasServerX   = false;
+    int movingTicks   = 0;
+    int stillTicks    = 0;
+    float runDir      = 0.0f;
+    // 当前停下窗口：起点（-1 无）、行进方向、已达最远点（沿行进方向的投影）。
+    Micros windowStart = -1;
+    float windowDir    = 0.0f;
+    float windowPeak   = 0.0f;
+    float windowRetreat = 0.0f;
+    std::deque<float> windowProj;
+    bool hasShown   = false;
+    float lastShownX = 0.0f, lastShownZ = 0.0f;
+
+    auto finishWindow = [&]() {
+        if (windowStart < 0)
+            return;
+        ++result.stops;
+        result.maxRetreat = std::max(result.maxRetreat, windowRetreat);
+        result.sumRetreat += windowRetreat;
+        windowStart = -1;
+        windowProj.clear();
+    };
+
+    for (now = 0; now <= kEndAt; now += 1000)
+    {
+        for (auto& message : toClients.popDue(now))
+        {
+            auto& client = *clients[message.session == 1001 ? 0 : 1];
+            if (message.kind == Message::Kind::Start)
+            {
+                PB::Battle::BattleStartPush push;
+                push.ParseFromString(message.bytes);
+                client.onStart(push, now);
+            }
+            else if (message.kind == Message::Kind::Frames)
+            {
+                PB::Battle::BattleFramesPush push;
+                push.ParseFromString(message.bytes);
+                client.onFrames(push, now);
+            }
+        }
+        for (auto& message : toServer.popDue(now))
+        {
+            PB::Battle::BattleInputPush push;
+            push.ParseFromString(message.bytes);
+            room->submitInput(message.session, push);
+        }
+        if (now >= nextServerTick)
+        {
+            room->tick(1.0f / 30.0f);
+            nextServerTick += kServerTickUs;
+            // 服务器权威：槽位 0 是否在移动。
+            const float x = heroTransform(room->authority().world(), 0).position.x.toFloatForRender();
+            if (hasServerX)
+            {
+                const float dx = x - lastServerX;
+                if (std::abs(dx) > 0.5f)
+                {
+                    ++movingTicks;
+                    stillTicks = 0;
+                    runDir     = dx > 0.0f ? 1.0f : -1.0f;
+                }
+                else
+                {
+                    ++stillTicks;
+                    // 连续移动 3 tick 以上后连续 2 tick 静止：权威停下，开一个观察窗口。
+                    if (stillTicks == 2 && movingTicks >= 3 && now > kScriptStart + 1000000)
+                    {
+                        finishWindow();
+                        windowStart   = now;
+                        windowDir     = runDir;
+                        windowPeak    = -1.0e9f;
+                        windowRetreat = 0.0f;
+                    }
+                    if (stillTicks >= 2)
+                        movingTicks = 0;
+                }
+            }
+            lastServerX = x;
+            hasServerX  = true;
+        }
+        if (now >= nextClientTick)
+        {
+            for (auto& client : clients)
+            {
+                std::string bytes;
+                if (client->update(now, bytes))
+                    toServer.push(upLinks[client->session()].deliverAt(now),
+                                  {Message::Kind::Input, client->session(), std::move(bytes)});
+            }
+            nextClientTick += kClientTickUs;
+            if (clients[1]->started())
+            {
+                clients[1]->presentStep(0.016667f);
+                const auto shown = clients[1]->remoteShown;
+                if (markTaken && hasShown)
+                {
+                    const float jump = std::sqrt((shown.first - lastShownX) * (shown.first - lastShownX) +
+                                                 (shown.second - lastShownZ) * (shown.second - lastShownZ));
+                    if (jump > kSnapJump)
+                        ++result.snaps;
+                }
+                lastShownX = shown.first;
+                lastShownZ = shown.second;
+                hasShown   = true;
+                if (windowStart >= 0)
+                {
+                    if (now - windowStart > kStopWindowUs)
+                        finishWindow();
+                    else
+                    {
+                        const float proj = shown.first * windowDir;
+                        windowPeak       = std::max(windowPeak, proj);
+                        windowRetreat    = std::max(windowRetreat, windowPeak - proj);
+                        windowProj.push_back(proj);
+                        if (windowProj.size() > 7)
+                            windowProj.pop_front();
+                        if (windowProj.size() == 7)
+                            result.maxBack100 = std::max(result.maxBack100, windowProj.front() - proj);
+                    }
+                }
+            }
+        }
+
+        if (!clients[0]->started() || !clients[1]->started())
+            continue;
+        const Micros t = now - kScriptStart;
+        std::uint32_t mask = 0;
+        if (t >= 0)
+        {
+            const Micros phase = t % kPeriod;
+            if (phase < 900000)
+                mask = 2;
+            else if (phase >= 2400000 && phase < 3300000)
+                mask = 1;
+        }
+        clients[0]->setKey(mugen::sim::ControlKey::Left, (mask & 1) != 0);
+        clients[0]->setKey(mugen::sim::ControlKey::Right, (mask & 2) != 0);
+
+        if (!markTaken && now >= kScriptStart)
+        {
+            markTaken    = true;
+            moverMisMark = clients[0]->sync().session().stats().localMispredictions;
+        }
+    }
+    finishWindow();
+    const auto mispredicts = clients[0]->sync().session().stats().localMispredictions;
+    result.moverLocalMispredictAfterMark = mispredicts - moverMisMark;
+    result.hashMismatches   = clients[0]->hashMismatches + clients[1]->hashMismatches;
+    result.snapshots        = sender.snapshots;
+    result.resendConflicts  = clients[0]->resendConflicts + clients[1]->resendConflicts;
+    result.corrections      = static_cast<int>(clients[1]->remoteCorrections);
+    result.maxCorrection    = clients[1]->remoteCorrectionMax;
+    result.maxDelay         = clients[1]->delayMax;
+    result.finalLead        = clients[1]->sync().inputLeadFrames();
+    result.rttMs            = clients[1]->sync().rttMs();
+    g_localDelayMode        = savedMode;
+    g_remoteProfile         = savedProfile;
+    return result;
+}
+
+// 高延迟下对端被拉回的对比实验：同一条链路分别跑 旧行为 / 仅平滑 / 仅本地输入延迟 / 两者并用，
+// 打印对端显示位置的回退距离、回退速度与瞬移次数，并断言改进下限。
+void runRemotePullbackSuite()
+{
+    using mugen::CorrectionProfile;
+    using mugen::sim::net::LocalDelayMode;
+    struct Variant
+    {
+        const char* label;
+        LocalDelayMode mode;
+        CorrectionProfile profile;
+    };
+    const Variant variants[] = {
+        {"before (no D, local smoothing)", LocalDelayMode::Off, CorrectionProfile::Local},
+        {"smoothing only (no D)", LocalDelayMode::Off, CorrectionProfile::Remote},
+        {"D only (local smoothing)", LocalDelayMode::Auto, CorrectionProfile::Local},
+        {"after (D + remote smoothing)", LocalDelayMode::Auto, CorrectionProfile::Remote},
+    };
+    for (const Micros oneWayMs : {100, 150, 200, 250})
+    {
+        const Micros oneWayUs = oneWayMs * 1000;
+        const Micros jitterUs = oneWayUs / 5;
+        std::printf("--- scenario: remote pullback one-way %lld ms (jitter %lld ms), mover stop/go, observer = slot 1\n",
+                    static_cast<long long>(oneWayMs), static_cast<long long>(jitterUs / 1000));
+        RemotePullbackStats results[4];
+        for (int i = 0; i < 4; ++i)
+        {
+            results[i] = runRemotePullbackScenario(oneWayUs, jitterUs, variants[i].mode, variants[i].profile);
+            const auto& r = results[i];
+            std::printf("  %-32s rtt=%lldms Dmax=%u lead(end)=%u | stops=%d retreat max=%.1f avg=%.1f | back100ms max=%.1f | "
+                        "jumps>40/frame=%d | remote corrections n=%d max=%.1f\n",
+                        variants[i].label, static_cast<long long>(r.rttMs), r.maxDelay, r.finalLead, r.stops, r.maxRetreat,
+                        r.stops > 0 ? r.sumRetreat / static_cast<float>(r.stops) : 0.0f, r.maxBack100, r.snaps,
+                        r.corrections, r.maxCorrection);
+            expect(r.hashMismatches == 0, "remote pullback: no hash mismatch");
+            expect(r.snapshots == 0, "remote pullback: no resync snapshot requested");
+            expect(r.resendConflicts == 0, "remote pullback: every input frame is sent with exactly one content");
+            expect(r.moverLocalMispredictAfterMark == 0, "remote pullback: mover local input is never rewritten");
+            expect(r.stops >= 5, "remote pullback: observed several authoritative stops");
+        }
+        const auto& before = results[0];
+        const auto& smooth = results[1];
+        const auto& delay  = results[2];
+        const auto& after  = results[3];
+        const float beforeAvg = before.sumRetreat / static_cast<float>(std::max(before.stops, 1));
+        const float afterAvg  = after.sumRetreat / static_cast<float>(std::max(after.stops, 1));
+        std::printf("  => back100ms before %.1f -> smoothing %.1f -> after %.1f | avg retreat before %.1f -> after %.1f | "
+                    "jumps before %d -> after %d\n",
+                    before.maxBack100, smooth.maxBack100, after.maxBack100, beforeAvg, afterAvg, before.snaps, after.snaps);
+        // 本地输入延迟只在 RTT 超过阈值时介入；低于阈值时 D 恒为 0。
+        if (before.rttMs <= 250)
+            expect(after.maxDelay == 0, "remote pullback: no local input delay below the RTT threshold");
+        // 远端平滑：不增加瞬移；回退速度（100ms 回退距离）明显小于旧行为。
+        expect(smooth.snaps <= before.snaps, "remote pullback: remote smoothing never adds snaps");
+        expect(after.snaps <= before.snaps, "remote pullback: remote smoothing + D never add snaps");
+        if (before.maxBack100 > 120.0f)
+        {
+            expect(smooth.maxBack100 <= before.maxBack100 * 0.8f, "remote pullback: remote smoothing slows the visible retreat");
+            expect(after.maxBack100 <= before.maxBack100 * 0.8f, "remote pullback: D + smoothing slows the visible retreat");
+        }
+        // 本地输入延迟：RTT 超过阈值后对端回滚窗口缩短，平均回退距离变小。
+        if (before.rttMs > 300)
+        {
+            expect(delay.maxDelay >= 1, "remote pullback: local input delay engages at high RTT");
+            expect(delay.maxRetreat <= before.maxRetreat + 1.0f, "remote pullback: D does not increase the retreat distance");
+            expect(afterAvg <= beforeAvg * 0.95f, "remote pullback: D + smoothing reduce the average retreat distance");
+            expect(after.snaps == 0, "remote pullback: no visible jump remains with D + remote smoothing");
+        }
     }
 }
 
@@ -1626,6 +1993,7 @@ void runNetDuelTests()
     runAdaptiveLeadScenario("adaptive-lead-spike-20ms-to-150ms", 20000, 6000, 150000);
     runAdaptiveLeadScenario("adaptive-lead-relax-200ms-to-20ms", 200000, 20000, 20000);
     runMovementSuite();
+    runRemotePullbackSuite();
     runReconnectScenario("reconnect-localhost", 1000, 0);
     runReconnectScenario("reconnect-wan-60ms-offset-domain", 60000, 123456);
 }
