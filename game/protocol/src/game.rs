@@ -764,6 +764,9 @@ pub struct BattleRejoinInfo {
     /// PVP 决斗房间 id。
     #[prost(int32, tag = "2")]
     pub room_id: i32,
+    /// 全部参战者的职业 id，按槽位升序（下标即 slot），客户端据此预加载技能特效。
+    #[prost(int32, repeated, tag = "3")]
+    pub class_ids: ::prost::alloc::vec::Vec<i32>,
 }
 /// 客户端请求向指定玩家发起决斗。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -1454,6 +1457,9 @@ pub struct DuelStartPush {
     /// 对手角色名。
     #[prost(string, tag = "4")]
     pub opponent_name: ::prost::alloc::string::String,
+    /// 全部参战者（含自己）的职业 id，按槽位升序（下标即 slot），客户端据此预加载技能特效。
+    #[prost(int32, repeated, tag = "5")]
+    pub class_ids: ::prost::alloc::vec::Vec<i32>,
 }
 /// Nested message and enum types in `DuelStartPush`.
 pub mod duel_start_push {

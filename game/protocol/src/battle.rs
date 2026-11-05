@@ -170,6 +170,10 @@ pub struct BattleInputPush {
     /// 客户端计算的帧哈希（用于对账）。
     #[prost(message, repeated, tag = "4")]
     pub client_hashes: ::prost::alloc::vec::Vec<BattleFrameHash>,
+    /// 客户端发送本消息时的本地单调时钟（毫秒）；服务器在下一条 BattleFramesPush 里原样回显，
+    /// 客户端据此测量 RTT。
+    #[prost(uint64, tag = "5")]
+    pub client_time_ms: u64,
 }
 /// Nested message and enum types in `BattleInputPush`.
 pub mod battle_input_push {
@@ -246,6 +250,25 @@ pub struct BattleFramesPush {
     /// 服务器帧哈希。
     #[prost(message, repeated, tag = "5")]
     pub hashes: ::prost::alloc::vec::Vec<BattleFrameHash>,
+    /// 以下字段按接收方槽位个性化，用于客户端自适应输入领先量。
+    /// 回显该槽位最近一条 BattleInputPush.client_time_ms（仅回显一次；0 表示自上次推送以来没有新输入）。
+    /// 服务器持有时间（至多一个服务器 tick）不扣除，RTT 因此略偏大。
+    #[prost(uint64, tag = "6")]
+    pub echo_client_time_ms: u64,
+    /// 自上次推送以来该槽位首次到达的输入帧里，最小的「到达富余帧数」：
+    /// 输入帧号 - (到达时已 tick 帧号 + 1)；0 表示刚好赶上，负数表示迟到。
+    #[prost(sint32, tag = "7")]
+    pub input_slack_min: i32,
+    /// input_slack_min 对应的输入帧号。
+    #[prost(uint32, tag = "8")]
+    pub input_slack_frame: u32,
+    /// 本次统计覆盖的首次到达输入帧数；0 表示没有样本，input_slack_* 无效。
+    #[prost(uint32, tag = "9")]
+    pub input_slack_samples: u32,
+    /// 该槽位自战斗开始累计的迟到输入帧数（首次到达时已被 tick；
+    /// 其中非空且迟到不超过上限的命令会顺延到下一帧执行，其余被丢弃）。
+    #[prost(uint32, tag = "10")]
+    pub late_inputs: u32,
 }
 /// Nested message and enum types in `BattleFramesPush`.
 pub mod battle_frames_push {

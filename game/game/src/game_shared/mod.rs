@@ -32,13 +32,15 @@ pub(crate) struct BattleSessionState {
 /// 玩家（账号）当前所在的进行中联网战斗。以 player_id 为键、独立于 session：
 /// 客户端断线 / 关闭后 session 被清理，但战斗仍在 battle 服继续，该记录保留，
 /// 玩家重新登录选角时据此重连而不是进城镇。战斗结束（BattleResultReq）或 battle 实例下线时清除。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ActivePlayerBattle {
     pub battle_id: u32,
     pub battle_instance_id: u32,
     pub room_id: i32,
     /// 参战时使用的角色，重连时强制选回该角色。
     pub character_id: i64,
+    /// 全部参战者职业 id（按槽位升序），重连时回填给客户端预加载特效。
+    pub class_ids: Vec<i32>,
 }
 
 /// 待定决斗：挑战者已发出邀请，等待目标回应。
@@ -180,7 +182,7 @@ impl GameShared {
     }
 
     pub(crate) fn active_battle_for_player(&self, player_id: i64) -> Option<ActivePlayerBattle> {
-        self.player_battles.lock().unwrap().get(&player_id).copied()
+        self.player_battles.lock().unwrap().get(&player_id).cloned()
     }
 
     /// 仅当记录仍指向该战斗时清除（避免误删玩家后来开始的新战斗）。
@@ -591,6 +593,7 @@ mod tests {
             battle_instance_id: instance,
             room_id: 30002,
             character_id,
+            class_ids: vec![3, 5],
         }
     }
 

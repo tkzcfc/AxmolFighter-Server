@@ -147,19 +147,22 @@ impl PlayerSessionDelegate {
         let battle_id = self.shared.next_battle_id();
         let random_seed = self.shared.next_random_seed();
 
+        let players = build_duel_player_specs(
+            pending.challenger_session,
+            pending.challenger_player_id,
+            &challenger_char,
+            pending.target_session,
+            pending.target_player_id,
+            &target_char,
+        );
+        let class_ids = class_ids_by_slot(&players);
+
         let create_req = MessageType::BattleInternalBattleCreateReq(BattleCreateReq {
             battle_id,
             room_id: PVP_DUEL_ROOM_ID,
             random_seed,
             pvp: true,
-            players: build_duel_player_specs(
-                pending.challenger_session,
-                pending.challenger_player_id,
-                &challenger_char,
-                pending.target_session,
-                pending.target_player_id,
-                &target_char,
-            ),
+            players,
         });
 
         let create_resp = match self
@@ -200,6 +203,7 @@ impl PlayerSessionDelegate {
                     battle_instance_id: create_resp.battle_instance_id,
                     room_id: PVP_DUEL_ROOM_ID,
                     character_id: character.character_id,
+                    class_ids: class_ids.clone(),
                 },
             );
         }
@@ -229,6 +233,7 @@ impl PlayerSessionDelegate {
                 room_id: PVP_DUEL_ROOM_ID,
                 opponent_player_id,
                 opponent_name,
+                class_ids: class_ids.clone(),
             });
             self.shared.send_msg(&push, 0, session_id);
         }
@@ -333,6 +338,7 @@ impl PlayerSessionDelegate {
         RejoinOutcome::Rejoined(BattleRejoinInfo {
             battle_id: active.battle_id,
             room_id: active.room_id,
+            class_ids: active.class_ids,
         })
     }
 
@@ -367,6 +373,13 @@ impl PlayerSessionDelegate {
             message: message.to_string(),
         }
     }
+}
+
+/// 全部参战者职业 id，按槽位升序（下标即 slot）。
+fn class_ids_by_slot(players: &[BattlePlayerSpec]) -> Vec<i32> {
+    let mut sorted: Vec<&BattlePlayerSpec> = players.iter().collect();
+    sorted.sort_by_key(|p| p.slot);
+    sorted.into_iter().map(|p| p.class_id).collect()
 }
 
 /// 构造 1v1 决斗的玩家描述：挑战者槽位 0（阵营 2=Our），目标槽位 1（阵营 8=Enemy）。
@@ -425,6 +438,7 @@ mod tests {
             battle_instance_id: 1,
             room_id: PVP_DUEL_ROOM_ID,
             character_id,
+            class_ids: vec![3, 5],
         }
     }
 
@@ -438,7 +452,7 @@ mod tests {
     #[test]
     fn select_character_in_active_battle_rejoins_with_battle_character() {
         let battle = active(9, 11);
-        let (character_id, rejoin) = resolve_select_character(7, Some(battle));
+        let (character_id, rejoin) = resolve_select_character(7, Some(battle.clone()));
         assert_eq!(character_id, 11, "must select the character that is in the battle");
         assert_eq!(rejoin, Some(battle));
     }
@@ -486,6 +500,7 @@ mod tests {
         let specs = build_duel_player_specs(100, 1000, &challenger, 200, 2000, &target);
 
         assert_eq!(specs.len(), 2);
+        assert_eq!(class_ids_by_slot(&specs), vec![3, 5]);
 
         assert_eq!(specs[0].session_id, 100);
         assert_eq!(specs[0].player_id, 1000);

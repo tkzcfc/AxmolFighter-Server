@@ -77,6 +77,9 @@ message BattleInputPush {
     repeated BattleInputFrame inputs = 3;
     // 客户端计算的帧哈希（用于对账）。
     repeated BattleFrameHash client_hashes = 4;
+    // 客户端发送本消息时的本地单调时钟（毫秒）；服务器在下一条 BattleFramesPush 里原样回显，
+    // 客户端据此测量 RTT。
+    uint64 client_time_ms = 5;
 }
 
 // 单帧输入（mugen 序列化的 PlayerInput）。
@@ -101,6 +104,20 @@ message BattleFramesPush {
     repeated BattleConfirmedFrame frames = 4;
     // 服务器帧哈希。
     repeated BattleFrameHash hashes = 5;
+    // 以下字段按接收方槽位个性化，用于客户端自适应输入领先量。
+    // 回显该槽位最近一条 BattleInputPush.client_time_ms（仅回显一次；0 表示自上次推送以来没有新输入）。
+    // 服务器持有时间（至多一个服务器 tick）不扣除，RTT 因此略偏大。
+    uint64 echo_client_time_ms = 6;
+    // 自上次推送以来该槽位首次到达的输入帧里，最小的「到达富余帧数」：
+    // 输入帧号 - (到达时已 tick 帧号 + 1)；0 表示刚好赶上，负数表示迟到。
+    sint32 input_slack_min = 7;
+    // input_slack_min 对应的输入帧号。
+    uint32 input_slack_frame = 8;
+    // 本次统计覆盖的首次到达输入帧数；0 表示没有样本，input_slack_* 无效。
+    uint32 input_slack_samples = 9;
+    // 该槽位自战斗开始累计的迟到输入帧数（首次到达时已被 tick；
+    // 其中非空且迟到不超过上限的命令会顺延到下一帧执行，其余被丢弃）。
+    uint32 late_inputs = 10;
 }
 
 // 单个已确认帧（mugen 序列化的 FrameInput）。

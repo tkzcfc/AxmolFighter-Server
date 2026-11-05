@@ -182,6 +182,8 @@ message BattleRejoinInfo {
     uint32 battle_id = 1;
     // PVP 决斗房间 id。
     int32 room_id = 2;
+    // 全部参战者的职业 id，按槽位升序（下标即 slot），客户端据此预加载技能特效。
+    repeated int32 class_ids = 3;
 }
 
 // [决斗] 1304-1307
@@ -335,6 +337,8 @@ message DuelStartPush {
     int64 opponent_player_id = 3;
     // 对手角色名。
     string opponent_name = 4;
+    // 全部参战者（含自己）的职业 id，按槽位升序（下标即 slot），客户端据此预加载技能特效。
+    repeated int32 class_ids = 5;
 }
 
 // 决斗结束/对方拒绝/过期等导致的结束通知。

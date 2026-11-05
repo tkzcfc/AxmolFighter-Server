@@ -120,12 +120,18 @@ void BattleRoom::submitInput(std::uint32_t sessionId, const PB::Battle::BattleIn
         return;
     if (push.battle_id() != m_config.battleId)
         return;
-    const PlayerSlot* slot = findSlot(sessionId);
+    PlayerSlot* slot = findSlot(sessionId);
     if (!slot)
         return;
 
+    if (push.client_time_ms() != 0)
+        slot->echoClientTimeMs = push.client_time_ms();
+
     for (const auto& frame : push.inputs())
     {
+        // 客户端每次都冗余重发最近若干帧输入，已收到过的帧（以及超前过多、落出回溯窗口的帧）解码前直接跳过。
+        if (!m_authority->needsInput(static_cast<uint32_t>(slot->slot), frame.frame()))
+            continue;
         mugen::sim::PlayerInput input;
         if (!mugen::sim::net::decodePlayerInput(frame.input(), input))
         {
@@ -221,6 +227,7 @@ RejoinResult BattleRoom::rejoin(std::int64_t playerId, std::uint32_t newSessionI
         p.connected         = true;
         p.disconnectedSeconds = 0.0f;
         p.startSent         = false;
+        p.echoClientTimeMs  = 0;
         spdlog::info("BattleRoom {}: slot {} rejoined with session {} (was {})",
                      m_config.battleId, p.slot, newSessionId, oldSessionId);
         return RejoinResult::Ok;
@@ -328,7 +335,7 @@ void BattleRoom::tick(float dt)
         return;
 
     const std::uint64_t serverTimeMs = m_startServerTimeMs + static_cast<std::uint64_t>(m_elapsedMs);
-    for (const auto& p : m_config.players)
+    for (auto& p : m_config.players)
     {
         // 断线或尚未收到开始参数的会话不发帧；重连后由快照复位，之后的帧才有意义。
         if (!p.connected || !p.startSent)
@@ -348,6 +355,22 @@ void BattleRoom::tick(float dt)
             auto* h = push.add_hashes();
             h->set_frame(static_cast<std::uint32_t>(frame));
             h->set_hash(hash);
+        }
+        // 本槽位的输入到达反馈：客户端据此测 RTT、自适应输入领先量。
+        const auto slotIndex = static_cast<std::uint32_t>(p.slot);
+        const auto& inputStats = m_authority->inputStats(slotIndex);
+        push.set_late_inputs(inputStats.m_lateInputs);
+        if (inputStats.m_windowSamples > 0)
+        {
+            push.set_input_slack_min(inputStats.m_windowMinSlack);
+            push.set_input_slack_frame(static_cast<std::uint32_t>(inputStats.m_windowMinFrame));
+            push.set_input_slack_samples(inputStats.m_windowSamples);
+            m_authority->resetSlackWindow(slotIndex);
+        }
+        if (p.echoClientTimeMs != 0)
+        {
+            push.set_echo_client_time_ms(p.echoClientTimeMs);
+            p.echoClientTimeMs = 0;
         }
         m_sender.sendFrames(p.sessionId, push);
     }

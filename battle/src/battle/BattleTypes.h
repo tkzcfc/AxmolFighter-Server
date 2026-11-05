@@ -27,7 +27,8 @@ enum class BattleEndReason : int32_t
 
 // 广播帧的毫秒数，与 mugen::sim::kLogicDtMs 对齐并取整 33。
 inline constexpr std::uint32_t kBattleFrameMs = 33;
-// 客户端提交输入预留的帧延迟。
+// 客户端输入领先量（BattleStartPush.input_delay_frames）的初始值与建议下限；客户端会按
+// 服务器反馈的输入到达富余帧数自适应调大，上限由 mugen::sim::net::kMaxInputLead 约束。
 inline constexpr std::uint32_t kInputDelayFrames = 4;
 // 等待全部槽位 BattleReadyReq 的超时秒数。
 inline constexpr float kReadyTimeoutSeconds = 20.0f;
@@ -59,6 +60,8 @@ struct PlayerSlot
     float disconnectedSeconds = 0.0f;
     // 当前 session 是否已收到 BattleStartPush（重连后置 false，待新 session 发 BattleReadyReq 补发）。
     bool startSent = false;
+    // 最近一次收到的 BattleInputPush.client_time_ms，下一条 BattleFramesPush 回显后清零（0 表示无待回显）。
+    std::uint64_t echoClientTimeMs = 0;
 };
 
 // 战斗房间创建参数（已从 BattleCreateReq 解析）。
