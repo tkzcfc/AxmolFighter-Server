@@ -1,3 +1,4 @@
+#!/usr/bin/env pwsh
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "battle")
 
@@ -9,14 +10,17 @@ if (-not (Test-Path "build")) {
 cmake --build build --config Release
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+$exeSuffix = if ($IsWindows -or $env:OS -eq "Windows_NT") { ".exe" } else { "" }
+$binDir = Join-Path $PWD "bin"
 $exe = @(
-    "bin\Release\battle_server.exe",
-    "bin\Debug\battle_server.exe",
-    "bin\battle_server.exe"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    "Release/battle_server$exeSuffix",
+    "Debug/battle_server$exeSuffix",
+    "battle_server$exeSuffix"
+) | ForEach-Object { Join-Path $binDir $_ } |
+    Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 
 if (-not $exe) {
-    Write-Error "battle_server.exe not found under bin/"
+    Write-Error "battle_server binary not found under $binDir"
     exit 1
 }
 

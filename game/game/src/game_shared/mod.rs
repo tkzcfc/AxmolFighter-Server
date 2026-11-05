@@ -4,7 +4,8 @@ use std::sync::{Arc, Mutex, OnceLock, Weak};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
-use protocol::gateway_internal::KickSessionReq;
+use protocol::battle_internal::BattleResultReq;
+use protocol::gateway_internal::{KickSessionReq, UnbindServiceReq};
 use protocol::message_map::MessageType;
 use sqlx::PgPool;
 use tracing::{debug, info, warn};
@@ -28,6 +29,18 @@ pub(crate) struct BattleSessionState {
     pub battle_instance_id: u32,
 }
 
+/// 玩家（账号）当前所在的进行中联网战斗。以 player_id 为键、独立于 session：
+/// 客户端断线 / 关闭后 session 被清理，但战斗仍在 battle 服继续，该记录保留，
+/// 玩家重新登录选角时据此重连而不是进城镇。战斗结束（BattleResultReq）或 battle 实例下线时清除。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ActivePlayerBattle {
+    pub battle_id: u32,
+    pub battle_instance_id: u32,
+    pub room_id: i32,
+    /// 参战时使用的角色，重连时强制选回该角色。
+    pub character_id: i64,
+}
+
 /// 待定决斗：挑战者已发出邀请，等待目标回应。
 #[derive(Clone, Copy)]
 pub(crate) struct PendingDuel {
@@ -45,6 +58,7 @@ pub struct GameShared {
     pub account_sessions: Mutex<HashMap<i64, u32>>,
     battle_sessions: Mutex<HashMap<u32, BattleSessionState>>,
     battle_instance_sessions: Mutex<HashMap<u32, HashSet<u32>>>,
+    player_battles: Mutex<HashMap<i64, ActivePlayerBattle>>,
     town_sessions: Mutex<HashMap<u32, u32>>,
     town_instance_sessions: Mutex<HashMap<u32, HashSet<u32>>>,
     pending_duels: Mutex<HashMap<u32, PendingDuel>>,
@@ -67,6 +81,7 @@ impl GameShared {
                 account_sessions: Mutex::new(HashMap::new()),
                 battle_sessions: Mutex::new(HashMap::new()),
                 battle_instance_sessions: Mutex::new(HashMap::new()),
+                player_battles: Mutex::new(HashMap::new()),
                 town_sessions: Mutex::new(HashMap::new()),
                 town_instance_sessions: Mutex::new(HashMap::new()),
                 pending_duels: Mutex::new(HashMap::new()),
@@ -156,6 +171,38 @@ impl GameShared {
                 }
             }
         }
+    }
+
+    // ── 玩家进行中的战斗（跨 session，用于断线重连） ─────────
+
+    pub(crate) fn bind_player_battle(&self, player_id: i64, battle: ActivePlayerBattle) {
+        self.player_battles.lock().unwrap().insert(player_id, battle);
+    }
+
+    pub(crate) fn active_battle_for_player(&self, player_id: i64) -> Option<ActivePlayerBattle> {
+        self.player_battles.lock().unwrap().get(&player_id).copied()
+    }
+
+    /// 仅当记录仍指向该战斗时清除（避免误删玩家后来开始的新战斗）。
+    pub(crate) fn clear_player_battle(&self, player_id: i64, battle_id: u32) {
+        let mut battles = self.player_battles.lock().unwrap();
+        if battles.get(&player_id).map(|b| b.battle_id) == Some(battle_id) {
+            battles.remove(&player_id);
+        }
+    }
+
+    /// 战斗结束：清除所有指向该战斗的玩家记录，返回受影响的玩家。
+    pub(crate) fn clear_player_battles_of(&self, battle_id: u32) -> Vec<i64> {
+        let mut battles = self.player_battles.lock().unwrap();
+        let players: Vec<i64> = battles
+            .iter()
+            .filter(|(_, b)| b.battle_id == battle_id)
+            .map(|(pid, _)| *pid)
+            .collect();
+        for pid in &players {
+            battles.remove(pid);
+        }
+        players
     }
 
     #[allow(dead_code)]
@@ -300,6 +347,7 @@ impl GameShared {
         }
     }
 
+    /// 会话断开 / 被踢时清理。注意不清 `player_battles`：战斗在 battle 服继续，玩家可重连。
     pub(crate) fn clear_session_runtime_state(&self, session_id: u32) {
         self.clear_battle_session(session_id);
         self.clear_town_session(session_id);
@@ -311,6 +359,7 @@ impl GameShared {
         self.account_sessions.lock().unwrap().clear();
         self.battle_sessions.lock().unwrap().clear();
         self.battle_instance_sessions.lock().unwrap().clear();
+        self.player_battles.lock().unwrap().clear();
         self.town_sessions.lock().unwrap().clear();
         self.town_instance_sessions.lock().unwrap().clear();
     }
@@ -323,7 +372,57 @@ impl GameShared {
             .any(|sid| *sid == session_id)
     }
 
+    async fn handle_battle_result(&self, req: BattleResultReq) {
+        let session_ids: Vec<u32> = {
+            let battles = self.battle_sessions.lock().unwrap();
+            battles
+                .iter()
+                .filter(|(_, state)| state.battle_id == req.battle_id)
+                .map(|(sid, _)| *sid)
+                .collect()
+        };
+
+        // 玩家记录与 session 无关：断线中的玩家没有 session，也必须清掉，否则重新登录会误入已结束的战斗。
+        let players = self.clear_player_battles_of(req.battle_id);
+        if session_ids.is_empty() && players.is_empty() {
+            warn!("battle result for unknown battle_id={}", req.battle_id);
+            return;
+        }
+
+        info!(
+            "battle result battle_id={} winner_camp={} reason={} end_frame={}",
+            req.battle_id, req.winner_camp, req.reason, req.end_frame
+        );
+
+        for session_id in session_ids {
+            let unbind = MessageType::GatewayInternalUnbindServiceReq(UnbindServiceReq {
+                session_id,
+                service_id: SERVICE_ID_BATTLE,
+            });
+            match self.request_gateway(unbind).await {
+                Ok(MessageType::GatewayInternalUnbindServiceResp(resp)) if resp.code == 0 => {}
+                Ok(MessageType::GatewayInternalUnbindServiceResp(resp)) => {
+                    warn!(
+                        "unbind battle service failed session={} code={} message={}",
+                        session_id, resp.code, resp.message
+                    );
+                }
+                Ok(_) => {
+                    warn!("unexpected unbind battle service response session={}", session_id);
+                }
+                Err(err) => {
+                    warn!("unbind battle service failed session={}: {}", session_id, err);
+                }
+            }
+            self.clear_battle_session(session_id);
+        }
+    }
+
     fn handle_battle_server_offline(&self, battle_instance_id: u32) {
+        self.player_battles
+            .lock()
+            .unwrap()
+            .retain(|_, b| b.battle_instance_id != battle_instance_id);
         let session_ids: Vec<u32> = self
             .battle_instance_sessions
             .lock()
@@ -456,13 +555,95 @@ impl BackendDelegate for GameShared {
     }
 
     async fn on_server_push(&self, _source: ServerSource, msg: MessageType) -> anyhow::Result<()> {
-        debug!("unhandled server push");
-        drop(msg);
+        match msg {
+            MessageType::BattleInternalBattleResultReq(req) => self.handle_battle_result(req).await,
+            other => {
+                debug!("unhandled server push");
+                drop(other);
+            }
+        }
         Ok(())
     }
 
     async fn on_shutdown(&self) {
         info!("game server global shutdown cleanup");
         self.clear_all_runtime_state();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use backend_framework::service_id::SERVICE_ID_GAME;
+    use sqlx::postgres::PgPoolOptions;
+
+    use super::*;
+
+    fn test_shared() -> Arc<GameShared> {
+        let pool = PgPoolOptions::new()
+            .connect_lazy("postgres://test:test@127.0.0.1/test")
+            .unwrap();
+        GameShared::new(pool, BackendSession::new(SERVICE_ID_GAME, 1))
+    }
+
+    fn battle(battle_id: u32, instance: u32, character_id: i64) -> ActivePlayerBattle {
+        ActivePlayerBattle {
+            battle_id,
+            battle_instance_id: instance,
+            room_id: 30002,
+            character_id,
+        }
+    }
+
+    #[tokio::test]
+    async fn player_battle_survives_session_disconnect() {
+        let shared = test_shared();
+        shared.bind_player_battle(100, battle(5, 1, 11));
+        shared.bind_battle_session(7, 5, 1);
+
+        // 客户端关闭：session 运行时状态被清理，但战斗记录必须保留以便重连。
+        shared.clear_session_runtime_state(7);
+
+        assert!(!shared.session_in_battle(7));
+        assert_eq!(shared.active_battle_for_player(100), Some(battle(5, 1, 11)));
+    }
+
+    #[tokio::test]
+    async fn battle_result_clears_player_records_even_when_offline() {
+        let shared = test_shared();
+        shared.bind_player_battle(100, battle(5, 1, 11));
+        shared.bind_player_battle(200, battle(5, 1, 22));
+        shared.bind_player_battle(300, battle(6, 1, 33));
+
+        let mut cleared = shared.clear_player_battles_of(5);
+        cleared.sort();
+
+        assert_eq!(cleared, vec![100, 200]);
+        assert_eq!(shared.active_battle_for_player(100), None);
+        assert_eq!(shared.active_battle_for_player(200), None);
+        assert_eq!(shared.active_battle_for_player(300), Some(battle(6, 1, 33)));
+    }
+
+    #[tokio::test]
+    async fn stale_clear_does_not_drop_a_newer_battle() {
+        let shared = test_shared();
+        shared.bind_player_battle(100, battle(8, 1, 11));
+
+        shared.clear_player_battle(100, 5);
+        assert_eq!(shared.active_battle_for_player(100), Some(battle(8, 1, 11)));
+
+        shared.clear_player_battle(100, 8);
+        assert_eq!(shared.active_battle_for_player(100), None);
+    }
+
+    #[tokio::test]
+    async fn battle_server_offline_drops_only_its_players() {
+        let shared = test_shared();
+        shared.bind_player_battle(100, battle(5, 1, 11));
+        shared.bind_player_battle(200, battle(6, 2, 22));
+
+        shared.handle_battle_server_offline(1);
+
+        assert_eq!(shared.active_battle_for_player(100), None);
+        assert_eq!(shared.active_battle_for_player(200), Some(battle(6, 2, 22)));
     }
 }

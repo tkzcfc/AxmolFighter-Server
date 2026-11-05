@@ -705,6 +705,10 @@ pub struct SelectCharacterResp {
     /// 当前角色背包。
     #[prost(message, optional, tag = "4")]
     pub inventory: ::core::option::Option<super::types::InventoryInfo>,
+    /// 账号有进行中的联网战斗时下发：客户端不进城镇，直接进入战斗界面重连。
+    /// 此时 game 服已把新 session 绑定回该 battle 实例。
+    #[prost(message, optional, tag = "5")]
+    pub rejoin: ::core::option::Option<BattleRejoinInfo>,
 }
 /// Nested message and enum types in `SelectCharacterResp`.
 pub mod select_character_resp {
@@ -749,130 +753,17 @@ pub mod select_character_resp {
         }
     }
 }
-/// 客户端请求进入战斗。
+/// 断线重连：账号仍在进行中的战斗里。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BattleJoinReq {
-    /// 玩家 id。服务端实际以登录态为准。
-    #[prost(int64, tag = "1")]
-    pub player_id: i64,
-    /// 地图 id。
-    #[prost(int32, tag = "2")]
-    pub map_id: i32,
-}
-/// Nested message and enum types in `BattleJoinReq`.
-pub mod battle_join_req {
-    #[cfg_attr(
-        feature = "serde-serialize",
-        derive(serde::Serialize, serde::Deserialize)
-    )]
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
-    #[repr(i32)]
-    pub enum MsgId {
-        None = 0,
-        Id = 1300,
-    }
-    impl MsgId {
-        /// String value of the enum field names used in the ProtoBuf definition.
-        ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-        pub fn as_str_name(&self) -> &'static str {
-            match self {
-                MsgId::None => "None",
-                MsgId::Id => "Id",
-            }
-        }
-        /// Creates an enum from field names used in the ProtoBuf definition.
-        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-            match value {
-                "None" => Some(Self::None),
-                "Id" => Some(Self::Id),
-                _ => None,
-            }
-        }
-    }
-}
-/// 进入战斗响应。
-#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BattleJoinResp {
-    /// 进入结果，0 表示成功。
-    #[prost(int32, tag = "1")]
-    pub code: i32,
-    /// 结果说明。
-    #[prost(string, tag = "2")]
-    pub message: ::prost::alloc::string::String,
+pub struct BattleRejoinInfo {
     /// 战斗 id。
-    #[prost(uint32, tag = "3")]
+    #[prost(uint32, tag = "1")]
     pub battle_id: u32,
-    /// 当前服务器帧。
-    #[prost(uint32, tag = "4")]
-    pub server_frame: u32,
-    /// 战斗世界快照。
-    #[prost(bytes = "vec", tag = "5")]
-    pub world_dump: ::prost::alloc::vec::Vec<u8>,
-    /// 本机对应的 actor 实体 id，用于绑定 localPlayer。
-    #[prost(uint32, tag = "6")]
-    pub actor_entity_id: u32,
-    /// 战斗世界随机种子（由 game 生成）。
-    #[prost(uint64, tag = "7")]
-    pub random_seed: u64,
-}
-/// Nested message and enum types in `BattleJoinResp`.
-pub mod battle_join_resp {
-    #[cfg_attr(
-        feature = "serde-serialize",
-        derive(serde::Serialize, serde::Deserialize)
-    )]
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
-    #[repr(i32)]
-    pub enum MsgId {
-        None = 0,
-        Id = 1301,
-    }
-    impl MsgId {
-        /// String value of the enum field names used in the ProtoBuf definition.
-        ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-        pub fn as_str_name(&self) -> &'static str {
-            match self {
-                MsgId::None => "None",
-                MsgId::Id => "Id",
-            }
-        }
-        /// Creates an enum from field names used in the ProtoBuf definition.
-        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-            match value {
-                "None" => Some(Self::None),
-                "Id" => Some(Self::Id),
-                _ => None,
-            }
-        }
-    }
+    /// PVP 决斗房间 id。
+    #[prost(int32, tag = "2")]
+    pub room_id: i32,
 }
 /// 客户端请求向指定玩家发起决斗。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -1546,7 +1437,7 @@ pub mod duel_invite_push {
         }
     }
 }
-/// 决斗成立，双方进入战斗。
+/// 决斗成立，双方进入战斗。客户端收到后切换到联网战斗界面并发 BattleReadyReq。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -1554,21 +1445,15 @@ pub struct DuelStartPush {
     /// 战斗 id。
     #[prost(uint32, tag = "1")]
     pub battle_id: u32,
-    /// 当前服务器帧。
-    #[prost(uint32, tag = "2")]
-    pub server_frame: u32,
-    /// 战斗世界快照。
-    #[prost(bytes = "vec", tag = "3")]
-    pub world_dump: ::prost::alloc::vec::Vec<u8>,
-    /// 本机对应的 actor 实体 id，用于绑定 localPlayer。
-    #[prost(uint32, tag = "4")]
-    pub actor_entity_id: u32,
-    /// 地图 id。
-    #[prost(int32, tag = "5")]
-    pub map_id: i32,
-    /// 战斗世界随机种子（由 game 生成）。
-    #[prost(uint64, tag = "6")]
-    pub random_seed: u64,
+    /// PVP 决斗房间 id。
+    #[prost(int32, tag = "2")]
+    pub room_id: i32,
+    /// 对手玩家 id。
+    #[prost(int64, tag = "3")]
+    pub opponent_player_id: i64,
+    /// 对手角色名。
+    #[prost(string, tag = "4")]
+    pub opponent_name: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `DuelStartPush`.
 pub mod duel_start_push {

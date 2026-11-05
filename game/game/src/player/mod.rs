@@ -55,7 +55,6 @@ impl SessionDelegate for PlayerSessionDelegate {
             MessageType::GameSelectCharacterReq(req) => {
                 self.handle_select_character(req).await.into()
             }
-            MessageType::GameBattleJoinReq(req) => self.handle_battle_join(req).await.into(),
             MessageType::GameDuelInviteReq(req) => self.handle_duel_invite(req).await.into(),
             MessageType::GameDuelRespondReq(req) => self.handle_duel_respond(req).await.into(),
             MessageType::GameEnterSceneReq(req) => self.handle_enter_scene(req).await.into(),

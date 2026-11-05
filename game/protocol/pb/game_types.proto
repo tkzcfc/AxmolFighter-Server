@@ -267,10 +267,30 @@ message BattlePlayerSpec {
 	uint32 session_id = 1;
 	// 玩家 id。
 	int64 player_id = 2;
-	// 职业 id（对应客户端 JobType / class_id）。
-	int32 class_id = 3;
+	// 角色 id。
+	int64 character_id = 3;
 	// 角色显示名。
 	string name = 4;
-	// 角色 id（便于排查，可选）。
-	int64 character_id = 5;
+	// 职业 id（对应客户端 JobType / class_id）。
+	int32 class_id = 5;
+	// 战斗槽位。
+	int32 slot = 6;
+	// 阵营。
+	int32 camp = 7;
+	// 角色等级。
+	int32 level = 8;
+	// 外观（仅表现层，battle 服原样转给客户端，不参与模拟）。
+	TownAppearance appearance = 9;
+}
+
+// 单场战斗结束时单个玩家的结果。
+message BattlePlayerResult {
+	// 玩家 id。
+	int64 player_id = 1;
+	// 战斗槽位。
+	int32 slot = 2;
+	// 阵营。
+	int32 camp = 3;
+	// 是否获胜。
+	bool win = 4;
 }

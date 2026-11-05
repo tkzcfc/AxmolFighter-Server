@@ -13,7 +13,7 @@ Clients connect only to the gateway.
 - Start: `.\run-gateway.ps1`, then `.\run-game.ps1`, `.\run-town.ps1`, `.\run-battle.ps1 [config\battle_2.toml]`
 - Start or stop gateway + game + town together: `start-stack.ps1` / `start-stack-bg.ps1` / `stop-stack.ps1`. **These don't include battle.**
 - Rust: in `game/`, run `cargo build` / `cargo test`. The Cargo workspace is `game/Cargo.toml` (edition 2024, Rust 1.85 or newer).
-- Battle: `run-battle.ps1` runs cmake configure/build Release and then `battle/bin/Release/battle_server.exe`.
+- Battle: `run-battle.ps1` runs cmake configure/build Release and then the built binary (`battle/bin/Release/battle_server.exe` on Windows, `battle/bin/battle_server` on macOS/Linux). To build manually: `cmake -S battle -B battle/build && cmake --build battle/build --config Release`. Headless room-logic tests (no network): build and run `battle/bin/battle_tests` (or `battle/bin/Release/battle_tests.exe` on Windows).
 
 ## Rust workspace (`game/`)
 `protocol` (protobuf sources in `pb/*.proto`), `base`, `backend-framework` (service ids in `src/service_id.rs`), `game`, `gateway`, `town`.

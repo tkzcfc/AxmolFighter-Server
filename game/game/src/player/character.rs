@@ -2,6 +2,7 @@ use protocol::game::*;
 use protocol::types::*;
 use tracing::warn;
 
+use super::battle::{resolve_select_character, RejoinOutcome};
 use super::fashion_defaults;
 use super::PlayerSessionDelegate;
 use crate::game_shared::GameShared;
@@ -142,6 +143,7 @@ impl PlayerSessionDelegate {
                 message: "请先登录".to_string(),
                 character: None,
                 inventory: None,
+                rejoin: None,
             };
         };
 
@@ -153,7 +155,7 @@ impl PlayerSessionDelegate {
         .fetch_optional(&self.shared.pool)
         .await;
 
-        let character_id = match owned {
+        let owned_id = match owned {
             Ok(Some(id)) => id,
             Ok(None) => {
                 return SelectCharacterResp {
@@ -161,6 +163,7 @@ impl PlayerSessionDelegate {
                     message: "角色不存在或不属于当前账号".to_string(),
                     character: None,
                     inventory: None,
+                    rejoin: None,
                 };
             }
             Err(e) => {
@@ -170,9 +173,16 @@ impl PlayerSessionDelegate {
                     message: "服务器内部错误".to_string(),
                     character: None,
                     inventory: None,
+                    rejoin: None,
                 };
             }
         };
+
+        // 账号仍在进行中的战斗里：强制选回参战角色并重连，不进城镇。
+        let (character_id, active_battle) = resolve_select_character(
+            owned_id,
+            self.shared.active_battle_for_player(account_id),
+        );
 
         let Some(character) = self.shared.load_character_by_id(character_id).await else {
             return SelectCharacterResp {
@@ -180,6 +190,7 @@ impl PlayerSessionDelegate {
                 message: "角色不存在或不属于当前账号".to_string(),
                 character: None,
                 inventory: None,
+                rejoin: None,
             };
         };
 
@@ -210,11 +221,20 @@ impl PlayerSessionDelegate {
         self.shared
             .set_selected_character_for_session(self.session_id, character.clone());
 
+        let rejoin = match active_battle {
+            Some(active) => match self.rejoin_active_battle(account_id, active).await {
+                RejoinOutcome::Rejoined(info) => Some(info),
+                RejoinOutcome::Stale | RejoinOutcome::Unavailable => None,
+            },
+            None => None,
+        };
+
         SelectCharacterResp {
             code: 0,
             message: String::new(),
             character: Some(character),
             inventory: Some(inventory),
+            rejoin,
         }
     }
 }

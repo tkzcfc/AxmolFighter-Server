@@ -1,9 +1,8 @@
 #include "battle/BattleRoomManager.h"
 
-#include "framework/Logger.h"
-#include "game_types.pb.h"
-
 #include <spdlog/spdlog.h>
+
+#include <vector>
 
 namespace battle
 {
@@ -13,7 +12,7 @@ BattleRoomManager::BattleRoomManager(std::uint32_t maxRooms, std::uint32_t maxSe
 {
 }
 
-BattleRoom* BattleRoomManager::createRoom(const BattleRoomConfig& config)
+BattleRoom* BattleRoomManager::createRoom(IBattleSender& sender, const BattleRoomConfig& config)
 {
     if (config.battleId == 0)
         return nullptr;
@@ -27,14 +26,18 @@ BattleRoom* BattleRoomManager::createRoom(const BattleRoomConfig& config)
         return nullptr;
     }
 
-    auto room = std::make_unique<BattleRoom>();
-    if (!room->init(config))
+    auto room = BattleRoom::create(sender, config);
+    if (!room)
         return nullptr;
 
+    for (const auto& p : config.players)
+        m_sessionToRoom[p.sessionId] = config.battleId;
+
     const auto battleId = config.battleId;
+    auto* raw           = room.get();
     m_rooms.emplace(battleId, std::move(room));
     spdlog::info("BattleRoomManager: room {} created", battleId);
-    return m_rooms[battleId].get();
+    return raw;
 }
 
 BattleRoom* BattleRoomManager::findRoom(std::uint32_t battleId)
@@ -51,55 +54,54 @@ BattleRoom* BattleRoomManager::findRoomBySession(std::uint32_t sessionId)
     return findRoom(it->second);
 }
 
-bool BattleRoomManager::addPlayerToRoom(BattleRoom& room, const PB::Types::BattlePlayerSpec& spec)
+RejoinResult BattleRoomManager::rejoin(std::uint32_t battleId, std::int64_t playerId, std::uint32_t newSessionId)
 {
-    const std::uint32_t sessionId = spec.session_id();
+    auto* room = findRoom(battleId);
+    if (!room)
+        return RejoinResult::NoBattle;
 
-    if (m_sessionToRoom.find(sessionId) != m_sessionToRoom.end())
-        return true;
+    std::uint32_t oldSessionId = 0;
+    const auto result = room->rejoin(playerId, newSessionId, oldSessionId);
+    if (result != RejoinResult::Ok)
+        return result;
 
-    if (!canAcceptSession(sessionId))
-        return false;
-
-    if (!room.addPlayer(spec))
-        return false;
-
-    m_sessionToRoom[sessionId] = room.battleId();
-    return true;
+    // 旧会话的路由移除：之后它迟到的离线通知不再影响该槽位。
+    if (oldSessionId != newSessionId)
+        m_sessionToRoom.erase(oldSessionId);
+    m_sessionToRoom[newSessionId] = battleId;
+    return result;
 }
 
-void BattleRoomManager::removePlayer(std::uint32_t sessionId)
-{
-    auto it = m_sessionToRoom.find(sessionId);
-    if (it == m_sessionToRoom.end())
-        return;
-
-    if (auto* room = findRoom(it->second))
-    {
-        room->removePlayer(sessionId);
-        if (room->isEmpty())
-        {
-            spdlog::info("BattleRoom {} destroyed, no players remain", room->battleId());
-            m_rooms.erase(room->battleId());
-        }
-    }
-
-    m_sessionToRoom.erase(it);
-}
-
-void BattleRoomManager::tickAll(float fixedDt)
+void BattleRoomManager::tickAll(float dt)
 {
     for (auto& [_, room] : m_rooms)
-        room->tick(fixedDt);
+        room->tick(dt);
 }
 
-bool BattleRoomManager::canAcceptSession(std::uint32_t sessionId) const
+void BattleRoomManager::collectGarbage()
 {
-    if (m_sessionToRoom.find(sessionId) != m_sessionToRoom.end())
-        return true;
-    if (m_rooms.size() >= m_maxRooms)
-        return false;
-    return activeSessionCount() < m_maxSessions;
+    std::vector<std::uint32_t> toErase;
+    for (auto& [battleId, room] : m_rooms)
+        if (room->finished() && room->endedSeconds() >= kEndDestroySeconds)
+            toErase.push_back(battleId);
+
+    for (const auto battleId : toErase)
+    {
+        for (auto it = m_sessionToRoom.begin(); it != m_sessionToRoom.end();)
+        {
+            if (it->second == battleId)
+                it = m_sessionToRoom.erase(it);
+            else
+                ++it;
+        }
+        m_rooms.erase(battleId);
+        spdlog::info("BattleRoomManager: room {} destroyed", battleId);
+    }
+}
+
+bool BattleRoomManager::canAcceptSession() const
+{
+    return m_rooms.size() < m_maxRooms && activeSessionCount() < m_maxSessions;
 }
 
 }  // namespace battle

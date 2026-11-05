@@ -1,10 +1,11 @@
 [server]
 instance_id = 2
 tick_rate = 30
-snapshot_interval_frames = 10
 max_battles = 100
 max_sessions = 200
 load_report_interval = 5.0
+# 玩家断线 / 关闭客户端后保留席位的秒数；期间战斗继续、该玩家角色原地待机，超时判负 Disconnect。
+reconnect_grace_seconds = 60.0
 content_root = "../../AxmolFighter-Client/Content"  # 需含 config + .ani/.box/motion（可不含 PNG）
 
 [gateway]

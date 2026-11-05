@@ -7,46 +7,49 @@ use protocol::game::*;
 use protocol::gateway_internal::{BindServiceReq, UnbindServiceReq};
 use protocol::message_map::MessageType;
 use protocol::town_internal::{TownEnterSceneReq, TownLeaveSceneReq, TownUpdateAppearanceReq};
-use protocol::types::{DefaultSkin, TownAppearance, TownFashionItem};
+use protocol::types::{CharacterInfo, DefaultSkin, TownAppearance, TownFashionItem};
 use tracing::warn;
 
 use crate::player::PlayerSessionDelegate;
 
 const TOWN_ROLLBACK_TIMEOUT: Duration = Duration::from_secs(3);
 
+/// 从角色信息构造对外展示的外观（城镇与联网战斗共用，战斗里只用于表现层）。
+pub(crate) fn town_appearance_from_character(character: &CharacterInfo) -> TownAppearance {
+    let fashions = character
+        .fashions
+        .iter()
+        .filter(|f| f.worn)
+        .map(|f| TownFashionItem {
+            position: f.position,
+            config_id: f.config_id,
+        })
+        .collect();
+    let base_skins = character
+        .default_skins
+        .iter()
+        .map(|s| DefaultSkin {
+            position: s.position,
+            res_fashion_id: s.res_fashion_id,
+        })
+        .collect();
+    TownAppearance {
+        class_id: character.class_id,
+        name: character.name.clone(),
+        level: character.level,
+        fashions,
+        pet_id: character.active_pet_id,
+        base_skins,
+        armament_id: character.armament_appearance_id,
+    }
+}
+
 impl PlayerSessionDelegate {
     /// 从当前选中角色构造城镇外观。
     pub(crate) fn build_town_appearance(&self) -> TownAppearance {
-        let character = self.selected_character();
-        let Some(character) = character else {
-            return TownAppearance::default();
-        };
-        let fashions = character
-            .fashions
-            .iter()
-            .filter(|f| f.worn)
-            .map(|f| TownFashionItem {
-                position: f.position,
-                config_id: f.config_id,
-            })
-            .collect();
-        let base_skins = character
-            .default_skins
-            .iter()
-            .map(|s| DefaultSkin {
-                position: s.position,
-                res_fashion_id: s.res_fashion_id,
-            })
-            .collect();
-        TownAppearance {
-            class_id: character.class_id,
-            name: character.name.clone(),
-            level: character.level,
-            fashions,
-            pet_id: character.active_pet_id,
-            base_skins,
-            armament_id: character.armament_appearance_id,
-        }
+        self.selected_character()
+            .map(|character| town_appearance_from_character(&character))
+            .unwrap_or_default()
     }
 
     /// 通知 town 服：本 session 玩家外观已变化（换装 / 切换宠物 / 切换武装）。

@@ -171,39 +171,17 @@ message SelectCharacterResp {
     PB.Types.CharacterInfo character = 3;
     // 当前角色背包。
     PB.Types.InventoryInfo inventory = 4;
+    // 账号有进行中的联网战斗时下发：客户端不进城镇，直接进入战斗界面重连。
+    // 此时 game 服已把新 session 绑定回该 battle 实例。
+    BattleRejoinInfo rejoin = 5;
 }
 
-// [场景入口] 1300-1399
-// 客户端只表达要进入的目标，game 服负责后续服务编排与绑定。
-
-// 客户端请求进入战斗。
-message BattleJoinReq {
-    enum MsgId { None = 0; Id = 1300; }
-
-    // 玩家 id。服务端实际以登录态为准。
-    int64 player_id = 1;
-    // 地图 id。
-    int32 map_id = 2;
-}
-
-// 进入战斗响应。
-message BattleJoinResp {
-    enum MsgId { None = 0; Id = 1301; }
-
-    // 进入结果，0 表示成功。
-    int32 code = 1;
-    // 结果说明。
-    string message = 2;
+// 断线重连：账号仍在进行中的战斗里。
+message BattleRejoinInfo {
     // 战斗 id。
-    uint32 battle_id = 3;
-    // 当前服务器帧。
-    uint32 server_frame = 4;
-    // 战斗世界快照。
-    bytes world_dump = 5;
-    // 本机对应的 actor 实体 id，用于绑定 localPlayer。
-    uint32 actor_entity_id = 6;
-    // 战斗世界随机种子（由 game 生成）。
-    uint64 random_seed = 7;
+    uint32 battle_id = 1;
+    // PVP 决斗房间 id。
+    int32 room_id = 2;
 }
 
 // [决斗] 1304-1307
@@ -345,22 +323,18 @@ message DuelInvitePush {
     int32 from_class_id = 3;
 }
 
-// 决斗成立，双方进入战斗。
+// 决斗成立，双方进入战斗。客户端收到后切换到联网战斗界面并发 BattleReadyReq。
 message DuelStartPush {
     enum MsgId { None = 0; Id = 1411; }
 
     // 战斗 id。
     uint32 battle_id = 1;
-    // 当前服务器帧。
-    uint32 server_frame = 2;
-    // 战斗世界快照。
-    bytes world_dump = 3;
-    // 本机对应的 actor 实体 id，用于绑定 localPlayer。
-    uint32 actor_entity_id = 4;
-    // 地图 id。
-    int32 map_id = 5;
-    // 战斗世界随机种子（由 game 生成）。
-    uint64 random_seed = 6;
+    // PVP 决斗房间 id。
+    int32 room_id = 2;
+    // 对手玩家 id。
+    int64 opponent_player_id = 3;
+    // 对手角色名。
+    string opponent_name = 4;
 }
 
 // 决斗结束/对方拒绝/过期等导致的结束通知。

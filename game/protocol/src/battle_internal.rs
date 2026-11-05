@@ -7,21 +7,18 @@ pub struct BattleCreateReq {
     /// 战斗 id。
     #[prost(uint32, tag = "1")]
     pub battle_id: u32,
-    /// 地图 id。
+    /// 房间 id。
     #[prost(int32, tag = "2")]
-    pub map_id: i32,
-    /// 参战玩家。
-    #[prost(message, repeated, tag = "3")]
-    pub players: ::prost::alloc::vec::Vec<super::types::BattlePlayerSpec>,
-    /// 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
-    #[prost(uint32, tag = "4")]
-    pub requester_service_id: u32,
-    /// 旧字段暂时保留，跨服来源以 ForwardToServerReq 为准。
-    #[prost(uint32, tag = "5")]
-    pub requester_instance_id: u32,
+    pub room_id: i32,
     /// 战斗世界随机种子（由 game 生成，battle/客户端共用）。
-    #[prost(uint64, tag = "6")]
+    #[prost(uint64, tag = "3")]
     pub random_seed: u64,
+    /// 是否为 PVP 竞技战斗。
+    #[prost(bool, tag = "4")]
+    pub pvp: bool,
+    /// 参战玩家。
+    #[prost(message, repeated, tag = "5")]
+    pub players: ::prost::alloc::vec::Vec<super::types::BattlePlayerSpec>,
 }
 /// Nested message and enum types in `BattleCreateReq`.
 pub mod battle_create_req {
@@ -83,18 +80,6 @@ pub struct BattleCreateResp {
     /// 承载这场战斗的 battle 实例 id。
     #[prost(uint32, tag = "4")]
     pub battle_instance_id: u32,
-    /// 当前服务器帧。
-    #[prost(uint32, tag = "5")]
-    pub server_frame: u32,
-    /// 战斗世界快照。
-    #[prost(bytes = "vec", tag = "6")]
-    pub world_dump: ::prost::alloc::vec::Vec<u8>,
-    /// 请求方 session 对应的 actor 实体 id，便于客户端绑定 localPlayer。
-    #[prost(uint32, tag = "7")]
-    pub actor_entity_id: u32,
-    /// 所有已加入玩家的 actor 映射（决斗等多人场景使用）。
-    #[prost(message, repeated, tag = "8")]
-    pub players: ::prost::alloc::vec::Vec<BattlePlayerSpawn>,
 }
 /// Nested message and enum types in `BattleCreateResp`.
 pub mod battle_create_resp {
@@ -139,15 +124,185 @@ pub mod battle_create_resp {
         }
     }
 }
-/// 单个已加入玩家的 actor 映射。
+/// Battle 单向通知 Game：一场战斗结束（结果上报）。game 据此清理战斗绑定，
+/// 让双方玩家可以返回城镇（客户端随后发 EnterSceneReq）。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BattlePlayerSpawn {
-    /// 客户端 session id。
+pub struct BattleResultReq {
+    /// 战斗 id。
     #[prost(uint32, tag = "1")]
+    pub battle_id: u32,
+    /// 胜者阵营；0 表示平局。
+    #[prost(int32, tag = "2")]
+    pub winner_camp: i32,
+    /// 结束原因：0=Ko（阵营被清空）、1=Timeout（限时）、2=Surrender（投降）、
+    /// 3=Disconnect（断线判负）、4=Abort（无人就绪中止）。前两项与
+    /// mugen::sim::PvpRoundEndReason 数值对齐。
+    #[prost(int32, tag = "3")]
+    pub reason: i32,
+    /// 结束帧号。
+    #[prost(uint32, tag = "4")]
+    pub end_frame: u32,
+    /// 各玩家结果。
+    #[prost(message, repeated, tag = "5")]
+    pub players: ::prost::alloc::vec::Vec<super::types::BattlePlayerResult>,
+}
+/// Nested message and enum types in `BattleResultReq`.
+pub mod battle_result_req {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 60002,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// Game 发给 Battle：某玩家用新 session 重新接入进行中的战斗（按 player_id 找槽位）。
+/// Battle 把新 session 绑定到该槽位并清除断线计时；随后客户端发 BattleReadyReq，
+/// battle 在 Running 状态下据此补发 BattleStartPush + BattleSnapshotPush。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BattleRejoinReq {
+    /// 战斗 id。
+    #[prost(uint32, tag = "1")]
+    pub battle_id: u32,
+    /// 玩家 id。
+    #[prost(int64, tag = "2")]
+    pub player_id: i64,
+    /// 新的客户端 session id。
+    #[prost(uint32, tag = "3")]
     pub session_id: u32,
-    /// 对应的 actor 实体 id。
-    #[prost(uint32, tag = "2")]
-    pub actor_entity_id: u32,
+}
+/// Nested message and enum types in `BattleRejoinReq`.
+pub mod battle_rejoin_req {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 60003,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
+}
+/// Battle 返回重连结果。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BattleRejoinResp {
+    /// 0 成功；1 战斗不存在；2 战斗已结束；3 玩家不在该战斗中。
+    #[prost(int32, tag = "1")]
+    pub code: i32,
+    /// 结果说明。
+    #[prost(string, tag = "2")]
+    pub message: ::prost::alloc::string::String,
+}
+/// Nested message and enum types in `BattleRejoinResp`.
+pub mod battle_rejoin_resp {
+    #[cfg_attr(
+        feature = "serde-serialize",
+        derive(serde::Serialize, serde::Deserialize)
+    )]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum MsgId {
+        None = 0,
+        Id = 60004,
+    }
+    impl MsgId {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                MsgId::None => "None",
+                MsgId::Id => "Id",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "None" => Some(Self::None),
+                "Id" => Some(Self::Id),
+                _ => None,
+            }
+        }
+    }
 }

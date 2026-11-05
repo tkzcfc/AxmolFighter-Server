@@ -359,15 +359,45 @@ pub struct BattlePlayerSpec {
     /// 玩家 id。
     #[prost(int64, tag = "2")]
     pub player_id: i64,
-    /// 职业 id（对应客户端 JobType / class_id）。
-    #[prost(int32, tag = "3")]
-    pub class_id: i32,
+    /// 角色 id。
+    #[prost(int64, tag = "3")]
+    pub character_id: i64,
     /// 角色显示名。
     #[prost(string, tag = "4")]
     pub name: ::prost::alloc::string::String,
-    /// 角色 id（便于排查，可选）。
-    #[prost(int64, tag = "5")]
-    pub character_id: i64,
+    /// 职业 id（对应客户端 JobType / class_id）。
+    #[prost(int32, tag = "5")]
+    pub class_id: i32,
+    /// 战斗槽位。
+    #[prost(int32, tag = "6")]
+    pub slot: i32,
+    /// 阵营。
+    #[prost(int32, tag = "7")]
+    pub camp: i32,
+    /// 角色等级。
+    #[prost(int32, tag = "8")]
+    pub level: i32,
+    /// 外观（仅表现层，battle 服原样转给客户端，不参与模拟）。
+    #[prost(message, optional, tag = "9")]
+    pub appearance: ::core::option::Option<TownAppearance>,
+}
+/// 单场战斗结束时单个玩家的结果。
+#[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BattlePlayerResult {
+    /// 玩家 id。
+    #[prost(int64, tag = "1")]
+    pub player_id: i64,
+    /// 战斗槽位。
+    #[prost(int32, tag = "2")]
+    pub slot: i32,
+    /// 阵营。
+    #[prost(int32, tag = "3")]
+    pub camp: i32,
+    /// 是否获胜。
+    #[prost(bool, tag = "4")]
+    pub win: bool,
 }
 /// 城镇场景进入目标类型。
 #[cfg_attr(feature = "serde-serialize", derive(serde::Serialize, serde::Deserialize))]

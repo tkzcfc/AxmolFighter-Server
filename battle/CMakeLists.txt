@@ -66,64 +66,105 @@ if(TARGET spdlog)
     target_compile_definitions(spdlog PUBLIC FMT_USE_CONSTEVAL=0 FMT_CONSTEVAL=)
 endif()
 
-# ========== mugen ==========
-file(GLOB_RECURSE MUGEN_SOURCES CONFIGURE_DEPENDS
-    "${MUGEN_DIR}/*.cpp"
-    "${MUGEN_DIR}/*.h"
-)
+# ========== mugen (shared battle core, mirrors TestsHeadless source set) ==========
+function(mugen_collect_sources out_var)
+    set(collected)
+    foreach(pattern IN LISTS ARGN)
+        file(GLOB_RECURSE matched CONFIGURE_DEPENDS ${pattern})
+        list(APPEND collected ${matched})
+    endforeach()
+    set(${out_var} ${collected} PARENT_SCOPE)
+endfunction()
 
+mugen_collect_sources(MUGEN_SOURCES
+    "${MUGEN_DIR}/core/*.h"
+    "${MUGEN_DIR}/core/*.hpp"
+    "${MUGEN_DIR}/core/*.cpp"
+    "${MUGEN_DIR}/core/*.c"
+    "${MUGEN_DIR}/conf/*.h"
+    "${MUGEN_DIR}/conf/*.hpp"
+    "${MUGEN_DIR}/conf/*.cpp"
+    "${MUGEN_DIR}/conf/*.c"
+    "${MUGEN_DIR}/avatar/*.h"
+    "${MUGEN_DIR}/avatar/*.hpp"
+    "${MUGEN_DIR}/avatar/*.cpp"
+    "${MUGEN_DIR}/avatar/*.c"
+    "${MUGEN_DIR}/sim/*.h"
+    "${MUGEN_DIR}/sim/*.hpp"
+    "${MUGEN_DIR}/sim/*.cpp"
+    "${MUGEN_DIR}/sim/*.c"
+)
+# Rendering stays on the client; excludes both mugen/render and mugen/avatar/render.
 list(FILTER MUGEN_SOURCES EXCLUDE REGEX ".*/render/.*")
 
+include("${CLIENT_SOURCE_DIR}/../cmake/VfsSources.cmake")
+list(APPEND MUGEN_SOURCES ${VFS_SOURCES})
+
 add_library(mugen STATIC ${MUGEN_SOURCES})
-target_sources(mugen PRIVATE
-    "${CLIENT_SOURCE_DIR}/3rd/tinyexpr/tinyexpr.c"
-)
 target_compile_definitions(mugen PUBLIC RUNTIME_IN_AXMOL=0)
 target_include_directories(mugen PUBLIC
     "${CLIENT_SOURCE_DIR}"
     "${CLIENT_SOURCE_DIR}/3rd"
-    "${CLIENT_SOURCE_DIR}/3rd/tinyexpr"
     "${AXMOL_3RDPARTY_DIR}"
 )
 if(MSVC)
     target_compile_options(mugen PRIVATE /utf-8)
 endif()
-
-include("${CLIENT_SOURCE_DIR}/../cmake/VfsSources.cmake")
-target_sources(mugen PRIVATE ${VFS_SOURCES})
 find_package(Threads REQUIRED)
 target_link_libraries(mugen PUBLIC Threads::Threads)
 
-# ========== battle_server ==========
-file(GLOB_RECURSE BATTLE_SOURCES CONFIGURE_DEPENDS
-    "src/*.cpp"
-    "src/*.h"
+# ========== battle_core (room logic + content mount + logger, no yasio) ==========
+file(GLOB_RECURSE BATTLE_CORE_SOURCES CONFIGURE_DEPENDS
+    "src/battle/*.cpp"
+    "src/battle/*.h"
+    "src/framework/Logger.cpp"
+    "src/framework/Logger.h"
 )
 
-add_executable(${PROJECT_NAME} ${BATTLE_SOURCES})
-target_include_directories(${PROJECT_NAME} PRIVATE
+add_library(battle_core STATIC ${BATTLE_CORE_SOURCES})
+target_include_directories(battle_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/protocol"
-    "${YASIO_DIR}"
     "${CLIENT_SOURCE_DIR}"
     "${CLIENT_SOURCE_DIR}/net"
     "${PROTOBUF_DIR}/src"
 )
+target_link_libraries(battle_core PUBLIC
+    mugen
+    libprotobuf-lite
+    spdlog::spdlog
+)
+if(MSVC)
+    target_compile_options(battle_core PRIVATE /utf-8)
+endif()
+
+# ========== battle_server ==========
+file(GLOB_RECURSE BATTLE_SERVER_SOURCES CONFIGURE_DEPENDS
+    "src/main.cpp"
+    "src/BattleServer.cpp"
+    "src/BattleServer.h"
+    "src/BattleConfigLoader.cpp"
+    "src/BattleConfigLoader.h"
+    "src/framework/BackendClient.cpp"
+    "src/framework/BackendClient.h"
+    "src/framework/BackendCodec.cpp"
+    "src/framework/BackendCodec.h"
+    "src/framework/RpcManager.cpp"
+    "src/framework/RpcManager.h"
+)
+
+add_executable(${PROJECT_NAME} ${BATTLE_SERVER_SOURCES})
 target_sources(${PROJECT_NAME} PRIVATE
     ${CLIENT_PROTO_SOURCES}
     ${BATTLE_PROTO_SOURCES}
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
+    battle_core
     yasio
-    mugen
-    libprotobuf-lite
-    spdlog::spdlog
 )
-
 if(WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
 endif()
-
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)
 endif()
@@ -131,3 +172,28 @@ endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
 )
+
+# ========== battle_tests (headless room logic tests, no network) ==========
+file(GLOB_RECURSE BATTLE_TEST_SOURCES CONFIGURE_DEPENDS
+    "tests/*.cpp"
+    "tests/*.h"
+)
+
+if(BATTLE_TEST_SOURCES)
+    add_executable(battle_tests ${BATTLE_TEST_SOURCES})
+    target_sources(battle_tests PRIVATE
+        ${CLIENT_PROTO_SOURCES}
+        ${BATTLE_PROTO_SOURCES}
+    )
+    target_link_libraries(battle_tests PRIVATE battle_core)
+    target_compile_definitions(battle_tests PRIVATE
+        MUGEN_CONTENT_DIR="${CLIENT_SOURCE_DIR}/../Content"
+    )
+    if(MSVC)
+        target_compile_options(battle_tests PRIVATE /utf-8)
+    endif()
+
+    set_target_properties(battle_tests PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin"
+    )
+endif()
