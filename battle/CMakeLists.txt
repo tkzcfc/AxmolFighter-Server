@@ -89,10 +89,10 @@ mugen_collect_sources(MUGEN_SOURCES
     "${MUGEN_DIR}/avatar/*.hpp"
     "${MUGEN_DIR}/avatar/*.cpp"
     "${MUGEN_DIR}/avatar/*.c"
-    "${MUGEN_DIR}/sim/*.h"
-    "${MUGEN_DIR}/sim/*.hpp"
-    "${MUGEN_DIR}/sim/*.cpp"
-    "${MUGEN_DIR}/sim/*.c"
+    "${MUGEN_DIR}/sim_legacy/*.h"
+    "${MUGEN_DIR}/sim_legacy/*.hpp"
+    "${MUGEN_DIR}/sim_legacy/*.cpp"
+    "${MUGEN_DIR}/sim_legacy/*.c"
 )
 # Rendering stays on the client; excludes both mugen/render and mugen/avatar/render.
 list(FILTER MUGEN_SOURCES EXCLUDE REGEX ".*/render/.*")

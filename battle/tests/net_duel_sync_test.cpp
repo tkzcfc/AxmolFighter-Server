@@ -7,10 +7,10 @@
 
 #include "mugen/core/serialize/ByteBuffer.h"
 #include "mugen/render/battle/PoseTrack.h"
-#include "mugen/sim/BattleBootstrap.h"
-#include "mugen/sim/input/ControlManagerCore.h"
-#include "mugen/sim/net/NetBattleSync.h"
-#include "mugen/sim/net/NetCodec.h"
+#include "mugen/sim_legacy/BattleBootstrap.h"
+#include "mugen/sim_legacy/input/ControlManagerCore.h"
+#include "mugen/sim_legacy/net/NetBattleSync.h"
+#include "mugen/sim_legacy/net/NetCodec.h"
 
 #include <algorithm>
 #include <chrono>
@@ -171,12 +171,12 @@ struct PresenterProbe
     std::uint64_t removed = 0;
     std::uint64_t motionChanges = 0;
 
-    void observe(mugen::sim::World& world)
+    void observe(mugen::sim_legacy::World& world)
     {
         std::map<std::uint32_t, std::string> now;
-        world.ecs().each<mugen::sim::EntityGroup, mugen::sim::Transform, mugen::sim::MotionState>(
-            [&](mugen::Entity entity, const mugen::sim::EntityGroup&, const mugen::sim::Transform&,
-                const mugen::sim::MotionState& motion) { now[entity.value] = motion.motionName + "|" + motion.entryId; });
+        world.ecs().each<mugen::sim_legacy::EntityGroup, mugen::sim_legacy::Transform, mugen::sim_legacy::MotionState>(
+            [&](mugen::Entity entity, const mugen::sim_legacy::EntityGroup&, const mugen::sim_legacy::Transform&,
+                const mugen::sim_legacy::MotionState& motion) { now[entity.value] = motion.motionName + "|" + motion.entryId; });
         for (const auto& [id, motion] : now)
         {
             const auto it = live.find(id);
@@ -198,7 +198,7 @@ double elapsedMs(std::chrono::steady_clock::time_point begin)
 }
 
 // 测试客户端使用的本地输入延迟模式：默认自动；对比实验里切到 Off 以复现「没有本地输入延迟」的旧行为。
-mugen::sim::net::LocalDelayMode g_localDelayMode = mugen::sim::net::LocalDelayMode::Auto;
+mugen::sim_legacy::net::LocalDelayMode g_localDelayMode = mugen::sim_legacy::net::LocalDelayMode::Auto;
 // 测试客户端对端英雄表现层轨迹的纠正平滑档位：默认与 WorldPresenter 一致（对端用 Remote）；对比实验里切回 Local。
 mugen::CorrectionProfile g_remoteProfile = mugen::CorrectionProfile::Remote;
 
@@ -221,23 +221,23 @@ public:
 
     void onStart(const PB::Battle::BattleStartPush& push, Micros now)
     {
-        mugen::sim::WorldSetup setup;
-        const bool decoded = mugen::sim::net::decodeWorldSetup(push.setup(), setup);
+        mugen::sim_legacy::WorldSetup setup;
+        const bool decoded = mugen::sim_legacy::net::decodeWorldSetup(push.setup(), setup);
         expect(decoded, "client decodes WorldSetup");
         m_battleId  = push.battle_id();
         m_awaitSnapshot = push.resume();
         m_localSlot = push.local_slot();
         m_frameMs   = push.frame_ms();
 
-        mugen::sim::World world;
-        const auto heroes = mugen::sim::bootstrapBattle(world, setup);
+        mugen::sim_legacy::World world;
+        const auto heroes = mugen::sim_legacy::bootstrapBattle(world, setup);
         expect(!heroes.empty(), "client bootstraps battle world");
 
-        mugen::sim::net::NetBattleSyncConfig config;
+        mugen::sim_legacy::net::NetBattleSyncConfig config;
         config.m_inputDelayFrames = push.input_delay_frames();
         config.m_frameMs          = m_frameMs;
         config.m_localDelayMode   = g_localDelayMode;
-        m_sync = std::make_unique<mugen::sim::net::NetBattleSync>(m_localSlot, push.slot_count(), config);
+        m_sync = std::make_unique<mugen::sim_legacy::net::NetBattleSync>(m_localSlot, push.slot_count(), config);
         m_sync->start(std::move(world), push.start_server_time_ms(), localNowMs(now));
         remoteTrack.setProfile(g_remoteProfile);
         m_started = true;
@@ -271,8 +271,8 @@ public:
         const auto remoteBefore    = heroXZ(remoteSlot());
         for (const auto& frame : push.frames())
         {
-            mugen::sim::FrameInput input;
-            if (!mugen::sim::net::decodeFrameInput(frame.input(), input))
+            mugen::sim_legacy::FrameInput input;
+            if (!mugen::sim_legacy::net::decodeFrameInput(frame.input(), input))
                 continue;
             for (const auto& player : input.players)
                 m_sync->confirmInput(input.frame, player.slot, player);
@@ -280,7 +280,7 @@ public:
                 m_sync->confirmSystem(input.frame, command);
         }
         m_sync->onServerClock(push.server_frame(), push.server_time_ms(), localNowMs(now));
-        mugen::sim::net::ServerInputFeedback feedback;
+        mugen::sim_legacy::net::ServerInputFeedback feedback;
         feedback.m_echoClientTimeMs = push.echo_client_time_ms();
         feedback.m_slackMin         = push.input_slack_min();
         feedback.m_slackFrame       = push.input_slack_frame();
@@ -334,10 +334,10 @@ public:
         while (m_sync->session().currentFrame() < target && catchUp < kMaxCatchUpFrames &&
                m_sync->session().canAdvance())
         {
-            std::vector<mugen::sim::PlayerCommand> commands;
+            std::vector<mugen::sim_legacy::PlayerCommand> commands;
             if (m_sync->inputReady(localNowMs(now), m_sync->session().currentFrame() + 1))
                 m_control.advance(commands);
-            mugen::sim::PlayerInput input;
+            mugen::sim_legacy::PlayerInput input;
             input.slot     = m_localSlot;
             input.commands = std::move(commands);
             m_sync->submitLocalInput(m_sync->session().currentFrame() + 1, std::move(input));
@@ -364,13 +364,13 @@ public:
         push.set_battle_id(m_battleId);
         push.set_ack_frame(static_cast<std::uint32_t>(m_sync->session().confirmedFrame()));
         push.set_client_time_ms(localNowMs(now));
-        std::vector<std::pair<std::uint64_t, mugen::sim::PlayerInput>> inputs;
+        std::vector<std::pair<std::uint64_t, mugen::sim_legacy::PlayerInput>> inputs;
         m_sync->collectPendingInputs(inputs);
         for (auto& [frame, input] : inputs)
         {
             auto* entry = push.add_inputs();
             entry->set_frame(static_cast<std::uint32_t>(frame));
-            std::string encoded = mugen::sim::net::encodePlayerInput(input);
+            std::string encoded = mugen::sim_legacy::net::encodePlayerInput(input);
             // 每个帧号只能有一份内容：冗余重发必须与首次发送逐字节一致。
             const auto [it, inserted] = sentInputs.emplace(frame, encoded);
             if (!inserted && it->second != encoded)
@@ -389,14 +389,14 @@ public:
         return true;
     }
 
-    void setKey(mugen::sim::ControlKey key, bool pressed) { m_control.setKey(key, pressed); }
+    void setKey(mugen::sim_legacy::ControlKey key, bool pressed) { m_control.setKey(key, pressed); }
 
     // 指定槽位英雄在客户端世界中的水平 / 纵深位置（渲染单位，仅测试度量）。
     std::pair<float, float> heroXZ(std::uint32_t slot) const
     {
         const auto& world = m_sync->session().world();
-        const auto& slots = world.ecs().singleton<mugen::sim::PlayerSlots>().entities;
-        const auto& t     = world.ecs().get<mugen::sim::Transform>(slots.at(slot));
+        const auto& slots = world.ecs().singleton<mugen::sim_legacy::PlayerSlots>().entities;
+        const auto& t     = world.ecs().get<mugen::sim_legacy::Transform>(slots.at(slot));
         return {t.position.x.toFloatForRender(), t.position.z.toFloatForRender()};
     }
 
@@ -440,7 +440,7 @@ public:
     std::uint32_t remoteSlot() const { return m_localSlot == 0 ? 1u : 0u; }
 
     std::uint32_t session() const { return m_session; }
-    mugen::sim::net::NetBattleSync& sync() { return *m_sync; }
+    mugen::sim_legacy::net::NetBattleSync& sync() { return *m_sync; }
     bool started() const { return m_started; }
 
     ClientPerf perf;
@@ -474,14 +474,14 @@ private:
     std::uint32_t m_frameMs = 33;
     bool m_started = false;
     bool m_awaitSnapshot = false;
-    std::unique_ptr<mugen::sim::net::NetBattleSync> m_sync;
-    mugen::sim::ControlManagerCore m_control;
+    std::unique_ptr<mugen::sim_legacy::net::NetBattleSync> m_sync;
+    mugen::sim_legacy::ControlManagerCore m_control;
 };
 
-mugen::sim::Transform heroTransform(const mugen::sim::World& world, std::uint32_t slot)
+mugen::sim_legacy::Transform heroTransform(const mugen::sim_legacy::World& world, std::uint32_t slot)
 {
-    const auto& slots = world.ecs().singleton<mugen::sim::PlayerSlots>().entities;
-    return world.ecs().get<mugen::sim::Transform>(slots.at(slot));
+    const auto& slots = world.ecs().singleton<mugen::sim_legacy::PlayerSlots>().entities;
+    return world.ecs().get<mugen::sim_legacy::Transform>(slots.at(slot));
 }
 
 // 以给定单向时延与时钟域偏移运行一场决斗：槽位 0 在 pressAt 后持续朝对手方向移动。
@@ -519,8 +519,8 @@ void runDuelScenario(const char* label, Micros latencyUs, std::int64_t clockDoma
     Micros nextServerTick = 0;
     Micros nextClientTick = 0;
     bool pressed          = false;
-    mugen::sim::Transform clientBefore{};
-    mugen::sim::Transform serverBefore{};
+    mugen::sim_legacy::Transform clientBefore{};
+    mugen::sim_legacy::Transform serverBefore{};
     // 朝对手方向（出生朝向）移动，保证不会撞到地图边界。
     std::int32_t moveSign = 1;
 
@@ -573,7 +573,7 @@ void runDuelScenario(const char* label, Micros latencyUs, std::int64_t clockDoma
             clientBefore = heroTransform(clients[0]->sync().session().world(), 0);
             serverBefore = heroTransform(room->authority().world(), 0);
             moveSign     = clientBefore.towardX;
-            clients[0]->setKey(moveSign > 0 ? mugen::sim::ControlKey::Right : mugen::sim::ControlKey::Left, true);
+            clients[0]->setKey(moveSign > 0 ? mugen::sim_legacy::ControlKey::Right : mugen::sim_legacy::ControlKey::Left, true);
         }
     }
 
@@ -687,7 +687,7 @@ void runAttackSpamScenario(const char* label, Micros latencyUs, std::int64_t clo
     PresenterProbe serverProbe;
     bool keyDown          = false;
     Micros lastPress      = 0;
-    mugen::sim::ControlKey approachKey = mugen::sim::ControlKey::Right;
+    mugen::sim_legacy::ControlKey approachKey = mugen::sim_legacy::ControlKey::Right;
 
     for (now = 0; now <= kEndAt; now += 1000)
     {
@@ -726,7 +726,7 @@ void runAttackSpamScenario(const char* label, Micros latencyUs, std::int64_t clo
                 if (client->update(now, bytes))
                     toServer.push(now + latencyUs, {Message::Kind::Input, client->session(), std::move(bytes)});
             }
-            serverProbe.observe(const_cast<mugen::sim::World&>(room->authority().world()));
+            serverProbe.observe(const_cast<mugen::sim_legacy::World&>(room->authority().world()));
             nextClientTick += kClientTickUs;
         }
 
@@ -735,16 +735,16 @@ void runAttackSpamScenario(const char* label, Micros latencyUs, std::int64_t clo
         if (now % 1000 == 0)
         {
             const auto& w     = room->authority().world();
-            const auto& slots = w.ecs().singleton<mugen::sim::PlayerSlots>().entities;
-            seenMotions.insert(w.ecs().get<mugen::sim::MotionState>(slots.at(0)).motionName + "/" +
-                               w.ecs().get<mugen::sim::MotionState>(slots.at(1)).motionName);
+            const auto& slots = w.ecs().singleton<mugen::sim_legacy::PlayerSlots>().entities;
+            seenMotions.insert(w.ecs().get<mugen::sim_legacy::MotionState>(slots.at(0)).motionName + "/" +
+                               w.ecs().get<mugen::sim_legacy::MotionState>(slots.at(1)).motionName);
         }
         if (!approaching && now >= kApproachAt)
         {
             approaching = true;
             const auto self   = heroTransform(clients[0]->sync().session().world(), 0);
             const auto target = heroTransform(clients[0]->sync().session().world(), 1);
-            approachKey = target.position.x > self.position.x ? mugen::sim::ControlKey::Right : mugen::sim::ControlKey::Left;
+            approachKey = target.position.x > self.position.x ? mugen::sim_legacy::ControlKey::Right : mugen::sim_legacy::ControlKey::Left;
             clients[0]->setKey(approachKey, true);
         }
         // 进入攻击距离（约 120 单位）后松开方向键开始连点，保证攻击能够命中。
@@ -768,12 +768,12 @@ void runAttackSpamScenario(const char* label, Micros latencyUs, std::int64_t clo
             {
                 keyDown   = true;
                 lastPress = now;
-                clients[0]->setKey(mugen::sim::ControlKey::AttackA, true);
+                clients[0]->setKey(mugen::sim_legacy::ControlKey::AttackA, true);
             }
             else if (keyDown && now - lastPress >= kSpamHold)
             {
                 keyDown = false;
-                clients[0]->setKey(mugen::sim::ControlKey::AttackA, false);
+                clients[0]->setKey(mugen::sim_legacy::ControlKey::AttackA, false);
             }
         }
     }
@@ -787,20 +787,20 @@ void runAttackSpamScenario(const char* label, Micros latencyUs, std::int64_t clo
         std::size_t hurt = 0;
         const auto& events = clients[1]->sync().session().eventsToPresent();
         for (const auto& event : events)
-            if (std::holds_alternative<mugen::sim::HurtNumber>(event.payload))
+            if (std::holds_alternative<mugen::sim_legacy::HurtNumber>(event.payload))
                 ++hurt;
         std::size_t entities = 0;
-        clients[1]->sync().session().world().ecs().each<mugen::sim::Transform>(
-            [&](mugen::Entity, const mugen::sim::Transform&) { ++entities; });
+        clients[1]->sync().session().world().ecs().each<mugen::sim_legacy::Transform>(
+            [&](mugen::Entity, const mugen::sim_legacy::Transform&) { ++entities; });
         const auto a = heroTransform(clients[1]->sync().session().world(), 0);
         const auto b = heroTransform(clients[1]->sync().session().world(), 1);
         {
-            const auto& slots = clients[1]->sync().session().world().ecs().singleton<mugen::sim::PlayerSlots>().entities;
+            const auto& slots = clients[1]->sync().session().world().ecs().singleton<mugen::sim_legacy::PlayerSlots>().entities;
             const auto& world = clients[1]->sync().session().world();
             std::printf("  hero1 hp=%.1f/%.1f hero0 motion=%s\n",
-                        world.ecs().get<mugen::sim::Vitals>(slots.at(1)).hp.toFloatForRender(),
-                        world.ecs().get<mugen::sim::Vitals>(slots.at(1)).maxHp.toFloatForRender(),
-                        world.ecs().get<mugen::sim::MotionState>(slots.at(0)).motionName.c_str());
+                        world.ecs().get<mugen::sim_legacy::Vitals>(slots.at(1)).hp.toFloatForRender(),
+                        world.ecs().get<mugen::sim_legacy::Vitals>(slots.at(1)).maxHp.toFloatForRender(),
+                        world.ecs().get<mugen::sim_legacy::MotionState>(slots.at(0)).motionName.c_str());
         }
         std::printf("  hero0 z=%.1f toward=%d | hero1 z=%.1f toward=%d\n", a.position.z.toFloatForRender(), a.towardX,
                     b.position.z.toFloatForRender(), b.towardX);
@@ -809,13 +809,13 @@ void runAttackSpamScenario(const char* label, Micros latencyUs, std::int64_t clo
     }
     {
         // 单次操作成本探针：在战斗进行中的世界上测量克隆 / 哈希 / 序列化 / 单帧推进耗时。
-        const mugen::sim::World& live = clients[1]->sync().session().world();
+        const mugen::sim_legacy::World& live = clients[1]->sync().session().world();
         constexpr int kIters          = 500;
         auto begin                    = std::chrono::steady_clock::now();
         for (int i = 0; i < kIters; ++i)
         {
-            mugen::sim::World copy = live;
-            if (copy.ecs().singleton<mugen::sim::WorldClock>().frame == ~0ull)
+            mugen::sim_legacy::World copy = live;
+            if (copy.ecs().singleton<mugen::sim_legacy::WorldClock>().frame == ~0ull)
                 std::printf("unreachable\n");
         }
         const double cloneUs = elapsedMs(begin) * 1000.0 / kIters;
@@ -832,12 +832,12 @@ void runAttackSpamScenario(const char* label, Micros latencyUs, std::int64_t clo
             sink ^= buffer.len();
         }
         const double serializeUs = elapsedMs(begin) * 1000.0 / kIters;
-        mugen::sim::World scratch = live;
+        mugen::sim_legacy::World scratch = live;
         begin                     = std::chrono::steady_clock::now();
         for (int i = 0; i < kIters; ++i)
         {
-            mugen::sim::FrameInput input;
-            input.frame = scratch.ecs().singleton<mugen::sim::WorldClock>().frame + 1;
+            mugen::sim_legacy::FrameInput input;
+            input.frame = scratch.ecs().singleton<mugen::sim_legacy::WorldClock>().frame + 1;
             input.players.resize(2);
             input.players[0].slot = 0;
             input.players[1].slot = 1;
@@ -996,13 +996,13 @@ void runReconnectScenario(const char* label, Micros latencyUs, std::int64_t cloc
         {
             peerPressed = true;
             const auto before = heroTransform(clients[0]->sync().session().world(), 0);
-            clients[0]->setKey(before.towardX > 0 ? mugen::sim::ControlKey::Right : mugen::sim::ControlKey::Left, true);
+            clients[0]->setKey(before.towardX > 0 ? mugen::sim_legacy::ControlKey::Right : mugen::sim_legacy::ControlKey::Left, true);
         }
         if (peerPressed && !peerReleased && now >= kPeerReleaseAt)
         {
             peerReleased = true;
-            clients[0]->setKey(mugen::sim::ControlKey::Right, false);
-            clients[0]->setKey(mugen::sim::ControlKey::Left, false);
+            clients[0]->setKey(mugen::sim_legacy::ControlKey::Right, false);
+            clients[0]->setKey(mugen::sim_legacy::ControlKey::Left, false);
         }
         if (!dropped && now >= kDropAt)
         {
@@ -1027,7 +1027,7 @@ void runReconnectScenario(const char* label, Micros latencyUs, std::int64_t cloc
             const auto self = heroTransform(room->authority().world(), 1);
             rejoinHeroBefore = self.position.x.toFloatForRender();
             rejoinMoveSign   = self.towardX;
-            clients[1]->setKey(rejoinMoveSign > 0 ? mugen::sim::ControlKey::Right : mugen::sim::ControlKey::Left, true);
+            clients[1]->setKey(rejoinMoveSign > 0 ? mugen::sim_legacy::ControlKey::Right : mugen::sim_legacy::ControlKey::Left, true);
         }
     }
 
@@ -1193,9 +1193,9 @@ void runAdaptiveLeadScenario(const char* label, Micros latencyUs, Micros jitterU
         {
             const Micros t     = now + static_cast<Micros>(i) * 130000;
             const bool right   = (t / 600000) % 2 == 0;
-            clients[i]->setKey(mugen::sim::ControlKey::Right, right);
-            clients[i]->setKey(mugen::sim::ControlKey::Left, !right);
-            clients[i]->setKey(mugen::sim::ControlKey::AttackA, (t % 450000) < 60000);
+            clients[i]->setKey(mugen::sim_legacy::ControlKey::Right, right);
+            clients[i]->setKey(mugen::sim_legacy::ControlKey::Left, !right);
+            clients[i]->setKey(mugen::sim_legacy::ControlKey::AttackA, (t % 450000) < 60000);
         }
 
         if (latencyAfterUs >= 0 && !switched && now >= kSwitchAt)
@@ -1515,10 +1515,10 @@ void runMovementScenario(const MovementParams& params)
         if (moveStart < 0)
             moveStart = now;
         advanceScript(now - moveStart);
-        clients[0]->setKey(mugen::sim::ControlKey::Left, (scriptMask & 1) != 0);
-        clients[0]->setKey(mugen::sim::ControlKey::Right, (scriptMask & 2) != 0);
-        clients[0]->setKey(mugen::sim::ControlKey::Up, (scriptMask & 4) != 0);
-        clients[0]->setKey(mugen::sim::ControlKey::Down, (scriptMask & 8) != 0);
+        clients[0]->setKey(mugen::sim_legacy::ControlKey::Left, (scriptMask & 1) != 0);
+        clients[0]->setKey(mugen::sim_legacy::ControlKey::Right, (scriptMask & 2) != 0);
+        clients[0]->setKey(mugen::sim_legacy::ControlKey::Up, (scriptMask & 4) != 0);
+        clients[0]->setKey(mugen::sim_legacy::ControlKey::Down, (scriptMask & 8) != 0);
 
         if (params.latencyAfterUs >= 0 && !switched && now >= kSwitchAt)
         {
@@ -1622,7 +1622,7 @@ struct RemotePullbackStats
 constexpr Micros kStopWindowUs = 1100000;
 constexpr float kSnapJump      = 40.0f;
 
-RemotePullbackStats runRemotePullbackScenario(Micros oneWayUs, Micros jitterUs, mugen::sim::net::LocalDelayMode mode,
+RemotePullbackStats runRemotePullbackScenario(Micros oneWayUs, Micros jitterUs, mugen::sim_legacy::net::LocalDelayMode mode,
                                               mugen::CorrectionProfile profile)
 {
     const auto savedMode    = g_localDelayMode;
@@ -1810,8 +1810,8 @@ RemotePullbackStats runRemotePullbackScenario(Micros oneWayUs, Micros jitterUs, 
             else if (phase >= 2400000 && phase < 3300000)
                 mask = 1;
         }
-        clients[0]->setKey(mugen::sim::ControlKey::Left, (mask & 1) != 0);
-        clients[0]->setKey(mugen::sim::ControlKey::Right, (mask & 2) != 0);
+        clients[0]->setKey(mugen::sim_legacy::ControlKey::Left, (mask & 1) != 0);
+        clients[0]->setKey(mugen::sim_legacy::ControlKey::Right, (mask & 2) != 0);
 
         if (!markTaken && now >= kScriptStart)
         {
@@ -1840,7 +1840,7 @@ RemotePullbackStats runRemotePullbackScenario(Micros oneWayUs, Micros jitterUs, 
 void runRemotePullbackSuite()
 {
     using mugen::CorrectionProfile;
-    using mugen::sim::net::LocalDelayMode;
+    using mugen::sim_legacy::net::LocalDelayMode;
     struct Variant
     {
         const char* label;
@@ -1965,9 +1965,9 @@ void testSpawnFacing()
                                  (b.position.x < a.position.x && b.towardX == 1 && a.towardX == -1);
     expect(facingEachOther, "duelists face each other");
 
-    const auto& slots = world.ecs().singleton<mugen::sim::PlayerSlots>().entities;
-    const auto& idA   = world.ecs().get<mugen::sim::RoleIdentity>(slots.at(0));
-    const auto& idB   = world.ecs().get<mugen::sim::RoleIdentity>(slots.at(1));
+    const auto& slots = world.ecs().singleton<mugen::sim_legacy::PlayerSlots>().entities;
+    const auto& idA   = world.ecs().get<mugen::sim_legacy::RoleIdentity>(slots.at(0));
+    const auto& idB   = world.ecs().get<mugen::sim_legacy::RoleIdentity>(slots.at(1));
     expect(idA.roleId != idB.roleId, "each slot spawns its own class role");
 }
 

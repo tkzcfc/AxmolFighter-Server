@@ -3,7 +3,7 @@
 #include "mugen/conf/ReflectedConfig.h"
 #include "mugen/conf/TypeConversions.h"
 #include "mugen/conf/tables/MapTables.h"
-#include "mugen/sim/net/NetCodec.h"
+#include "mugen/sim_legacy/net/NetCodec.h"
 
 #include <spdlog/spdlog.h>
 
@@ -51,9 +51,9 @@ std::unique_ptr<BattleRoom> BattleRoom::create(IBattleSender& sender, const Batt
         return nullptr;
     }
 
-    mugen::sim::WorldSetup setup;
+    mugen::sim_legacy::WorldSetup setup;
     setup.seed    = config.randomSeed != 0 ? config.randomSeed : 1;
-    setup.mode    = mugen::sim::WorldMode::Battle;
+    setup.mode    = mugen::sim_legacy::WorldMode::Battle;
     setup.roomId  = config.roomId;
     setup.mapKey  = room->mapKey;
     setup.m_pvp   = config.pvp;
@@ -65,7 +65,7 @@ std::unique_ptr<BattleRoom> BattleRoom::create(IBattleSender& sender, const Batt
     for (const auto& slot : config.players)
     {
         const auto characterClass = static_cast<mugen::CharacterClass>(slot.classId);
-        mugen::sim::PlayerSetup ps;
+        mugen::sim_legacy::PlayerSetup ps;
         ps.m_slot        = static_cast<uint32_t>(slot.slot);
         ps.m_roleId      = mugen::type_conversions::toRoleConfigId(characterClass);
         ps.m_class       = characterClass;
@@ -78,7 +78,7 @@ std::unique_ptr<BattleRoom> BattleRoom::create(IBattleSender& sender, const Batt
 
     auto instance = std::unique_ptr<BattleRoom>(new BattleRoom(sender, config));
     instance->m_setup     = setup;
-    instance->m_authority = std::make_unique<mugen::sim::net::LockstepAuthority>(setup);
+    instance->m_authority = std::make_unique<mugen::sim_legacy::net::LockstepAuthority>(setup);
 
     spdlog::info("BattleRoom {} created room={} map={} pvp={} players={}",
                  config.battleId,
@@ -132,8 +132,8 @@ void BattleRoom::submitInput(std::uint32_t sessionId, const PB::Battle::BattleIn
         // 客户端每次都冗余重发最近若干帧输入，已收到过的帧（以及超前过多、落出回溯窗口的帧）解码前直接跳过。
         if (!m_authority->needsInput(static_cast<uint32_t>(slot->slot), frame.frame()))
             continue;
-        mugen::sim::PlayerInput input;
-        if (!mugen::sim::net::decodePlayerInput(frame.input(), input))
+        mugen::sim_legacy::PlayerInput input;
+        if (!mugen::sim_legacy::net::decodePlayerInput(frame.input(), input))
         {
             spdlog::warn("BattleRoom {} slot {}: decode input frame {} failed",
                          m_config.battleId, slot->slot, frame.frame());
@@ -302,7 +302,7 @@ void BattleRoom::tick(float dt)
     while (m_authority->currentFrame() < targetFrame && catchUp < kMaxCatchUpFrames)
     {
         const auto& confirmed = m_authority->step();
-        std::string encoded   = mugen::sim::net::encodeFrameInput(confirmed);
+        std::string encoded   = mugen::sim_legacy::net::encodeFrameInput(confirmed);
         stepped.push_back({confirmed.frame, encoded});
         m_frameHistory.push_back(encoded);
         if (m_frameHistory.size() > kConfirmedFrameHistory)
@@ -324,7 +324,7 @@ void BattleRoom::tick(float dt)
     // 权威世界产出结果时结算。
     if (auto outcome = m_authority->outcome())
     {
-        const BattleEndReason reason = outcome->m_reason == mugen::sim::PvpRoundEndReason::Ko
+        const BattleEndReason reason = outcome->m_reason == mugen::sim_legacy::PvpRoundEndReason::Ko
                                            ? BattleEndReason::Ko
                                            : BattleEndReason::Timeout;
         end(reason, outcome->m_winnerCamp);
@@ -413,7 +413,7 @@ PB::Battle::BattleStartPush BattleRoom::makeStartPush(const PlayerSlot& slot, bo
     push.set_battle_id(m_config.battleId);
     push.set_local_slot(static_cast<std::uint32_t>(slot.slot));
     push.set_slot_count(static_cast<std::uint32_t>(m_config.players.size()));
-    push.set_setup(mugen::sim::net::encodeWorldSetup(m_setup));
+    push.set_setup(mugen::sim_legacy::net::encodeWorldSetup(m_setup));
     push.set_start_server_time_ms(m_startServerTimeMs);
     push.set_frame_ms(kBattleFrameMs);
     push.set_input_delay_frames(kInputDelayFrames);

@@ -9,7 +9,7 @@
 namespace battle
 {
 
-// 服务器层战斗结束原因。前两项与 mugen::sim::PvpRoundEndReason 数值对齐，
+// 服务器层战斗结束原因。前两项与 mugen::sim_legacy::PvpRoundEndReason 数值对齐，
 // 后三项是服务器主动终结（投降 / 断线 / 无人就绪）。
 enum class BattleEndReason : int32_t
 {
@@ -25,10 +25,10 @@ enum class BattleEndReason : int32_t
     Abort = 4,
 };
 
-// 广播帧的毫秒数，与 mugen::sim::kLogicDtMs 对齐并取整 33。
+// 广播帧的毫秒数，与 mugen::sim_legacy::kLogicDtMs 对齐并取整 33。
 inline constexpr std::uint32_t kBattleFrameMs = 33;
 // 客户端输入领先量（BattleStartPush.input_delay_frames）的初始值与建议下限；客户端会按
-// 服务器反馈的输入到达富余帧数自适应调大，上限由 mugen::sim::net::kMaxInputLead 约束。
+// 服务器反馈的输入到达富余帧数自适应调大，上限由 mugen::sim_legacy::net::kMaxInputLead 约束。
 inline constexpr std::uint32_t kInputDelayFrames = 4;
 // 等待全部槽位 BattleReadyReq 的超时秒数。
 inline constexpr float kReadyTimeoutSeconds = 20.0f;

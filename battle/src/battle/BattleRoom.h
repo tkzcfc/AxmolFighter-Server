@@ -2,8 +2,8 @@
 
 #include "battle/BattleTypes.h"
 #include "battle/IBattleSender.h"
-#include "mugen/sim/WorldSetup.h"
-#include "mugen/sim/net/LockstepAuthority.h"
+#include "mugen/sim_legacy/WorldSetup.h"
+#include "mugen/sim_legacy/net/LockstepAuthority.h"
 
 #include <cstdint>
 #include <deque>
@@ -49,7 +49,7 @@ public:
     float endedSeconds() const { return m_endedSeconds; }
     bool hasSession(std::uint32_t sessionId) const { return findSlot(sessionId) != nullptr; }
     // 只读访问权威锁步世界（供测试与诊断）。
-    const mugen::sim::net::LockstepAuthority& authority() const { return *m_authority; }
+    const mugen::sim_legacy::net::LockstepAuthority& authority() const { return *m_authority; }
 
 private:
     enum class State
@@ -81,8 +81,8 @@ private:
     IBattleSender& m_sender;
     BattleRoomConfig m_config;
     // 随开始广播下发的世界配置（含 seed/room/mapKey/玩家）。
-    mugen::sim::WorldSetup m_setup;
-    std::unique_ptr<mugen::sim::net::LockstepAuthority> m_authority;
+    mugen::sim_legacy::WorldSetup m_setup;
+    std::unique_ptr<mugen::sim_legacy::net::LockstepAuthority> m_authority;
     State m_state = State::WaitingReady;
 
     // 墙钟累计毫秒，驱动目标帧。

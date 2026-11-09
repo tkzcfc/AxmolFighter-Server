@@ -470,7 +470,7 @@ pub struct BattleEndPush {
     pub winner_camp: i32,
     /// 结束原因：0=Ko（阵营被清空）、1=Timeout（限时）、2=Surrender（投降）、
     /// 3=Disconnect（断线判负）、4=Abort（无人就绪中止）。前两项与
-    /// mugen::sim::PvpRoundEndReason 数值对齐。
+    /// mugen::sim_legacy::PvpRoundEndReason 数值对齐。
     #[prost(int32, tag = "3")]
     pub reason: i32,
     /// 结束帧号。

@@ -8,8 +8,8 @@
 #include "battle/BattleTypes.h"
 #include "battle/IBattleSender.h"
 
-#include "mugen/sim/input/ControlManagerCore.h"
-#include "mugen/sim/net/NetCodec.h"
+#include "mugen/sim_legacy/input/ControlManagerCore.h"
+#include "mugen/sim_legacy/net/NetCodec.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -23,13 +23,13 @@ using namespace battle_test;
 // 构造单帧输入：槽位 0 带一条 CTR_WALK + UpRight 命令。
 PB::Battle::BattleInputPush makeInput(std::uint32_t battleId, std::uint32_t frame, bool withCommand)
 {
-    mugen::sim::PlayerInput input;
+    mugen::sim_legacy::PlayerInput input;
     input.slot = 0;
     if (withCommand)
     {
-        mugen::sim::PlayerCommand command;
+        mugen::sim_legacy::PlayerCommand command;
         command.controlEvent = mugen::ControlEvent::CTR_WALK;
-        command.quadrant     = mugen::sim::ControlQuadrant::UpRight;
+        command.quadrant     = mugen::sim_legacy::ControlQuadrant::UpRight;
         input.commands.push_back(command);
     }
 
@@ -37,7 +37,7 @@ PB::Battle::BattleInputPush makeInput(std::uint32_t battleId, std::uint32_t fram
     push.set_battle_id(battleId);
     auto* f = push.add_inputs();
     f->set_frame(frame);
-    f->set_input(mugen::sim::net::encodePlayerInput(input));
+    f->set_input(mugen::sim_legacy::net::encodePlayerInput(input));
     return push;
 }
 
@@ -80,8 +80,8 @@ void testReadyFlowAndFrames()
     {
         for (const auto& confirmed : push.frames())
         {
-            mugen::sim::FrameInput frameInput;
-            if (!mugen::sim::net::decodeFrameInput(confirmed.input(), frameInput))
+            mugen::sim_legacy::FrameInput frameInput;
+            if (!mugen::sim_legacy::net::decodeFrameInput(confirmed.input(), frameInput))
                 continue;
             if (frameInput.frame == 1)
             {
@@ -185,11 +185,11 @@ PB::Battle::BattleInputPush makeRunInput(const battle::BattleRoom& room, std::ui
 {
     // 朝出生朝向（对手方向）跑，避免撞到地图边界。
     const auto& world = room.authority().world();
-    const auto& slots = world.ecs().singleton<mugen::sim::PlayerSlots>().entities;
-    const int toward  = world.ecs().get<mugen::sim::Transform>(slots.at(slot)).towardX;
-    mugen::sim::ControlManagerCore control;
-    control.setKey(toward > 0 ? mugen::sim::ControlKey::Right : mugen::sim::ControlKey::Left, true);
-    mugen::sim::PlayerInput input;
+    const auto& slots = world.ecs().singleton<mugen::sim_legacy::PlayerSlots>().entities;
+    const int toward  = world.ecs().get<mugen::sim_legacy::Transform>(slots.at(slot)).towardX;
+    mugen::sim_legacy::ControlManagerCore control;
+    control.setKey(toward > 0 ? mugen::sim_legacy::ControlKey::Right : mugen::sim_legacy::ControlKey::Left, true);
+    mugen::sim_legacy::PlayerInput input;
     input.slot = slot;
     control.advance(input.commands);
 
@@ -197,15 +197,15 @@ PB::Battle::BattleInputPush makeRunInput(const battle::BattleRoom& room, std::ui
     push.set_battle_id(battleId);
     auto* f = push.add_inputs();
     f->set_frame(frame);
-    f->set_input(mugen::sim::net::encodePlayerInput(input));
+    f->set_input(mugen::sim_legacy::net::encodePlayerInput(input));
     return push;
 }
 
 float heroX(const battle::BattleRoom& room, std::uint32_t slot)
 {
     const auto& world = room.authority().world();
-    const auto& slots = world.ecs().singleton<mugen::sim::PlayerSlots>().entities;
-    return world.ecs().get<mugen::sim::Transform>(slots.at(slot)).position.x.toFloatForRender();
+    const auto& slots = world.ecs().singleton<mugen::sim_legacy::PlayerSlots>().entities;
+    return world.ecs().get<mugen::sim_legacy::Transform>(slots.at(slot)).position.x.toFloatForRender();
 }
 
 // 以 1/30 秒步长推进房间。
@@ -404,8 +404,8 @@ void testStartCarriesAppearance()
         expect(start.players(1).appearance().pet_id() == 17102, "player 1 appearance forwarded to start push");
     }
     // 外观只是表现层数据：不进入 WorldSetup。
-    mugen::sim::WorldSetup setup;
-    expect(mugen::sim::net::decodeWorldSetup(start.setup(), setup), "setup decodes");
+    mugen::sim_legacy::WorldSetup setup;
+    expect(mugen::sim_legacy::net::decodeWorldSetup(start.setup(), setup), "setup decodes");
 }
 
 }  // namespace
